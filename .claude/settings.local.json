@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(php artisan:*)",
+      "Read(//c//**)",
+      "Bash(composer require:*)",
+      "Bash(del \"C:\\absensi_mtsn2km\\resources\\views\\welcome.blade.php\")",
+      "Bash(php:*)",
+      "Bash(psql:*)",
+      "Bash(timeout 10 psql:*)",
+      "Bash(findstr:*)",
+      "mcp__ide__getDiagnostics"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

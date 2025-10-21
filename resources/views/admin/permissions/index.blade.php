@@ -1,0 +1,172 @@
+@extends('layouts.app')
+
+@section('title', 'Perizinan')
+
+@section('content')
+<div class="container mx-auto px-4 py-8">
+    @if(session('success'))
+        <div class="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded-md">
+            {{ session('success') }}
+        </div>
+    @endif
+
+    @if(session('error'))
+        <div class="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-md">
+            {{ session('error') }}
+        </div>
+    @endif
+
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold">
+            @if(request()->routeIs('admin.permissions.students') || request()->routeIs('admin.permissions.students.*'))
+                Perizinan Siswa
+            @else
+                Perizinan Pegawai
+            @endif
+        </h1>
+        @if(request()->routeIs('admin.permissions.students') || request()->routeIs('admin.permissions.students.*'))
+            <a href="{{ route('admin.permissions.students.create') }}" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+                Tambah Izin Siswa
+            </a>
+        @else
+            <a href="{{ route('admin.permissions.employees.create') }}" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+                Tambah Izin Pegawai
+            </a>
+        @endif
+    </div>
+    
+    <div class="bg-white rounded-lg shadow-md overflow-hidden">
+        <div class="p-4 border-b">
+            <h2 class="text-lg font-semibold">Daftar Permohonan Izin</h2>
+        </div>
+        
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nama</th>
+                        @if(request()->routeIs('admin.permissions.students') || request()->routeIs('admin.permissions.students.*'))
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rombel</th>
+                        @else
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jabatan</th>
+                        @endif
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal Izin</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Alasan</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dokumen Pendukung</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    @forelse($permissions as $permission)
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                @if($permission->permissible_type === 'App\\Models\\Employee')
+                                    {{ $permission->permissible->full_name ?? 'N/A' }}
+                                @elseif($permission->permissible_type === 'App\\Models\\Student')
+                                    {{ $permission->permissible->full_name ?? 'N/A' }}
+                                @else
+                                    N/A
+                                @endif
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                @if(request()->routeIs('admin.permissions.students') || request()->routeIs('admin.permissions.students.*'))
+                                    {{ $permission->permissible->rombel->name ?? 'N/A' }}
+                                @else
+                                    {{ $permission->permissible->position ?? 'N/A' }}
+                                @endif
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                {{ \Carbon\Carbon::parse($permission->start_date)->format('d/m/Y') }} - {{ \Carbon\Carbon::parse($permission->end_date)->format('d/m/Y') }}
+                            </td>
+                            <td class="px-6 py-4">
+                                {{ $permission->reason }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                @if($permission->supporting_document)
+                                    <a href="{{ asset('storage/' . $permission->supporting_document) }}" target="_blank" class="text-blue-600 hover:underline">
+                                        Lihat Dokumen
+                                    </a>
+                                @else
+                                    -
+                                @endif
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full
+                                    {{ $permission->status === 'approved' ? 'bg-green-100 text-green-800' :
+                                       ($permission->status === 'rejected' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800') }}">
+                                    {{ ucfirst($permission->status) }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                <div class="flex items-center space-x-2">
+                                    @if($permission->status === 'pending')
+                                        <form action="{{ route('admin.permissions.approve', $permission) }}" method="POST" class="inline-block">
+                                            @csrf
+                                            <button type="submit" class="text-green-600 hover:text-green-900" title="Setujui" onclick="return confirm('Apakah Anda yakin ingin menyetujui izin ini?')">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                                </svg>
+                                            </button>
+                                        </form>
+                                        <form action="{{ route('admin.permissions.reject', $permission) }}" method="POST" class="inline-block">
+                                            @csrf
+                                            <button type="submit" class="text-red-600 hover:text-red-900" title="Tolak" onclick="return confirm('Apakah Anda yakin ingin menolak izin ini?')">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                                </svg>
+                                            </button>
+                                        </form>
+                                    @endif
+
+                                    @if(request()->routeIs('admin.permissions.students') || request()->routeIs('admin.permissions.students.*'))
+                                        <a href="{{ route('admin.permissions.students.edit', $permission) }}" class="text-blue-600 hover:text-blue-900" title="Edit">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                            </svg>
+                                        </a>
+                                        <form action="{{ route('admin.permissions.students.destroy', $permission) }}" method="POST" class="inline-block">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="text-red-600 hover:text-red-900" title="Hapus" onclick="return confirm('Apakah Anda yakin ingin menghapus izin ini?')">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                                </svg>
+                                            </button>
+                                        </form>
+                                    @else
+                                        <a href="{{ route('admin.permissions.employees.edit', $permission) }}" class="text-blue-600 hover:text-blue-900" title="Edit">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                            </svg>
+                                        </a>
+                                        <form action="{{ route('admin.permissions.employees.destroy', $permission) }}" method="POST" class="inline-block">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="text-red-600 hover:text-red-900" title="Hapus" onclick="return confirm('Apakah Anda yakin ingin menghapus izin ini?')">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                                </svg>
+                                            </button>
+                                        </form>
+                                    @endif
+                                </div>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="7" class="px-6 py-4 text-center text-gray-500">
+                                Tidak ada permohonan izin.
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="p-4 border-t">
+            {{ $permissions->links() }}
+        </div>
+    </div>
+</div>
+@endsection
