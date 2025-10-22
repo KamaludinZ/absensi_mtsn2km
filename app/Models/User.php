@@ -13,6 +13,14 @@ class User extends Authenticatable
 {
     use HasFactory, Notifiable, SoftDeletes;
 
+    /**
+     * The relationships that should always be loaded.
+     * This prevents N+1 query problem in middleware and methods.
+     *
+     * @var array
+     */
+    protected $with = ['role'];
+
     protected $fillable = [
         'name',
         'username',

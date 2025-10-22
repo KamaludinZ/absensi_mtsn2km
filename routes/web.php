@@ -63,6 +63,11 @@ Route::middleware(['auth', CheckRole::class . ':pegawai'])->prefix('employee')->
         Route::get('/create', [EmployeePermissionController::class, 'create'])->name('create');
         Route::post('/', [EmployeePermissionController::class, 'store'])->name('store');
     });
+
+    Route::prefix('profile')->name('profile.')->group(function () {
+        Route::get('/change-password', [\App\Http\Controllers\Employee\ProfileController::class, 'showChangePasswordForm'])->name('change-password');
+        Route::put('/change-password', [\App\Http\Controllers\Employee\ProfileController::class, 'updatePassword'])->name('update-password');
+    });
 });
 
 // Monitoring routes
@@ -73,8 +78,8 @@ Route::middleware(['auth', CheckRole::class . ':monitoring'])->prefix('monitorin
 
     Route::prefix('permissions')->name('permissions.')->group(function () {
         Route::get('/', [PermissionMonitorController::class, 'index'])->name('index');
-        Route::get('/employees', [PermissionMonitorController::class, 'index'])->name('employees');
-        Route::get('/students', [PermissionMonitorController::class, 'index'])->name('students');
+        Route::get('/employees', [PermissionMonitorController::class, 'employees'])->name('employees');
+        Route::get('/students', [PermissionMonitorController::class, 'students'])->name('students');
         Route::post('/{permission}/approve', [PermissionMonitorController::class, 'approve'])->name('approve');
         Route::post('/{permission}/reject', [PermissionMonitorController::class, 'reject'])->name('reject');
         Route::post('/manual', [PermissionMonitorController::class, 'createManual'])->name('manual');
@@ -228,6 +233,14 @@ Route::middleware(['auth', CheckRole::class . ':admin'])->prefix('admin')->name(
         Route::post('/import', [\App\Http\Controllers\Admin\HolidayController::class, 'import'])->name('import');
         Route::get('/template', [\App\Http\Controllers\Admin\HolidayController::class, 'downloadTemplate'])->name('template');
         Route::post('/bulk-update', [\App\Http\Controllers\Admin\HolidayController::class, 'bulkUpdate'])->name('bulk-update');
+    });
+
+    // Security
+    Route::prefix('security')->name('security.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Admin\SecurityController::class, 'index'])->name('index');
+        Route::get('/logs', [\App\Http\Controllers\Admin\SecurityController::class, 'logs'])->name('logs');
+        Route::get('/login-attempts', [\App\Http\Controllers\Admin\SecurityController::class, 'loginAttempts'])->name('login-attempts');
+        Route::post('/clear-old-logs', [\App\Http\Controllers\Admin\SecurityController::class, 'clearOldLogs'])->name('clear-old-logs');
     });
 });
 

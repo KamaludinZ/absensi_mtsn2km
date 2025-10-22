@@ -302,12 +302,47 @@ class ReportController extends Controller
 
     private function exportPdf($attendances, $type, $startDate, $endDate)
     {
+        // Increase execution time for large PDF generation
+        set_time_limit(300); // 5 minutes for PDF rendering
+        ini_set('memory_limit', '512M'); // Increase memory for large documents
+
         $schoolName = Setting::get('school_name', 'MTsN 2 Kota Malang');
         $schoolAddress = Setting::get('school_address', 'Kota Malang');
         $reportHeaderPath = Setting::get('report_header_path');
 
+        // Pre-load all employee shifts and schedules to avoid N+1 queries in PDF view
+        $employeeShifts = collect();
+        $schedules = collect();
+
+        if ($type === 'employee') {
+            // Get all unique employee IDs and dates from attendances
+            $employeeIds = $attendances->pluck('attendable_id')->unique();
+
+            // Batch load all employee shifts for the date range
+            $employeeShifts = \App\Models\EmployeeShift::whereIn('employee_id', $employeeIds)
+                ->whereBetween('date', [$startDate, $endDate])
+                ->with('schedule')
+                ->get()
+                ->groupBy(function($shift) {
+                    return $shift->employee_id . '_' . $shift->date->format('Y-m-d');
+                });
+
+            // Load all pegawai schedules by day of week (0-6)
+            $schedules = \App\Models\Schedule::where('type', 'pegawai')
+                ->get()
+                ->keyBy('day_of_week');
+        } else {
+            // Load all siswa schedules by day of week (0-6)
+            $schedules = \App\Models\Schedule::where('type', 'siswa')
+                ->get()
+                ->keyBy('day_of_week');
+        }
+
+        // Pre-compute all calculations to reduce DOMPDF rendering time
+        $processedAttendances = $this->preComputeAttendanceData($attendances, $employeeShifts, $schedules, $type);
+
         $data = [
-            'attendances' => $attendances,
+            'attendances' => $processedAttendances,
             'type' => $type,
             'startDate' => Carbon::parse($startDate)->format('d/m/Y'),
             'endDate' => Carbon::parse($endDate)->format('d/m/Y'),
@@ -317,10 +352,152 @@ class ReportController extends Controller
             'generatedAt' => Carbon::now()->format('d/m/Y H:i'),
         ];
 
-        $pdf = Pdf::loadView('admin.reports.pdf', $data);
+        // Configure DOMPDF for better performance with large documents
+        $pdf = Pdf::loadView('admin.reports.pdf', $data)
+            ->setPaper('a4', 'landscape')
+            ->setOption('isRemoteEnabled', false)
+            ->setOption('isHtml5ParserEnabled', true)
+            ->setOption('isFontSubsettingEnabled', false)
+            ->setOption('debugKeepTemp', false)
+            ->setOption('debugCss', false)
+            ->setOption('debugLayout', false)
+            ->setOption('debugLayoutLines', false)
+            ->setOption('debugLayoutBlocks', false)
+            ->setOption('debugLayoutInline', false)
+            ->setOption('debugLayoutPaddingBox', false);
 
         $filename = 'laporan_absensi_' . $type . '_' . date('YmdHis') . '.pdf';
 
         return $pdf->download($filename);
+    }
+
+    /**
+     * Pre-compute all attendance data with schedule info and time calculations
+     * This significantly reduces PDF rendering time
+     */
+    private function preComputeAttendanceData($attendances, $employeeShifts, $schedules, $type)
+    {
+        return $attendances->map(function($attendance) use ($employeeShifts, $schedules, $type) {
+            $data = [
+                'attendance' => $attendance,
+                'name' => $attendance->attendable->full_name ?? '-',
+                'date' => $attendance->date->format('d/m/Y'),
+                'clock_in_time' => $attendance->clock_in ? $attendance->clock_in->format('H:i:s') : '-',
+                'clock_out_time' => $attendance->clock_out ? $attendance->clock_out->format('H:i:s') : '-',
+            ];
+
+            // Add type-specific fields
+            if ($type === 'employee') {
+                $data['position'] = $attendance->attendable->position ?? '-';
+
+                // Get schedule
+                $shiftKey = $attendance->attendable_id . '_' . $attendance->date->format('Y-m-d');
+                $employeeShift = $employeeShifts->get($shiftKey)?->first();
+
+                if ($employeeShift && $employeeShift->schedule) {
+                    $schedule = $employeeShift->schedule;
+                    $data['shift_name'] = $schedule->shift_name;
+                } else {
+                    $dayOfWeek = $attendance->date->dayOfWeek;
+                    $schedule = $schedules->get($dayOfWeek);
+                    $data['shift_name'] = $schedule ? $schedule->shift_name : '-';
+                }
+            } else {
+                $data['nisn'] = $attendance->attendable->nisn ?? '-';
+                $data['rombel'] = $attendance->attendable->rombel->name ?? '-';
+
+                // Get schedule for students
+                $dayOfWeek = $attendance->date->dayOfWeek;
+                $schedule = $schedules->get($dayOfWeek);
+            }
+
+            // Pre-compute time calculations if schedule exists
+            if (isset($schedule) && $schedule) {
+                $data['schedule_start'] = Carbon::parse($schedule->start_time)->format('H:i:s');
+                $data['schedule_end'] = Carbon::parse($schedule->end_time)->format('H:i:s');
+
+                // Calculate clock in diff and status
+                if ($attendance->clock_in) {
+                    $diff = $this->calculateTimeDifference(
+                        $attendance->clock_in->format('H:i:s'),
+                        $schedule->start_time
+                    );
+                    $data['clock_in_diff'] = $diff['label'];
+                    $data['clock_in_diff_color'] = $diff['color'];
+                    $data['clock_in_status'] = $diff['seconds'] > 0 ? 'Terlambat' : 'Tepat Waktu';
+                    $data['clock_in_status_color'] = $diff['seconds'] > 0 ? 'text-red' : 'text-green';
+                } else {
+                    $data['clock_in_diff'] = '-';
+                    $data['clock_in_status'] = 'Tidak Hadir';
+                    $data['clock_in_status_color'] = '';
+                }
+
+                // Calculate clock out diff and status
+                if ($attendance->clock_out) {
+                    $diff = $this->calculateTimeDifference(
+                        $attendance->clock_out->format('H:i:s'),
+                        $schedule->end_time
+                    );
+                    $data['clock_out_diff'] = $diff['label'];
+                    $data['clock_out_diff_color'] = $diff['color'];
+                    $data['clock_out_status'] = $diff['seconds'] < 0 ? 'Pulang Awal' : 'Tepat Waktu';
+                    $data['clock_out_status_color'] = $diff['seconds'] < 0 ? 'text-yellow' : 'text-green';
+                } else {
+                    $data['clock_out_diff'] = '-';
+                    $data['clock_out_status'] = 'Belum Pulang';
+                    $data['clock_out_status_color'] = '';
+                }
+            } else {
+                $data['schedule_start'] = '-';
+                $data['schedule_end'] = '-';
+                $data['clock_in_diff'] = '-';
+                $data['clock_in_status'] = $attendance->clock_in ? 'N/A' : 'Tidak Hadir';
+                $data['clock_in_status_color'] = '';
+                $data['clock_out_diff'] = '-';
+                $data['clock_out_status'] = $attendance->clock_out ? 'N/A' : 'Belum Pulang';
+                $data['clock_out_status_color'] = '';
+            }
+
+            return $data;
+        });
+    }
+
+    /**
+     * Calculate time difference between two times and return formatted result
+     */
+    private function calculateTimeDifference($actualTime, $scheduleTime)
+    {
+        list($h1, $i1, $s1) = explode(':', $actualTime);
+        $actualSeconds = ($h1 * 3600) + ($i1 * 60) + $s1;
+
+        $scheduleTimeFormatted = Carbon::parse($scheduleTime)->format('H:i:s');
+        list($h2, $i2, $s2) = explode(':', $scheduleTimeFormatted);
+        $scheduleSeconds = ($h2 * 3600) + ($i2 * 60) + $s2;
+
+        $diffSeconds = $actualSeconds - $scheduleSeconds;
+        $absSeconds = abs($diffSeconds);
+
+        $hours = floor($absSeconds / 3600);
+        $minutes = floor(($absSeconds - ($hours * 3600)) / 60);
+        $seconds = $absSeconds - ($hours * 3600) - ($minutes * 60);
+
+        $formatted = sprintf('%02d:%02d:%02d', $hours, $minutes, $seconds);
+
+        if ($diffSeconds > 0) {
+            $label = '+' . $formatted;
+            $color = 'text-red';
+        } elseif ($diffSeconds < 0) {
+            $label = '-' . $formatted;
+            $color = 'text-green';
+        } else {
+            $label = '00:00:00';
+            $color = 'text-green';
+        }
+
+        return [
+            'label' => $label,
+            'color' => $color,
+            'seconds' => $diffSeconds,
+        ];
     }
 }

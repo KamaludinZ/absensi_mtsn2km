@@ -1,6 +1,10 @@
 {
+  "_alpine-BGGahNR6.js": {
+    "file": "assets/alpine-BGGahNR6.js",
+    "name": "alpine"
+  },
   "resources/css/app.css": {
-    "file": "assets/app-Dxwmobr6.css",
+    "file": "assets/app-HRG461vg.css",
     "src": "resources/css/app.css",
     "isEntry": true,
     "names": [
@@ -8,9 +12,12 @@
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-CXDpL9bK.js",
+    "file": "assets/app-KNSYXkWY.js",
     "name": "app",
     "src": "resources/js/app.js",
-    "isEntry": true
+    "isEntry": true,
+    "imports": [
+      "_alpine-BGGahNR6.js"
+    ]
   }
 }

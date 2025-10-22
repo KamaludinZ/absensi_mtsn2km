@@ -43,7 +43,7 @@
     </form>
 </div>
 
-<div class="bg-white rounded-lg shadow overflow-hidden">
+<div class="bg-white rounded-lg shadow overflow-x-auto">
     <table class="min-w-full divide-y divide-gray-200">
         <thead class="bg-gray-50">
             <tr>
@@ -69,22 +69,18 @@
                     @php
                         $shiftName = null;
                         $schedule = null;
-                        
-                        // Try to get shift from employee_shifts table
-                        $employeeShift = \App\Models\EmployeeShift::where('employee_id', $attendance->attendable_id)
-                            ->where('date', $attendance->date)
-                            ->with('schedule')
-                            ->first();
-                            
+
+                        // Get shift from pre-loaded collection
+                        $dateKey = $attendance->date->format('Y-m-d');
+                        $employeeShift = $employeeShifts->get($dateKey);
+
                         if ($employeeShift && $employeeShift->schedule) {
                             $schedule = $employeeShift->schedule;
                             $shiftName = $schedule->shift_name;
                         } else {
-                            // Try to get schedule by day of week
+                            // Get schedule from pre-loaded collection by day of week
                             $dayOfWeek = $attendance->date->dayOfWeek;
-                            $schedule = \App\Models\Schedule::where('type', 'pegawai')
-                                ->where('day_of_week', $dayOfWeek)
-                                ->first();
+                            $schedule = $schedules->get($dayOfWeek);
                             if ($schedule) {
                                 $shiftName = $schedule->shift_name;
                             }
@@ -257,7 +253,7 @@
             </tr>
             @empty
             <tr>
-                <td colspan="10" class="px-6 py-4 text-center text-gray-500">Tidak ada data absensi</td>
+                <td colspan="12" class="px-6 py-4 text-center text-gray-500">Tidak ada data absensi</td>
             </tr>
             @endforelse
         </tbody>

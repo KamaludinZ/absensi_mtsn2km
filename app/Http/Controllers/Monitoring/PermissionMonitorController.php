@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\Permission;
 use App\Models\Employee;
 use App\Models\Student;
+use App\Models\Rombel;
 
 class PermissionMonitorController extends Controller
 {
@@ -31,11 +32,101 @@ class PermissionMonitorController extends Controller
         return view('monitoring.permissions.index', compact('permissions'));
     }
 
+    public function employees(Request $request)
+    {
+        $query = Permission::where('permissible_type', Employee::class)
+            ->with(['permissible']);
+
+        // Filter by status
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        // Filter by date range
+        if ($request->filled('start_date') && $request->filled('end_date')) {
+            $query->where(function($q) use ($request) {
+                $q->whereBetween('start_date', [$request->start_date, $request->end_date])
+                  ->orWhereBetween('end_date', [$request->start_date, $request->end_date])
+                  ->orWhere(function($subQ) use ($request) {
+                      $subQ->where('start_date', '<=', $request->start_date)
+                           ->where('end_date', '>=', $request->end_date);
+                  });
+            });
+        } elseif ($request->filled('start_date')) {
+            $query->where('start_date', '>=', $request->start_date);
+        } elseif ($request->filled('end_date')) {
+            $query->where('end_date', '<=', $request->end_date);
+        }
+
+        // Filter by employee
+        if ($request->filled('employee_id')) {
+            $query->where('permissible_id', $request->employee_id);
+        }
+
+        $permissions = $query->orderBy('created_at', 'desc')->paginate(20);
+
+        // Get employees for filter dropdown
+        $employees = Employee::orderBy('full_name')->get();
+
+        return view('monitoring.permissions.employees', compact('permissions', 'employees'));
+    }
+
+    public function students(Request $request)
+    {
+        $query = Permission::where('permissible_type', Student::class)
+            ->with(['permissible.rombel']);
+
+        // Filter by status
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        // Filter by date range
+        if ($request->filled('start_date') && $request->filled('end_date')) {
+            $query->where(function($q) use ($request) {
+                $q->whereBetween('start_date', [$request->start_date, $request->end_date])
+                  ->orWhereBetween('end_date', [$request->start_date, $request->end_date])
+                  ->orWhere(function($subQ) use ($request) {
+                      $subQ->where('start_date', '<=', $request->start_date)
+                           ->where('end_date', '>=', $request->end_date);
+                  });
+            });
+        } elseif ($request->filled('start_date')) {
+            $query->where('start_date', '>=', $request->start_date);
+        } elseif ($request->filled('end_date')) {
+            $query->where('end_date', '<=', $request->end_date);
+        }
+
+        // Filter by rombel
+        if ($request->filled('rombel_id')) {
+            $studentIds = Student::where('rombel_id', $request->rombel_id)->pluck('id');
+            $query->whereIn('permissible_id', $studentIds);
+        }
+
+        // Filter by student name
+        if ($request->filled('student_name')) {
+            $studentIds = Student::where('full_name', 'ILIKE', '%' . $request->student_name . '%')->pluck('id');
+            $query->whereIn('permissible_id', $studentIds);
+        }
+
+        $permissions = $query->orderBy('created_at', 'desc')->paginate(20);
+
+        // Get rombels for filter dropdown
+        $rombels = Rombel::orderBy('name')->get();
+
+        return view('monitoring.permissions.students', compact('permissions', 'rombels'));
+    }
+
     public function approve(Permission $permission)
     {
         $permission->update(['status' => 'approved']);
 
-        return redirect()->route('monitoring.permissions.index')
+        // Redirect to appropriate page based on permissible type
+        $route = $permission->permissible_type === Employee::class
+            ? 'monitoring.permissions.employees'
+            : 'monitoring.permissions.students';
+
+        return redirect()->route($route)
             ->with('success', 'Izin berhasil disetujui.');
     }
 
@@ -43,7 +134,12 @@ class PermissionMonitorController extends Controller
     {
         $permission->update(['status' => 'rejected']);
 
-        return redirect()->route('monitoring.permissions.index')
+        // Redirect to appropriate page based on permissible type
+        $route = $permission->permissible_type === Employee::class
+            ? 'monitoring.permissions.employees'
+            : 'monitoring.permissions.students';
+
+        return redirect()->route($route)
             ->with('success', 'Izin berhasil ditolak.');
     }
 

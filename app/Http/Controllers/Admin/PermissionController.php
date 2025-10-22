@@ -20,16 +20,45 @@ class PermissionController extends Controller
         return view('admin.permissions.index', compact('permissions'));
     }
 
-    public function employees()
+    public function employees(Request $request)
     {
-        $permissions = Permission::where('permissible_type', Employee::class)
+        $query = Permission::where('permissible_type', Employee::class)
             ->with(['permissible' => function($query) {
                 $query->select('id', 'full_name', 'position');
-            }])
-            ->orderBy('created_at', 'desc')
-            ->paginate(15);
+            }]);
 
-        return view('admin.permissions.index', compact('permissions'));
+        // Filter by status
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        // Filter by date range
+        if ($request->filled('start_date') && $request->filled('end_date')) {
+            $query->where(function($q) use ($request) {
+                $q->whereBetween('start_date', [$request->start_date, $request->end_date])
+                  ->orWhereBetween('end_date', [$request->start_date, $request->end_date])
+                  ->orWhere(function($subQ) use ($request) {
+                      $subQ->where('start_date', '<=', $request->start_date)
+                           ->where('end_date', '>=', $request->end_date);
+                  });
+            });
+        } elseif ($request->filled('start_date')) {
+            $query->where('start_date', '>=', $request->start_date);
+        } elseif ($request->filled('end_date')) {
+            $query->where('end_date', '<=', $request->end_date);
+        }
+
+        // Filter by employee
+        if ($request->filled('employee_id')) {
+            $query->where('permissible_id', $request->employee_id);
+        }
+
+        $permissions = $query->orderBy('created_at', 'desc')->paginate(15);
+
+        // Get employees for filter dropdown
+        $employees = Employee::orderBy('full_name')->get();
+
+        return view('admin.permissions.index', compact('permissions', 'employees'));
     }
 
     public function createEmployee()
@@ -129,16 +158,52 @@ class PermissionController extends Controller
         return redirect()->route('admin.permissions.employees')->with('success', 'Izin pegawai berhasil dihapus.');
     }
 
-    public function students()
+    public function students(Request $request)
     {
-        $permissions = Permission::where('permissible_type', Student::class)
+        $query = Permission::where('permissible_type', Student::class)
             ->with(['permissible' => function($query) {
                 $query->select('id', 'full_name', 'rombel_id');
-            }, 'permissible.rombel'])
-            ->orderBy('created_at', 'desc')
-            ->paginate(15);
+            }, 'permissible.rombel']);
 
-        return view('admin.permissions.index', compact('permissions'));
+        // Filter by status
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        // Filter by date range
+        if ($request->filled('start_date') && $request->filled('end_date')) {
+            $query->where(function($q) use ($request) {
+                $q->whereBetween('start_date', [$request->start_date, $request->end_date])
+                  ->orWhereBetween('end_date', [$request->start_date, $request->end_date])
+                  ->orWhere(function($subQ) use ($request) {
+                      $subQ->where('start_date', '<=', $request->start_date)
+                           ->where('end_date', '>=', $request->end_date);
+                  });
+            });
+        } elseif ($request->filled('start_date')) {
+            $query->where('start_date', '>=', $request->start_date);
+        } elseif ($request->filled('end_date')) {
+            $query->where('end_date', '<=', $request->end_date);
+        }
+
+        // Filter by rombel
+        if ($request->filled('rombel_id')) {
+            $studentIds = Student::where('rombel_id', $request->rombel_id)->pluck('id');
+            $query->whereIn('permissible_id', $studentIds);
+        }
+
+        // Filter by student name
+        if ($request->filled('student_name')) {
+            $studentIds = Student::where('full_name', 'ILIKE', '%' . $request->student_name . '%')->pluck('id');
+            $query->whereIn('permissible_id', $studentIds);
+        }
+
+        $permissions = $query->orderBy('created_at', 'desc')->paginate(15);
+
+        // Get rombels for filter dropdown
+        $rombels = \App\Models\Rombel::orderBy('name')->get();
+
+        return view('admin.permissions.index', compact('permissions', 'rombels'));
     }
 
     public function approve(Permission $permission)

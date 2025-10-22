@@ -9,9 +9,11 @@ use App\Models\Schedule;
 use App\Models\EmployeeShift;
 use App\Models\Attendance;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 
 class EmployeeShiftController extends Controller
 {
@@ -46,7 +48,7 @@ class EmployeeShiftController extends Controller
             ->groupBy('employee_id');
 
         // Debug logging
-        \Log::info('Employee shifts loaded', [
+        Log::info('Employee shifts loaded', [
             'month' => $month,
             'year' => $year,
             'total_shifts' => $employeeShifts->flatten()->count(),
@@ -115,7 +117,7 @@ class EmployeeShiftController extends Controller
             }
         }
 
-        \Log::info('Employee shifts saved from form', [
+        Log::info('Employee shifts saved from form', [
             'month' => $month,
             'year' => $year,
             'saved_count' => $savedCount,
@@ -135,8 +137,10 @@ class EmployeeShiftController extends Controller
         ]);
 
         $date = Carbon::parse($request->date);
+        $dateString = $date->format('Y-m-d');
 
-        $shifts = EmployeeShift::whereDate('date', $date)
+        $shifts = EmployeeShift::where('date', '>=', $dateString . ' 00:00:00')
+            ->where('date', '<=', $dateString . ' 23:59:59')
             ->where('is_active', true)
             ->with(['employee', 'schedule'])
             ->get();
@@ -179,8 +183,9 @@ class EmployeeShiftController extends Controller
         $sheet->setCellValue('B1', 'Jabatan'); // Add position column
         $colIndex = 3; // Start from column C (index 3) for dates
         foreach ($dates as $date) {
-            $sheet->setCellValueByColumnAndRow($colIndex, 1, $date->format('d'));
-            $sheet->setCellValueByColumnAndRow($colIndex, 2, $date->translatedFormat('l'));
+            $columnLetter = Coordinate::stringFromColumnIndex($colIndex);
+            $sheet->setCellValue($columnLetter . '1', $date->format('d'));
+            $sheet->setCellValue($columnLetter . '2', $date->translatedFormat('l'));
             $colIndex++;
         }
 
@@ -210,7 +215,8 @@ class EmployeeShiftController extends Controller
                     }
                 }
 
-                $sheet->setCellValueByColumnAndRow($colIndex, $row, $shiftName);
+                $columnLetter = Coordinate::stringFromColumnIndex($colIndex);
+                $sheet->setCellValue($columnLetter . $row, $shiftName);
                 $colIndex++;
             }
 
@@ -249,7 +255,7 @@ class EmployeeShiftController extends Controller
             $spreadsheet = IOFactory::load($file->getPathname());
             $sheet = $spreadsheet->getActiveSheet();
 
-            \Log::info('Employee shifts import started', [
+            Log::info('Employee shifts import started', [
                 'month' => $month,
                 'year' => $year,
                 'file_name' => $file->getClientOriginalName()
@@ -316,7 +322,8 @@ class EmployeeShiftController extends Controller
             // Determine the number of columns by checking the header row
             // We'll check each column until we find an empty cell in row 1 (day numbers)
             while (true) {
-                $excelDayValue = $sheet->getCellByColumnAndRow($colIndex, 1)->getValue();
+                $columnLetter = Coordinate::stringFromColumnIndex($colIndex);
+                $excelDayValue = $sheet->getCell($columnLetter . '1')->getValue();
                 if ($excelDayValue === null || $excelDayValue === '') break; // Stop if column is empty
 
                 // Check if the value looks like a day number (is numeric and between 1-31)
@@ -336,7 +343,7 @@ class EmployeeShiftController extends Controller
                 if ($colIndex > 100) break;
             }
 
-            \Log::info('Date columns detected', [
+            Log::info('Date columns detected', [
                 'count' => count($dateColumns),
                 'columns' => array_keys($dateColumns)
             ]);
@@ -347,8 +354,8 @@ class EmployeeShiftController extends Controller
             $invalidShifts = [];
             $skippedEmployees = [];
 
-            while ($sheet->getCellByColumnAndRow(1, $row)->getValue()) {
-                $employeeNameRaw = $sheet->getCellByColumnAndRow(1, $row)->getValue();
+            while ($sheet->getCell('A' . $row)->getValue()) {
+                $employeeNameRaw = $sheet->getCell('A' . $row)->getValue();
                 $employeeName = strtolower(trim($employeeNameRaw));
 
                 if (isset($employeeMap[$employeeName])) {
@@ -356,7 +363,8 @@ class EmployeeShiftController extends Controller
 
                     // Loop through all date columns that exist in the Excel file
                     foreach ($dateColumns as $colIndex => $date) {
-                        $shiftNameRaw = $sheet->getCellByColumnAndRow($colIndex, $row)->getValue();
+                        $columnLetter = Coordinate::stringFromColumnIndex($colIndex);
+                        $shiftNameRaw = $sheet->getCell($columnLetter . $row)->getValue();
                         $shiftName = trim($shiftNameRaw);
 
                         if ($shiftName && !isset($scheduleMap[$shiftName])) {
@@ -387,7 +395,7 @@ class EmployeeShiftController extends Controller
                 $row++;
             }
 
-            \Log::info('Excel data parsed', [
+            Log::info('Excel data parsed', [
                 'total_rows_processed' => $row - 3,
                 'valid_records' => count($importedData),
                 'invalid_shifts' => count($invalidShifts),
@@ -426,7 +434,7 @@ class EmployeeShiftController extends Controller
             // Delete existing shifts for this month
             $deletedCount = EmployeeShift::whereBetween('date', [$startDate, $endDate])->delete();
 
-            \Log::info('Deleted existing shifts', [
+            Log::info('Deleted existing shifts', [
                 'deleted_count' => $deletedCount,
                 'date_range' => [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')]
             ]);
@@ -443,14 +451,14 @@ class EmployeeShiftController extends Controller
                     ]);
                     $insertedCount++;
                 } catch (\Exception $e) {
-                    \Log::error('Failed to insert shift', [
+                    Log::error('Failed to insert shift', [
                         'data' => $data,
                         'error' => $e->getMessage()
                     ]);
                 }
             }
 
-            \Log::info('Employee shifts imported', [
+            Log::info('Employee shifts imported', [
                 'month' => $month,
                 'year' => $year,
                 'expected_count' => count($importedData),
@@ -459,7 +467,7 @@ class EmployeeShiftController extends Controller
 
             // Verify data was saved
             $verifyCount = EmployeeShift::whereBetween('date', [$startDate, $endDate])->count();
-            \Log::info('Verification after import', [
+            Log::info('Verification after import', [
                 'count_in_db' => $verifyCount
             ]);
 
@@ -470,7 +478,7 @@ class EmployeeShiftController extends Controller
             return redirect()->route('admin.employee-shifts.index', ['month' => $month, 'year' => $year])
                 ->with('success', 'Data shift berhasil diimport (' . $insertedCount . ' record) dan diterapkan ke absensi pegawai. Silakan refresh halaman jika data belum tampil.');
         } catch (\Exception $e) {
-            \Log::error('Error importing employee shifts: ' . $e->getMessage(), [
+            Log::error('Error importing employee shifts: ' . $e->getMessage(), [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
                 'file' => $e->getFile(),

@@ -285,6 +285,22 @@ class AttendanceController extends Controller
             ->with(['attendable']) // Load employee relationship
             ->paginate(20);
 
+        // Pre-load employee shifts and schedules to avoid N+1 queries in view
+        $employeeId = $employee->id;
+        $dates = $attendances->pluck('date');
+
+        $employeeShifts = \App\Models\EmployeeShift::where('employee_id', $employeeId)
+            ->whereIn('date', $dates)
+            ->with('schedule')
+            ->get()
+            ->keyBy(function($shift) {
+                return $shift->date->format('Y-m-d');
+            });
+
+        $schedules = \App\Models\Schedule::where('type', 'pegawai')
+            ->get()
+            ->keyBy('day_of_week');
+
         // Get available months for the dropdown
         $months = [
             1 => 'Januari',
@@ -301,7 +317,7 @@ class AttendanceController extends Controller
             12 => 'Desember'
         ];
 
-        return view('employee.report', compact('attendances', 'months', 'academicYears', 'selectedAcademicYearId'));
+        return view('employee.report', compact('attendances', 'months', 'academicYears', 'selectedAcademicYearId', 'employeeShifts', 'schedules'));
     }
 
     public function export(Request $request)
@@ -419,10 +435,28 @@ class AttendanceController extends Controller
 
     private function exportToPdf($attendances, $employee)
     {
+        // Pre-compute all data to avoid calling private methods from view
+        $processedAttendances = $attendances->map(function($attendance) {
+            $schedule = self::getSchedule($attendance);
+
+            return [
+                'date' => $attendance->date ? $attendance->date->format('d/m/Y') : '-',
+                'shift_name' => $schedule ? $schedule->shift_name : 'N/A',
+                'schedule_start' => $schedule ? \Carbon\Carbon::parse($schedule->start_time)->format('H:i:s') : '-',
+                'schedule_end' => $schedule ? \Carbon\Carbon::parse($schedule->end_time)->format('H:i:s') : '-',
+                'clock_in' => $attendance->clock_in ? $attendance->clock_in->format('H:i:s') : '-',
+                'clock_out' => $attendance->clock_out ? $attendance->clock_out->format('H:i:s') : '-',
+                'in_diff' => self::getInTimeDifference($attendance),
+                'out_diff' => self::getOutTimeDifference($attendance),
+            ];
+        });
+
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('employee.report-export-pdf', [
-            'attendances' => $attendances,
+            'attendances' => $processedAttendances,
             'employee' => $employee
-        ]);
+        ])->setPaper('a4', 'portrait')
+          ->setOption('isRemoteEnabled', false)
+          ->setOption('isFontSubsettingEnabled', false);
 
         $fileName = 'laporan_absensi_' . $employee->full_name . '_' . date('Y-m-d') . '.pdf';
         return $pdf->download($fileName);

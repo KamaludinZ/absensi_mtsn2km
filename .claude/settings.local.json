@@ -9,7 +9,17 @@
       "Bash(psql:*)",
       "Bash(timeout 10 psql:*)",
       "Bash(findstr:*)",
-      "mcp__ide__getDiagnostics"
+      "mcp__ide__getDiagnostics",
+      "Bash(git commit:*)",
+      "Bash(npm run build:*)",
+      "Bash(dir:*)",
+      "Bash(Get-Content \"C:\\absensi_mtsn2km\\storage\\logs\\laravel.log\" -Tail 100)",
+      "Bash(Select-String -Pattern \"production.ERROR\")",
+      "Bash(netstat:*)",
+      "Bash(npm run dev:*)",
+      "Bash(cat:*)",
+      "Bash(Get-Content \"C:\\absensi_mtsn2km\\resources\\views\\employee\\dashboard.blade.php\")",
+      "Bash(Select-Object -Last 30)"
     ],
     "deny": [],
     "ask": []

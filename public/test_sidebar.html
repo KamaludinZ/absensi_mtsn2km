@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sidebar Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        clifford: '#da373d',
+                    }
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .sidebar-container {
+                @apply fixed top-0 left-0 h-screen w-64 bg-gradient-to-b from-blue-900 via-blue-800 to-indigo-900 text-white shadow-2xl z-40 flex flex-col transition-all duration-300;
+            }
+            
+            .sidebar-header {
+                @apply flex items-center justify-between p-4 border-b border-blue-700 border-opacity-30 backdrop-blur-sm;
+            }
+            
+            .logo-container {
+                @apply flex items-center space-x-3 w-full;
+            }
+            
+            .logo-icon {
+                @apply w-12 h-12 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-xl flex items-center justify-center shadow-lg transition-all duration-300;
+            }
+            
+            .logo-text {
+                @apply flex flex-col min-w-0;
+            }
+            
+            .logo-title {
+                @apply text-lg font-bold leading-tight bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent truncate;
+            }
+            
+            .logo-subtitle {
+                @apply text-xs text-blue-200 font-medium truncate;
+            }
+            
+            .sidebar-logo-mini {
+                @apply w-12 h-12 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-xl flex items-center justify-center shadow-lg mx-auto transition-all duration-300;
+            }
+            
+            .logo-mini-text {
+                @apply text-xl font-bold;
+            }
+            
+            .collapse-btn {
+                @apply p-2 rounded-lg hover:bg-blue-700 hover:bg-opacity-50 transition-all duration-200 flex-shrink-0;
+            }
+            
+            .mobile-close-btn {
+                @apply p-2 rounded-lg hover:bg-blue-700 hover:bg-opacity-50 transition-all duration-200 flex-shrink-0;
+            }
+            
+            .sidebar-nav {
+                @apply flex-1 overflow-y-auto py-4 px-2 space-y-1;
+            }
+            
+            .nav-item {
+                @apply flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 relative overflow-hidden group;
+            }
+            
+            .nav-item:hover {
+                @apply bg-gradient-to-r from-blue-700 to-indigo-700 bg-opacity-50 transform translate-x-1 shadow-md;
+            }
+            
+            .nav-item.active {
+                @apply bg-gradient-to-r from-blue-600 to-indigo-600 shadow-lg;
+            }
+            
+            .nav-item.active::before {
+                content: '';
+                @apply absolute left-0 top-0 bottom-0 w-1 bg-white rounded-r;
+            }
+            
+            .nav-icon {
+                @apply flex-shrink-0 transition-transform duration-200 group-hover:scale-110;
+            }
+            
+            .nav-text {
+                @apply text-sm font-medium transition-all duration-200 truncate;
+            }
+            
+            .sidebar-collapsed .nav-text {
+                @apply hidden;
+            }
+            
+            .nav-group {
+                @apply space-y-1;
+            }
+            
+            .nav-group-header {
+                @apply w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200 hover:bg-gradient-to-r hover:from-blue-700 hover:to-indigo-700 hover:bg-opacity-50 group cursor-pointer;
+            }
+            
+            .nav-group-title {
+                @apply flex items-center space-x-3 flex-1 min-w-0;
+            }
+            
+            .nav-arrow {
+                @apply w-4 h-4 transition-transform duration-300 flex-shrink-0;
+            }
+            
+            .badge {
+                @apply px-2 py-0.5 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full text-xs font-semibold transition-all duration-200;
+            }
+            
+            .nav-sub-items {
+                @apply pl-4 space-y-1 mt-1 overflow-hidden;
+            }
+            
+            .nav-sub-item {
+                @apply flex items-center space-x-2 px-4 py-2.5 rounded-lg transition-all duration-200 text-sm hover:bg-gradient-to-r hover:from-blue-700 hover:to-indigo-700 hover:bg-opacity-30 relative group;
+            }
+            
+            .nav-sub-item:hover {
+                @apply transform translate-x-1 shadow-sm;
+            }
+            
+            .nav-sub-item.active {
+                @apply bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-medium shadow;
+            }
+            
+            .sidebar-collapsed .sidebar-container {
+                @apply w-20;
+            }
+            
+            .sidebar-collapsed .nav-sub-items {
+                @apply hidden;
+            }
+            
+            .sidebar-collapsed .nav-group-header {
+                @apply justify-center;
+            }
+            
+            .sidebar-collapsed .sidebar-logo {
+                @apply hidden;
+            }
+            
+            .sidebar-overlay {
+                @apply fixed inset-0 bg-black bg-opacity-60 z-30 hidden backdrop-blur-sm transition-opacity duration-300;
+            }
+            
+            .sidebar-container * {
+                @apply transition-colors duration-300 ease-in-out;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div id="test-container" class="flex">
+        <!-- Sidebar will be inserted here -->
+        <div id="main-content" class="flex-1 p-6">
+            <h1 class="text-2xl font-bold mb-4">Sidebar Responsive Test</h1>
+            <p class="mb-4">This page tests the responsive behavior of the sidebar across different screen sizes.</p>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                <div class="bg-white p-4 rounded-lg shadow">
+                    <h3 class="font-semibold mb-2">Current Breakpoint</h3>
+                    <p id="breakpoint-info">Loading...</p>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow">
+                    <h3 class="font-semibold mb-2">Window Size</h3>
+                    <p id="window-size">Loading...</p>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow">
+                    <h3 class="font-semibold mb-2">Actions</h3>
+                    <button id="toggle-collapse" class="bg-blue-500 hover:bg-blue-700 text-white py-1 px-3 rounded mr-2">Toggle Collapse</button>
+                    <button id="toggle-mobile" class="bg-green-500 hover:bg-green-700 text-white py-1 px-3 rounded">Toggle Mobile</button>
+                </div>
+            </div>
+            
+            <div class="bg-white p-6 rounded-lg shadow">
+                <h2 class="text-xl font-semibold mb-4">How to Test</h2>
+                <ul class="list-disc pl-6 space-y-2">
+                    <li>Resize your browser window to test responsive behavior</li>
+                    <li>Use browser dev tools to simulate different devices</li>
+                    <li>Test sidebar collapse/expand functionality</li>
+                    <li>Verify mobile menu works properly</li>
+                    <li>Check that animations are smooth</li>
+                    <li>Ensure all menu items are accessible</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Update breakpoint info
+        function updateBreakpointInfo() {
+            const width = window.innerWidth;
+            let breakpoint = '';
+            
+            if (width < 640) {
+                breakpoint = 'Mobile (<640px)';
+            } else if (width < 768) {
+                breakpoint = 'Tablet (640-767px)';
+            } else if (width < 1024) {
+                breakpoint = 'Desktop Small (768-1023px)';
+            } else if (width < 1280) {
+                breakpoint = 'Desktop Medium (1024-1279px)';
+            } else {
+                breakpoint = 'Desktop Large (>1280px)';
+            }
+            
+            document.getElementById('breakpoint-info').textContent = `${breakpoint} (${width}px)`;
+            document.getElementById('window-size').textContent = `${width} x ${window.innerHeight}`;
+        }
+        
+        // Initial update
+        updateBreakpointInfo();
+        
+        // Update on resize
+        window.addEventListener('resize', updateBreakpointInfo);
+        
+        // Create sidebar dynamically
+        function createSidebar() {
+            const sidebarHTML = `
+                <aside id="sidebar" class="sidebar-container" x-data="{
+                    open: false,
+                    activeDropdown: null,
+                    collapsed: false,
+                    isMobile: window.innerWidth < 768,
+                    toggleDropdown(dropdownName) {
+                        this.activeDropdown = this.activeDropdown === dropdownName ? null : dropdownName;
+                    },
+                    toggleCollapse() {
+                        if (!this.isMobile) {
+                            this.collapsed = !this.collapsed;
+                            document.body.classList.toggle('sidebar-collapsed', this.collapsed);
+                        }
+                    },
+                    toggleMobileSidebar() {
+                        this.open = !this.open;
+                        const sidebar = document.getElementById('sidebar');
+                        const overlay = document.getElementById('overlay');
+                        if (this.open) {
+                            sidebar.classList.add('show');
+                            overlay.classList.add('show');
+                        } else {
+                            sidebar.classList.remove('show');
+                            overlay.classList.remove('show');
+                        }
+                    },
+                    init() {
+                        window.addEventListener('resize', () => {
+                            this.isMobile = window.innerWidth < 768;
+                            if (this.isMobile) {
+                                this.collapsed = false;
+                            }
+                        });
+                    }
+                }">
+                    <div class="sidebar-header">
+                        <div x-show="!collapsed" class="sidebar-logo">
+                            <div class="logo-container">
+                                <div class="logo-icon">
+                                    <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                                    </svg>
+                                </div>
+                                <div class="logo-text">
+                                    <h1 class="logo-title">MTsN 2 Kota Malang</h1>
+                                    <p class="logo-subtitle">Sistem Absensi</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div x-show="collapsed" class="sidebar-logo-mini">
+                            <span class="logo-mini-text">M2</span>
+                        </div>
+                        
+                        <button onclick="toggleCollapse()" 
+                                class="collapse-btn" 
+                                title="Toggle Sidebar">
+                            <svg :class="{'rotate-180': collapsed}" 
+                                 class="w-5 h-5 transition-transform duration-300" 
+                                 fill="none" 
+                                 stroke="currentColor" 
+                                 viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <nav class="sidebar-nav">
+                        <a href="#" class="nav-item active">
+                            <div class="nav-icon">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                                </svg>
+                            </div>
+                            <span class="nav-text">Dashboard</span>
+                        </a>
+
+                        <div class="nav-group">
+                            <button onclick="toggleDropdown('pegawai')" 
+                                    class="nav-group-header" 
+                                    aria-expanded="true" 
+                                    aria-controls="pegawai-submenu">
+                                <div class="nav-group-title">
+                                    <div class="nav-icon">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                        </svg>
+                                    </div>
+                                    <span class="nav-text">Data Pegawai</span>
+                                    <span class="badge">150</span>
+                                </div>
+                                <svg class="nav-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                </svg>
+                            </button>
+                            <div class="nav-sub-items" id="pegawai-submenu" style="display: block;">
+                                <a href="#" class="nav-sub-item">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                    </svg>
+                                    <span class="nav-text">Tambah Data Shift</span>
+                                </a>
+                                <a href="#" class="nav-sub-item">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                                    </svg>
+                                    <span class="nav-text">Pengaturan Absen</span>
+                                </a>
+                            </div>
+                        </div>
+
+                        <div class="nav-group">
+                            <button onclick="toggleDropdown('siswa')" 
+                                    class="nav-group-header" 
+                                    aria-expanded="false" 
+                                    aria-controls="siswa-submenu">
+                                <div class="nav-group-title">
+                                    <div class="nav-icon">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path d="M12 14l9-5-9-5-9 5 9 5z"/>
+                                            <path d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"/>
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222" />
+                                        </svg>
+                                    </div>
+                                    <span class="nav-text">Data Siswa</span>
+                                    <span class="badge">1200</span>
+                                </div>
+                                <svg class="nav-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </nav>
+                </aside>
+
+                <div class="sidebar-overlay" id="overlay"></div>
+            `;
+            
+            document.getElementById('test-container').insertAdjacentHTML('afterbegin', sidebarHTML);
+        }
+        
+        let collapsed = false;
+        let mobileOpen = false;
+        
+        function toggleCollapse() {
+            collapsed = !collapsed;
+            const sidebar = document.getElementById('sidebar');
+            const body = document.body;
+            
+            if (collapsed) {
+                sidebar.classList.add('sidebar-collapsed');
+                body.classList.add('sidebar-collapsed');
+            } else {
+                sidebar.classList.remove('sidebar-collapsed');
+                body.classList.remove('sidebar-collapsed');
+            }
+        }
+        
+        function toggleMobile() {
+            mobileOpen = !mobileOpen;
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('overlay');
+            
+            if (mobileOpen) {
+                sidebar.classList.add('show');
+                overlay.classList.add('show');
+            } else {
+                sidebar.classList.remove('show');
+                overlay.classList.remove('show');
+            }
+        }
+        
+        // Add event listeners for buttons
+        document.addEventListener('DOMContentLoaded', function() {
+            createSidebar();
+            
+            document.getElementById('toggle-collapse').addEventListener('click', function() {
+                toggleCollapse();
+            });
+            
+            document.getElementById('toggle-mobile').addEventListener('click', function() {
+                toggleMobile();
+            });
+            
+            // Close sidebar when clicking on overlay
+            document.getElementById('overlay').addEventListener('click', function() {
+                if (mobileOpen) {
+                    toggleMobile();
+                }
+            });
+        });
+        
+        // Handle window resize for mobile detection
+        window.addEventListener('resize', function() {
+            if (window.innerWidth >= 768) {
+                // On desktop view, close mobile sidebar if it's open
+                if (mobileOpen) {
+                    mobileOpen = false;
+                    document.getElementById('sidebar').classList.remove('show');
+                    document.getElementById('overlay').classList.remove('show');
+                }
+            }
+        });
+    </script>
+</body>
+</html>

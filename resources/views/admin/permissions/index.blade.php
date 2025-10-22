@@ -39,7 +39,88 @@
         <div class="p-4 border-b">
             <h2 class="text-lg font-semibold">Daftar Permohonan Izin</h2>
         </div>
-        
+
+        <!-- Filter Section -->
+        <div class="p-4 bg-gray-50 border-b">
+            <form method="GET" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Tanggal Mulai</label>
+                    <input type="date" name="start_date" value="{{ request('start_date') }}"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Tanggal Selesai</label>
+                    <input type="date" name="end_date" value="{{ request('end_date') }}"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                    <select name="status" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">Semua Status</option>
+                        <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>Pending</option>
+                        <option value="approved" {{ request('status') == 'approved' ? 'selected' : '' }}>Approved</option>
+                        <option value="rejected" {{ request('status') == 'rejected' ? 'selected' : '' }}>Rejected</option>
+                    </select>
+                </div>
+
+                @if(request()->routeIs('admin.permissions.students') || request()->routeIs('admin.permissions.students.*'))
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Rombel</label>
+                        <select name="rombel_id" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="">Semua Rombel</option>
+                            @if(isset($rombels))
+                                @foreach($rombels as $rombel)
+                                    <option value="{{ $rombel->id }}" {{ request('rombel_id') == $rombel->id ? 'selected' : '' }}>
+                                        {{ $rombel->name }}
+                                    </option>
+                                @endforeach
+                            @endif
+                        </select>
+                    </div>
+                @else
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Pegawai</label>
+                        <select name="employee_id" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="">Semua Pegawai</option>
+                            @if(isset($employees))
+                                @foreach($employees as $employee)
+                                    <option value="{{ $employee->id }}" {{ request('employee_id') == $employee->id ? 'selected' : '' }}>
+                                        {{ $employee->full_name }}
+                                    </option>
+                                @endforeach
+                            @endif
+                        </select>
+                    </div>
+                @endif
+
+                @if(request()->routeIs('admin.permissions.students') || request()->routeIs('admin.permissions.students.*'))
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Nama Siswa</label>
+                        <input type="text" name="student_name" value="{{ request('student_name') }}"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               placeholder="Cari nama siswa...">
+                    </div>
+                @endif
+
+                <div class="md:col-span-4 flex justify-end">
+                    <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 mr-2">
+                        Filter
+                    </button>
+                    @if(request()->routeIs('admin.permissions.students') || request()->routeIs('admin.permissions.students.*'))
+                        <a href="{{ route('admin.permissions.students') }}" class="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700">
+                            Reset
+                        </a>
+                    @else
+                        <a href="{{ route('admin.permissions.employees') }}" class="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700">
+                            Reset
+                        </a>
+                    @endif
+                </div>
+            </form>
+        </div>
+
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
@@ -165,7 +246,7 @@
         </div>
         
         <div class="p-4 border-t">
-            {{ $permissions->links() }}
+            {{ $permissions->appends(request()->query())->links() }}
         </div>
     </div>
 </div>
