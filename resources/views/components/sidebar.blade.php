@@ -86,8 +86,8 @@
                      fill="none" 
                      stroke="currentColor" 
                      viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-                </svg>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+            </svg>
             </button>
         </template>
         
@@ -267,7 +267,7 @@
             </div>
 
             <!-- Pengaturan Group -->
-            <div class="nav-group" x-data="{ open: @if(request()->routeIs('admin.users.*') || request()->routeIs('admin.security.*') || request()->routeIs('admin.backup.*') || request()->routeIs('admin.update.*') || request()->routeIs('admin.academic-years.*') || request()->routeIs('admin.holidays.*')) true @else false @endif }">
+            <div class="nav-group" x-data="{ open: @if(request()->routeIs('admin.users.*') || request()->routeIs('admin.security.*') || request()->routeIs('admin.backup.*') || request()->routeIs('admin.update.*') || request()->routeIs('admin.academic-years.*') || request()->routeIs('admin.holidays.*') || request()->routeIs('admin.location-settings.*')) true @else false @endif }">
                 <button @click="open = !open" class="nav-group-header" :aria-expanded="open" aria-controls="pengaturan-submenu">
                     <div class="nav-group-title">
                         <div class="nav-icon">
@@ -344,9 +344,16 @@
                     </a>
                     <a href="{{ route('admin.holidays.working-days-report') }}" class="nav-sub-item {{ request()->routeIs('admin.holidays.working-days-report') ? 'active' : '' }}">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                         </svg>
                         <span class="nav-text">Laporan Hari Kerja</span>
+                    </a>
+                    <a href="{{ route('admin.location-settings.index') }}" class="nav-sub-item {{ request()->routeIs('admin.location-settings.*') ? 'active' : '' }}">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        <span class="nav-text">Pengaturan Lokasi</span>
                     </a>
                 </div>
             </div>
@@ -499,7 +506,7 @@
 .sidebar-header {
     display: flex;
     align-items: center;
-    justify-between;
+    justify-content: space-between;
     padding: 1rem;
     border-bottom: 1px solid rgba(29, 78, 216, 0.3);
     backdrop-filter: blur(4px);

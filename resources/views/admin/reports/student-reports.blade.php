@@ -70,6 +70,8 @@
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Absensi Pulang</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Selisih Pulang</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status Pulang</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Koordinat Masuk</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Koordinat Pulang</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Foto Masuk</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Foto Pulang</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
@@ -96,6 +98,17 @@
                                 ->first();
                         @endphp
                         {{ $schedule ? \Carbon\Carbon::parse($schedule->start_time)->format('H:i:s') : '-' }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        @if($attendance->clock_in_latitude && $attendance->clock_in_longitude)
+                            <a href="https://www.google.com/maps?q={{ $attendance->clock_in_latitude }},{{ $attendance->clock_in_longitude }}" 
+                               target="_blank" 
+                               title="Lihat lokasi di peta">
+                                {{ number_format($attendance->clock_in_latitude, 6) }}, {{ number_format($attendance->clock_in_longitude, 6) }}
+                            </a>
+                        @else
+                            -
+                        @endif
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
                         {{ $attendance->clock_in ? \Carbon\Carbon::parse($attendance->clock_in)->format('H:i:s') : '-' }}
@@ -174,6 +187,17 @@
                         {{ $schedule ? \Carbon\Carbon::parse($schedule->end_time)->format('H:i:s') : '-' }}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
+                        @if($attendance->clock_out_latitude && $attendance->clock_out_longitude)
+                            <a href="https://www.google.com/maps?q={{ $attendance->clock_out_latitude }},{{ $attendance->clock_out_longitude }}" 
+                               target="_blank" 
+                               title="Lihat lokasi di peta">
+                                {{ number_format($attendance->clock_out_latitude, 6) }}, {{ number_format($attendance->clock_out_longitude, 6) }}
+                            </a>
+                        @else
+                            -
+                        @endif
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
                         {{ $attendance->clock_out ? \Carbon\Carbon::parse($attendance->clock_out)->format('H:i:s') : '-' }}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
@@ -247,9 +271,35 @@
                         @endif
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
+                        @if($attendance->clock_in_latitude && $attendance->clock_in_longitude)
+                            <div class="text-xs">
+                                <div>Lat: {{ $attendance->clock_in_latitude }}</div>
+                                <div>Lng: {{ $attendance->clock_in_longitude }}</div>
+                                @if($attendance->clock_in_accuracy)
+                                    <div>Ak: {{ $attendance->clock_in_accuracy }}m</div>
+                                @endif
+                            </div>
+                        @else
+                            -
+                        @endif
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        @if($attendance->clock_out_latitude && $attendance->clock_out_longitude)
+                            <div class="text-xs">
+                                <div>Lat: {{ $attendance->clock_out_latitude }}</div>
+                                <div>Lng: {{ $attendance->clock_out_longitude }}</div>
+                                @if($attendance->clock_out_accuracy)
+                                    <div>Ak: {{ $attendance->clock_out_accuracy }}m</div>
+                                @endif
+                            </div>
+                        @else
+                            -
+                        @endif
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
                         @if($attendance->selfie_path_in)
-                            <a href="{{ asset('storage/' . $attendance->selfie_path_in) }}" target="_blank" class="text-blue-600 hover:text-blue-900">
-                                Lihat Foto
+                            <a href="{{ Storage::url($attendance->selfie_path_in) }}" target="_blank">
+                                <img src="{{ Storage::url($attendance->selfie_path_in) }}" alt="Selfie Masuk" class="w-16 h-16 object-cover rounded border cursor-pointer hover:opacity-80">
                             </a>
                         @else
                             -
@@ -257,8 +307,8 @@
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
                         @if($attendance->selfie_path_out)
-                            <a href="{{ asset('storage/' . $attendance->selfie_path_out) }}" target="_blank" class="text-blue-600 hover:text-blue-900">
-                                Lihat Foto
+                            <a href="{{ Storage::url($attendance->selfie_path_out) }}" target="_blank">
+                                <img src="{{ Storage::url($attendance->selfie_path_out) }}" alt="Selfie Pulang" class="w-16 h-16 object-cover rounded border cursor-pointer hover:opacity-80">
                             </a>
                         @else
                             -

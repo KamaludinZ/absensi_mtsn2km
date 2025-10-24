@@ -76,6 +76,8 @@
                 <th>Abs Pulang</th>
                 <th>Selisih</th>
                 <th>Status</th>
+                <th>Koordinat Masuk</th>
+                <th>Koordinat Pulang</th>
             </tr>
         </thead>
         <tbody>
@@ -93,6 +95,26 @@
                 <td class="tc">{{ $data['clock_out_time'] }}</td>
                 <td class="tc">{{ $data['clock_out_diff'] }}</td>
                 <td class="tc">{{ $data['clock_out_status'] }}</td>
+                <td>
+                    @if($data['attendance']->clock_in_latitude && $data['attendance']->clock_in_longitude)
+                        Lat: {{ $data['attendance']->clock_in_latitude }}, Lng: {{ $data['attendance']->clock_in_longitude }}
+                        @if($data['attendance']->clock_in_accuracy)
+                            (Ak: {{ $data['attendance']->clock_in_accuracy }}m)
+                        @endif
+                    @else
+                        -
+                    @endif
+                </td>
+                <td>
+                    @if($data['attendance']->clock_out_latitude && $data['attendance']->clock_out_longitude)
+                        Lat: {{ $data['attendance']->clock_out_latitude }}, Lng: {{ $data['attendance']->clock_out_longitude }}
+                        @if($data['attendance']->clock_out_accuracy)
+                            (Ak: {{ $data['attendance']->clock_out_accuracy }}m)
+                        @endif
+                    @else
+                        -
+                    @endif
+                </td>
             </tr>
             @endforeach
         </tbody>

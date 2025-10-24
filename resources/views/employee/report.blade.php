@@ -53,11 +53,13 @@
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Absensi Masuk</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Selisih Masuk</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status Masuk</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Koordinat Masuk</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Selfie Masuk</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jam Pulang</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Absensi Pulang</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Selisih Pulang</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status Pulang</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Koordinat Pulang</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Selfie Pulang</th>
             </tr>
         </thead>
@@ -161,6 +163,16 @@
                     @endif
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">
+                    @if($attendance->clock_in && $attendance->clock_in_latitude && $attendance->clock_in_longitude)
+                        <div class="text-sm">
+                            <p>{{ number_format($attendance->clock_in_latitude, 6) }}, {{ number_format($attendance->clock_in_longitude, 6) }}</p>
+                            <p class="text-xs text-gray-500">±{{ number_format($attendance->clock_in_accuracy ?? 0, 0) }}m</p>
+                        </div>
+                    @else
+                        <span>-</span>
+                    @endif
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
                     @if($attendance->selfie_path_in)
                         <a href="{{ Storage::url($attendance->selfie_path_in) }}" target="_blank">
                             <img src="{{ Storage::url($attendance->selfie_path_in) }}" alt="Selfie Masuk" class="w-16 h-16 object-cover rounded border cursor-pointer hover:opacity-80">
@@ -239,6 +251,16 @@
                         <span class="px-2 py-1 rounded text-xs bg-gray-100 text-gray-800">
                             {{ $attendance->clock_out ? 'N/A' : 'Belum Pulang' }}
                         </span>
+                    @endif
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    @if($attendance->clock_out && $attendance->clock_out_latitude && $attendance->clock_out_longitude)
+                        <div class="text-sm">
+                            <p>{{ number_format($attendance->clock_out_latitude, 6) }}, {{ number_format($attendance->clock_out_longitude, 6) }}</p>
+                            <p class="text-xs text-gray-500">±{{ number_format($attendance->clock_out_accuracy ?? 0, 0) }}m</p>
+                        </div>
+                    @else
+                        <span>-</span>
                     @endif
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">

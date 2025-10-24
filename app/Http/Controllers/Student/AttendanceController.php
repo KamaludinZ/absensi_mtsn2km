@@ -135,9 +135,40 @@ class AttendanceController extends Controller
                     'regex:/^data:image\/(?:jpeg|png|jpg);base64,[A-Za-z0-9+\/=]+$/',
                     'max:2000000' // 2MB max file size
                 ],
+                'location' => 'array|nullable',
+                'location.latitude' => 'required_with:location|numeric|between:-90,90',
+                'location.longitude' => 'required_with:location|numeric|between:-180,180',
+                'location.accuracy' => 'required_with:location|numeric|min:0',
             ]);
 
             $student = Student::findOrFail($request->student_id);
+
+            // Check location requirements
+            $locationSetting = \App\Models\LocationSetting::where('setting_key', 'location_required')->first();
+            $locationRequired = $locationSetting ? filter_var($locationSetting->setting_value, FILTER_VALIDATE_BOOLEAN) : false;
+
+            if ($locationRequired && (!$request->has('location') || empty($request->location))) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Lokasi diperlukan untuk absensi. Harap izinkan akses lokasi.',
+                ]);
+            }
+
+            // Check geofence if location is provided
+            if ($request->has('location') && !empty($request->location)) {
+                $isValidLocation = $this->validateGeofence(
+                    $request->location['latitude'],
+                    $request->location['longitude'],
+                    $request->location['accuracy']
+                );
+
+                if (!$isValidLocation) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Lokasi Anda berada di luar area geofence yang ditentukan.',
+                    ]);
+                }
+            }
 
             // Check if already clocked in today
             $today = Carbon::today();
@@ -155,6 +186,18 @@ class AttendanceController extends Controller
 
             // Process selfie
             $selfiePath = $this->processSelfie($request->selfie, 'student', $student->id, 'in');
+
+            // Get location data if provided
+            $latitude = null;
+            $longitude = null;
+            $accuracy = null;
+            
+            if ($request->has('location') && !empty($request->location)) {
+                $location = $request->location;
+                $latitude = isset($location['latitude']) ? floatval($location['latitude']) : null;
+                $longitude = isset($location['longitude']) ? floatval($location['longitude']) : null;
+                $accuracy = isset($location['accuracy']) ? floatval($location['accuracy']) : null;
+            }
 
             // Determine status
             $now = Carbon::now();
@@ -189,6 +232,9 @@ class AttendanceController extends Controller
             if ($attendance) {
                 $attendance->update([
                     'clock_in' => $now,
+                    'clock_in_latitude' => $latitude,
+                    'clock_in_longitude' => $longitude,
+                    'clock_in_accuracy' => $accuracy,
                     'selfie_path_in' => $selfiePath,
                     'status_in' => $status,
                     'shift_name' => $shiftInfo ? $shiftInfo->shift_name : null,
@@ -202,6 +248,9 @@ class AttendanceController extends Controller
                     'attendable_id' => $student->id,
                     'date' => $today,
                     'clock_in' => $now,
+                    'clock_in_latitude' => $latitude,
+                    'clock_in_longitude' => $longitude,
+                    'clock_in_accuracy' => $accuracy,
                     'selfie_path_in' => $selfiePath,
                     'status_in' => $status,
                     'shift_name' => $shiftInfo ? $shiftInfo->shift_name : null,
@@ -242,9 +291,40 @@ class AttendanceController extends Controller
                     'regex:/^data:image\/(?:jpeg|png|jpg);base64,[A-Za-z0-9+\/=]+$/',
                     'max:2000000' // 2MB max file size
                 ],
+                'location' => 'array|nullable',
+                'location.latitude' => 'required_with:location|numeric|between:-90,90',
+                'location.longitude' => 'required_with:location|numeric|between:-180,180',
+                'location.accuracy' => 'required_with:location|numeric|min:0',
             ]);
 
             $student = Student::findOrFail($request->student_id);
+
+            // Check location requirements
+            $locationSetting = \App\Models\LocationSetting::where('setting_key', 'location_required')->first();
+            $locationRequired = $locationSetting ? filter_var($locationSetting->setting_value, FILTER_VALIDATE_BOOLEAN) : false;
+
+            if ($locationRequired && (!$request->has('location') || empty($request->location))) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Lokasi diperlukan untuk absensi. Harap izinkan akses lokasi.',
+                ]);
+            }
+
+            // Check geofence if location is provided
+            if ($request->has('location') && !empty($request->location)) {
+                $isValidLocation = $this->validateGeofence(
+                    $request->location['latitude'],
+                    $request->location['longitude'],
+                    $request->location['accuracy']
+                );
+
+                if (!$isValidLocation) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Lokasi Anda berada di luar area geofence yang ditentukan.',
+                    ]);
+                }
+            }
 
             // Check attendance
             $today = Carbon::today();
@@ -269,6 +349,18 @@ class AttendanceController extends Controller
 
             // Process selfie
             $selfiePath = $this->processSelfie($request->selfie, 'student', $student->id, 'out');
+
+            // Get location data if provided
+            $latitude = null;
+            $longitude = null;
+            $accuracy = null;
+            
+            if ($request->has('location') && !empty($request->location)) {
+                $location = $request->location;
+                $latitude = isset($location['latitude']) ? floatval($location['latitude']) : null;
+                $longitude = isset($location['longitude']) ? floatval($location['longitude']) : null;
+                $accuracy = isset($location['accuracy']) ? floatval($location['accuracy']) : null;
+            }
 
             // Determine status
             $now = Carbon::now();
@@ -301,6 +393,9 @@ class AttendanceController extends Controller
             
             $attendance->update([
                 'clock_out' => $now,
+                'clock_out_latitude' => $latitude,
+                'clock_out_longitude' => $longitude,
+                'clock_out_accuracy' => $accuracy,
                 'selfie_path_out' => $selfiePath,
                 'status_out' => $status,
                 'shift_name' => $shiftInfo ? $shiftInfo->shift_name : null,
@@ -380,7 +475,23 @@ class AttendanceController extends Controller
 
         // Verify the final path is within the allowed storage directory
         $allowedPath = storage_path('app/public/');
-        if (strpos(realpath($path) ?: $path, $allowedPath) !== 0) {
+        $realPath = realpath($path) ?: $path;
+        
+        // Normalize path separators to ensure consistent comparison (use forward slashes)
+        $normalizedAllowedPath = str_replace('\\', '/', $allowedPath);
+        $normalizedRealPath = str_replace('\\', '/', $realPath);
+        
+        // Check if the path starts with the allowed path
+        // strpos returns 0 when the needle is found at the beginning of the haystack
+        if (strpos($normalizedRealPath, $normalizedAllowedPath) !== 0) {
+            // For debugging, log the paths
+            \Log::debug('Student path validation failed', [
+                'allowed_path' => $allowedPath,
+                'real_path' => $realPath,
+                'normalized_allowed' => $normalizedAllowedPath,
+                'normalized_real' => $normalizedRealPath,
+                'position' => strpos($normalizedRealPath, $normalizedAllowedPath)
+            ]);
             throw new \InvalidArgumentException('Invalid file path');
         }
 
@@ -435,5 +546,104 @@ class AttendanceController extends Controller
         }
 
         return $directory . '/' . $filename;
+    }
+    
+    /**
+     * Validate if the provided location is within the geofence
+     */
+    private function validateGeofence($latitude, $longitude, $accuracy)
+    {
+        // Get geofence settings
+        $geofenceCenterLat = \App\Models\LocationSetting::where('setting_key', 'geofence_center_lat')->first();
+        $geofenceCenterLng = \App\Models\LocationSetting::where('setting_key', 'geofence_center_lng')->first();
+        $geofenceRadius = \App\Models\LocationSetting::where('setting_key', 'geofence_radius')->first();
+
+        // If no geofence settings exist, allow location
+        if (!$geofenceCenterLat || !$geofenceCenterLng || !$geofenceRadius) {
+            \Log::debug('No geofence settings found, allowing location');
+            return true;
+        }
+
+        $centerLat = floatval($geofenceCenterLat->setting_value);
+        $centerLng = floatval($geofenceCenterLng->setting_value);
+        $radius = floatval($geofenceRadius->setting_value);
+
+        // Calculate distance between current location and geofence center
+        $distance = $this->calculateDistance($latitude, $longitude, $centerLat, $centerLng);
+
+        // Enhanced validation with more flexible accuracy handling:
+        // 1. If user is within the strict radius, always allow
+        $withinStrictRadius = $distance <= $radius;
+        
+        if ($withinStrictRadius) {
+            \Log::debug('Location within strict radius, allowing', [
+                'user_lat' => $latitude,
+                'user_lng' => $longitude,
+                'center_lat' => $centerLat,
+                'center_lng' => $centerLng,
+                'radius' => $radius,
+                'distance' => $distance
+            ]);
+            return true;
+        }
+
+        // For users outside strict radius, apply more lenient accuracy handling
+        // Ensure accuracy is reasonable but be more forgiving (max 200 meters instead of 100)
+        $safeAccuracy = min(floatval($accuracy), 200.0);
+
+        // Calculate max allowed distance with more generous accuracy buffer
+        // Allow up to 75% of radius as accuracy buffer for better tolerance
+        $maxAllowedDistance = $radius + min($safeAccuracy, $radius * 0.75);
+
+        // Log for debugging purposes
+        \Log::debug('Geofence validation - Extended check', [
+            'user_lat' => $latitude,
+            'user_lng' => $longitude,
+            'center_lat' => $centerLat,
+            'center_lng' => $centerLng,
+            'radius' => $radius,
+            'accuracy' => $accuracy,
+            'safe_accuracy' => $safeAccuracy,
+            'distance' => $distance,
+            'max_allowed_distance' => $maxAllowedDistance,
+            'within_strict_radius' => $withinStrictRadius
+        ]);
+
+        $result = $distance <= $maxAllowedDistance;
+        
+        if (!$result) {
+            \Log::warning('Location outside geofence', [
+                'user_lat' => $latitude,
+                'user_lng' => $longitude,
+                'center_lat' => $centerLat,
+                'center_lng' => $centerLng,
+                'radius' => $radius,
+                'distance' => $distance,
+                'max_allowed_distance' => $maxAllowedDistance
+            ]);
+        }
+        
+        return $result;
+    }
+
+    /**
+     * Calculate distance between two coordinates using Haversine formula
+     */
+    private function calculateDistance($lat1, $lng1, $lat2, $lng2)
+    {
+        $earthRadius = 6371000; // Earth's radius in meters
+
+        $latFrom = deg2rad($lat1);
+        $lonFrom = deg2rad($lng1);
+        $latTo = deg2rad($lat2);
+        $lonTo = deg2rad($lng2);
+
+        $latDelta = $latTo - $latFrom;
+        $lonDelta = $lonTo - $lonFrom;
+
+        $angle = 2 * asin(sqrt(pow(sin($latDelta / 2), 2) +
+            cos($latFrom) * cos($latTo) * pow(sin($lonDelta / 2), 2)));
+
+        return $angle * $earthRadius;
     }
 }

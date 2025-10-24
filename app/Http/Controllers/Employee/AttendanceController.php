@@ -7,15 +7,20 @@ use Illuminate\Http\Request;
 use App\Models\Attendance;
 use App\Models\Employee;
 use App\Models\Schedule;
+use App\Models\User;
+use App\Models\LocationSetting;
 use Carbon\Carbon;
 use Intervention\Image\Laravel\Facades\Image;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class AttendanceController extends Controller
 {
     public function index()
     {
-        $user = auth()->user();
+        /** @var User $user */
+        $user = Auth::user();
         $employee = $user->employee;
 
         if (!$employee) {
@@ -41,9 +46,15 @@ class AttendanceController extends Controller
                     'regex:/^data:image\/(?:jpeg|png|jpg);base64,[A-Za-z0-9+\/=]+$/',
                     'max:2000000' // 2MB max file size
                 ],
+                'location' => 'array|nullable',
+                'location.latitude' => 'required_with:location|numeric|between:-90,90',
+                'location.longitude' => 'required_with:location|numeric|between:-180,180',
+                'location.accuracy' => 'required_with:location|numeric|min:0',
             ]);
 
-            $employee = auth()->user()->employee;
+            /** @var User $user */
+            $user = Auth::user();
+            $employee = $user->employee;
 
             if (!$employee) {
                 return response()->json([
@@ -52,7 +63,34 @@ class AttendanceController extends Controller
                 ]);
             }
 
-            // Check if already clocked in today
+            // Check location requirements
+            $locationSetting = LocationSetting::where('setting_key', 'location_required')->first();
+            $locationRequired = $locationSetting ? filter_var($locationSetting->setting_value, FILTER_VALIDATE_BOOLEAN) : false;
+
+            if ($locationRequired && (!$request->has('location') || empty($request->location))) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Lokasi diperlukan untuk absensi. Harap izinkan akses lokasi.',
+                ]);
+            }
+
+            // Check geofence if location is provided
+            if ($request->has('location') && !empty($request->location)) {
+                $isValidLocation = $this->validateGeofence(
+                    $request->location['latitude'],
+                    $request->location['longitude'],
+                    $request->location['accuracy']
+                );
+
+                if (!$isValidLocation) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Lokasi Anda berada di luar area geofence yang ditentukan.',
+                    ]);
+                }
+            }
+
+            // Check attendance
             $today = Carbon::today();
             $attendance = Attendance::where('attendable_type', Employee::class)
                 ->where('attendable_id', $employee->id)
@@ -68,6 +106,18 @@ class AttendanceController extends Controller
 
             // Process selfie
             $selfiePath = $this->processSelfie($request->selfie, 'employee', $employee->id, 'in');
+
+            // Get location data if provided
+            $latitude = null;
+            $longitude = null;
+            $accuracy = null;
+            
+            if ($request->has('location') && !empty($request->location)) {
+                $location = $request->location;
+                $latitude = isset($location['latitude']) ? floatval($location['latitude']) : null;
+                $longitude = isset($location['longitude']) ? floatval($location['longitude']) : null;
+                $accuracy = isset($location['accuracy']) ? floatval($location['accuracy']) : null;
+            }
 
             // Determine status
             $now = Carbon::now();
@@ -98,6 +148,9 @@ class AttendanceController extends Controller
             if ($attendance) {
                 $attendance->update([
                     'clock_in' => $now,
+                    'clock_in_latitude' => $latitude,
+                    'clock_in_longitude' => $longitude,
+                    'clock_in_accuracy' => $accuracy,
                     'selfie_path_in' => $selfiePath,
                     'status_in' => $status,
                     'shift_name' => $shiftInfo ? $shiftInfo->shift_name : null,
@@ -111,6 +164,9 @@ class AttendanceController extends Controller
                     'attendable_id' => $employee->id,
                     'date' => $today,
                     'clock_in' => $now,
+                    'clock_in_latitude' => $latitude,
+                    'clock_in_longitude' => $longitude,
+                    'clock_in_accuracy' => $accuracy,
                     'selfie_path_in' => $selfiePath,
                     'status_in' => $status,
                     'shift_name' => $shiftInfo ? $shiftInfo->shift_name : null,
@@ -127,9 +183,11 @@ class AttendanceController extends Controller
                 'redirect_url' => '/employee/attendance/report' // Redirect to report page after successful attendance
             ]);
         } catch (\Exception $e) {
-            \Log::error('Employee clock-in error: ' . $e->getMessage(), [
-                'user_id' => auth()->id() ?? null,
-                'employee_id' => auth()->user()->employee->id ?? null,
+            /** @var User|null $logUser */
+            $logUser = Auth::user();
+            Log::error('Employee clock-in error: ' . $e->getMessage(), [
+                'user_id' => $logUser?->id ?? null,
+                'employee_id' => $logUser?->employee?->id ?? null,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
@@ -151,15 +209,48 @@ class AttendanceController extends Controller
                     'regex:/^data:image\/(?:jpeg|png|jpg);base64,[A-Za-z0-9+\/=]+$/',
                     'max:2000000' // 2MB max file size
                 ],
+                'location' => 'array|nullable',
+                'location.latitude' => 'required_with:location|numeric|between:-90,90',
+                'location.longitude' => 'required_with:location|numeric|between:-180,180',
+                'location.accuracy' => 'required_with:location|numeric|min:0',
             ]);
 
-            $employee = auth()->user()->employee;
+            /** @var User $user */
+            $user = Auth::user();
+            $employee = $user->employee;
 
             if (!$employee) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Data pegawai tidak ditemukan.',
                 ]);
+            }
+
+            // Check location requirements
+            $locationSetting = LocationSetting::where('setting_key', 'location_required')->first();
+            $locationRequired = $locationSetting ? filter_var($locationSetting->setting_value, FILTER_VALIDATE_BOOLEAN) : false;
+
+            if ($locationRequired && (!$request->has('location') || empty($request->location))) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Lokasi diperlukan untuk absensi. Harap izinkan akses lokasi.',
+                ]);
+            }
+
+            // Check geofence if location is provided
+            if ($request->has('location') && !empty($request->location)) {
+                $isValidLocation = $this->validateGeofence(
+                    $request->location['latitude'],
+                    $request->location['longitude'],
+                    $request->location['accuracy']
+                );
+
+                if (!$isValidLocation) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Lokasi Anda berada di luar area geofence yang ditentukan.',
+                    ]);
+                }
             }
 
             // Check attendance
@@ -211,8 +302,23 @@ class AttendanceController extends Controller
                     ->first();
             }
             
+            // Get location data if provided
+            $latitude = null;
+            $longitude = null;
+            $accuracy = null;
+            
+            if ($request->has('location') && !empty($request->location)) {
+                $location = $request->location;
+                $latitude = isset($location['latitude']) ? floatval($location['latitude']) : null;
+                $longitude = isset($location['longitude']) ? floatval($location['longitude']) : null;
+                $accuracy = isset($location['accuracy']) ? floatval($location['accuracy']) : null;
+            }
+
             $attendance->update([
                 'clock_out' => $now,
+                'clock_out_latitude' => $latitude,
+                'clock_out_longitude' => $longitude,
+                'clock_out_accuracy' => $accuracy,
                 'selfie_path_out' => $selfiePath,
                 'status_out' => $status,
                 'shift_name' => $shiftInfo ? $shiftInfo->shift_name : null,
@@ -228,9 +334,11 @@ class AttendanceController extends Controller
                 'redirect_url' => '/employee/attendance/report' // Redirect to report page after successful attendance
             ]);
         } catch (\Exception $e) {
-            \Log::error('Employee clock-out error: ' . $e->getMessage(), [
-                'user_id' => auth()->id() ?? null,
-                'employee_id' => auth()->user()->employee->id ?? null,
+            /** @var User|null $logUser */
+            $logUser = Auth::user();
+            Log::error('Employee clock-out error: ' . $e->getMessage(), [
+                'user_id' => $logUser?->id ?? null,
+                'employee_id' => $logUser?->employee?->id ?? null,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
@@ -244,7 +352,9 @@ class AttendanceController extends Controller
 
     public function report(Request $request)
     {
-        $employee = auth()->user()->employee;
+        /** @var User $user */
+        $user = Auth::user();
+        $employee = $user->employee;
 
         if (!$employee) {
             return redirect()->back()->with('error', 'Data pegawai tidak ditemukan.');
@@ -297,7 +407,7 @@ class AttendanceController extends Controller
                 return $shift->date->format('Y-m-d');
             });
 
-        $schedules = \App\Models\Schedule::where('type', 'pegawai')
+        $schedules = Schedule::where('type', 'pegawai')
             ->get()
             ->keyBy('day_of_week');
 
@@ -322,7 +432,9 @@ class AttendanceController extends Controller
 
     public function export(Request $request)
     {
-        $employee = auth()->user()->employee;
+        /** @var User $user */
+        $user = Auth::user();
+        $employee = $user->employee;
 
         if (!$employee) {
             return redirect()->back()->with('error', 'Data pegawai tidak ditemukan.');
@@ -402,10 +514,10 @@ class AttendanceController extends Controller
 
             $sheet->setCellValue('A' . $row, $attendance->date ? $attendance->date->format('d/m/Y') : '-');
             $sheet->setCellValue('B' . $row, $shiftName);
-            $sheet->setCellValue('C' . $row, $schedule ? \Carbon\Carbon::parse($schedule->start_time)->format('H:i:s') : '-');
+            $sheet->setCellValue('C' . $row, $schedule ? Carbon::parse($schedule->start_time)->format('H:i:s') : '-');
             $sheet->setCellValue('D' . $row, $attendance->clock_in ? $attendance->clock_in->format('H:i:s') : '-');
             $sheet->setCellValue('E' . $row, $inTimeDiff);
-            $sheet->setCellValue('F' . $row, $schedule ? \Carbon\Carbon::parse($schedule->end_time)->format('H:i:s') : '-');
+            $sheet->setCellValue('F' . $row, $schedule ? Carbon::parse($schedule->end_time)->format('H:i:s') : '-');
             $sheet->setCellValue('G' . $row, $attendance->clock_out ? $attendance->clock_out->format('H:i:s') : '-');
             $sheet->setCellValue('H' . $row, $outTimeDiff);
             $row++;
@@ -442,8 +554,8 @@ class AttendanceController extends Controller
             return [
                 'date' => $attendance->date ? $attendance->date->format('d/m/Y') : '-',
                 'shift_name' => $schedule ? $schedule->shift_name : 'N/A',
-                'schedule_start' => $schedule ? \Carbon\Carbon::parse($schedule->start_time)->format('H:i:s') : '-',
-                'schedule_end' => $schedule ? \Carbon\Carbon::parse($schedule->end_time)->format('H:i:s') : '-',
+                'schedule_start' => $schedule ? Carbon::parse($schedule->start_time)->format('H:i:s') : '-',
+                'schedule_end' => $schedule ? Carbon::parse($schedule->end_time)->format('H:i:s') : '-',
                 'clock_in' => $attendance->clock_in ? $attendance->clock_in->format('H:i:s') : '-',
                 'clock_out' => $attendance->clock_out ? $attendance->clock_out->format('H:i:s') : '-',
                 'in_diff' => self::getInTimeDifference($attendance),
@@ -482,7 +594,7 @@ class AttendanceController extends Controller
 
         // Try to get schedule by day of week
         $dayOfWeek = $attendance->date->dayOfWeek;
-        return \App\Models\Schedule::where('type', 'pegawai')
+        return Schedule::where('type', 'pegawai')
             ->where('day_of_week', $dayOfWeek)
             ->first();
     }
@@ -493,12 +605,12 @@ class AttendanceController extends Controller
 
         if ($attendance->clock_in && $schedule) {
             // Ambil waktu ABSENSI MASUK dalam format H:i:s
-            $absensiMasukTime = \Carbon\Carbon::parse($attendance->clock_in)->format('H:i:s');
+            $absensiMasukTime = Carbon::parse($attendance->clock_in)->format('H:i:s');
             list($h1, $i1, $s1) = explode(':', $absensiMasukTime);
             $absensiMasukDetik = ($h1 * 3600) + ($i1 * 60) + $s1;
 
             // Ambil waktu JAM MASUK dalam format H:i:s
-            $jamMasukTime = \Carbon\Carbon::parse($schedule->start_time)->format('H:i:s');
+            $jamMasukTime = Carbon::parse($schedule->start_time)->format('H:i:s');
             list($h2, $i2, $s2) = explode(':', $jamMasukTime);
             $jamMasukDetik = ($h2 * 3600) + ($i2 * 60) + $s2;
 
@@ -536,12 +648,12 @@ class AttendanceController extends Controller
 
         if ($attendance->clock_out && $schedule) {
             // Ambil waktu ABSENSI PULANG dalam format H:i:s
-            $absensiPulangTime = \Carbon\Carbon::parse($attendance->clock_out)->format('H:i:s');
+            $absensiPulangTime = Carbon::parse($attendance->clock_out)->format('H:i:s');
             list($h1, $i1, $s1) = explode(':', $absensiPulangTime);
             $absensiPulangDetik = ($h1 * 3600) + ($i1 * 60) + $s1;
 
             // Ambil waktu JAM PULANG dalam format H:i:s
-            $jamPulangTime = \Carbon\Carbon::parse($schedule->end_time)->format('H:i:s');
+            $jamPulangTime = Carbon::parse($schedule->end_time)->format('H:i:s');
             list($h2, $i2, $s2) = explode(':', $jamPulangTime);
             $jamPulangDetik = ($h2 * 3600) + ($i2 * 60) + $s2;
 
@@ -576,19 +688,19 @@ class AttendanceController extends Controller
     private function processSelfie($base64Image, $type, $id, $direction)
     {
         // Verify the image is a valid base64 encoded image
-        if (!preg_match('/^data:image\/(?:jpeg|png|jpg);base64,[A-Za-z0-9+\/=]+$/', $base64Image)) {
+        if (!preg_match('/^data:image\/(?:jpeg|png|jpg);base64,[A-Za-z0-9+\/=]+$/',$base64Image)) {
             throw new \InvalidArgumentException('Invalid image format');
         }
 
         // Remove data URI prefix
         $image = preg_replace('/^data:image\/(?:jpeg|png|jpg);base64,/', '', $base64Image);
         $image = str_replace(' ', '+', $image);
-        
+
         // Verify base64 is valid
         if (!base64_decode($image, true)) {
             throw new \InvalidArgumentException('Invalid base64 image data');
         }
-        
+
         $imageData = base64_decode($image);
 
         // Validate image content by attempting to create image instance
@@ -614,17 +726,57 @@ class AttendanceController extends Controller
             throw new \InvalidArgumentException('Invalid directory path');
         }
 
-        // Create directory if not exists
-        Storage::disk('public')->makeDirectory($directory);
+        // Detect environment and use appropriate storage path
+        // Production: /absensi_app/storage/selfies (tanpa symlink)
+        // Development: storage/app/public/selfies (dengan symlink)
+        $productionSelfiesPath = base_path('storage/selfies');
+        $isProduction = config('app.env') === 'production';
 
-        $path = storage_path('app/public/' . $directory . '/' . $filename);
+        if ($isProduction) {
+            // Production: Save to /absensi_app/storage/selfies (outside Laravel storage/app)
+            // Create folder if not exists
+            if (!file_exists($productionSelfiesPath)) {
+                @mkdir($productionSelfiesPath, 0755, true);
+                @mkdir(base_path('storage/selfies/employee'), 0755, true);
+                @mkdir(base_path('storage/selfies/student'), 0755, true);
+            }
+
+            $path = base_path('storage/' . $directory . '/' . $filename);
+
+            // Create directory if not exists
+            $directoryPath = base_path('storage/' . $directory);
+            if (!file_exists($directoryPath)) {
+                mkdir($directoryPath, 0755, true);
+            }
+        } else {
+            // Local development: Use storage with symlink
+            Storage::disk('public')->makeDirectory($directory);
+            $path = storage_path('app/public/' . $directory . '/' . $filename);
+        }
 
         // Sanitize filename to prevent directory traversal
-        $path = str_replace(['../', './', '..\\', '.\\'], '', $path);
+        $path = str_replace(["../", "./", "..\\", ".\\"], '', $path);
 
-        // Verify the final path is within the allowed storage directory
-        $allowedPath = storage_path('app/public/');
-        if (strpos(realpath($path) ?: $path, $allowedPath) !== 0) {
+        // Verify the final path is within the allowed directory
+        $allowedPath = $isProduction ? base_path('storage') : storage_path('app/public/');
+        $realPath = realpath(dirname($path)) ?: dirname($path);
+        
+        // Normalize path separators to ensure consistent comparison (use forward slashes)
+        $normalizedAllowedPath = str_replace('\\', '/', $allowedPath);
+        $normalizedRealPath = str_replace('\\', '/', $realPath);
+        
+        // Check if the path starts with the allowed path
+        // strpos returns 0 when the needle is found at the beginning of the haystack
+        // So we want to check if it IS 0, meaning the path starts with the allowed path
+        if (strpos($normalizedRealPath, $normalizedAllowedPath) !== 0) {
+            // For debugging, log the paths
+            \Log::debug('Path validation failed', [
+                'allowed_path' => $allowedPath,
+                'real_path' => $realPath,
+                'normalized_allowed' => $normalizedAllowedPath,
+                'normalized_real' => $normalizedRealPath,
+                'position' => strpos($normalizedRealPath, $normalizedAllowedPath)
+            ]);
             throw new \InvalidArgumentException('Invalid file path');
         }
 
@@ -679,5 +831,171 @@ class AttendanceController extends Controller
         }
 
         return $directory . '/' . $filename;
+    }
+    
+    /**
+     * Validate if the provided location is within the geofence
+     */
+    private function validateGeofence($latitude, $longitude, $accuracy)
+    {
+        // Get geofence settings
+        $geofenceCenterLat = LocationSetting::where('setting_key', 'geofence_center_lat')->first();
+        $geofenceCenterLng = LocationSetting::where('setting_key', 'geofence_center_lng')->first();
+        $geofenceRadius = LocationSetting::where('setting_key', 'geofence_radius')->first();
+
+        // If no geofence settings exist, allow location
+        if (!$geofenceCenterLat || !$geofenceCenterLng || !$geofenceRadius) {
+            \Log::debug('No geofence settings found, allowing location');
+            return true;
+        }
+
+        $centerLat = floatval($geofenceCenterLat->setting_value);
+        $centerLng = floatval($geofenceCenterLng->setting_value);
+        $radius = floatval($geofenceRadius->setting_value);
+
+        // Calculate distance between current location and geofence center
+        $distance = $this->calculateDistance($latitude, $longitude, $centerLat, $centerLng);
+
+        // Enhanced validation with more flexible accuracy handling:
+        // 1. If user is within the strict radius, always allow
+        $withinStrictRadius = $distance <= $radius;
+        
+        if ($withinStrictRadius) {
+            \Log::debug('Location within strict radius, allowing', [
+                'user_lat' => $latitude,
+                'user_lng' => $longitude,
+                'center_lat' => $centerLat,
+                'center_lng' => $centerLng,
+                'radius' => $radius,
+                'distance' => $distance
+            ]);
+            return true;
+        }
+
+        // For users outside strict radius, apply more lenient accuracy handling
+        // Ensure accuracy is reasonable but be more forgiving (max 200 meters instead of 100)
+        $safeAccuracy = min(floatval($accuracy), 200.0);
+
+        // Calculate max allowed distance with more generous accuracy buffer
+        // Allow up to 75% of radius as accuracy buffer for better tolerance
+        $maxAllowedDistance = $radius + min($safeAccuracy, $radius * 0.75);
+
+        // Log for debugging purposes
+        \Log::debug('Geofence validation - Extended check', [
+            'user_lat' => $latitude,
+            'user_lng' => $longitude,
+            'center_lat' => $centerLat,
+            'center_lng' => $centerLng,
+            'radius' => $radius,
+            'accuracy' => $accuracy,
+            'safe_accuracy' => $safeAccuracy,
+            'distance' => $distance,
+            'max_allowed_distance' => $maxAllowedDistance,
+            'within_strict_radius' => $withinStrictRadius
+        ]);
+
+        $result = $distance <= $maxAllowedDistance;
+        
+        if (!$result) {
+            \Log::warning('Location outside geofence', [
+                'user_lat' => $latitude,
+                'user_lng' => $longitude,
+                'center_lat' => $centerLat,
+                'center_lng' => $centerLng,
+                'radius' => $radius,
+                'distance' => $distance,
+                'max_allowed_distance' => $maxAllowedDistance
+            ]);
+        }
+        
+        return $result;
+    }
+
+    /**
+     * Calculate distance between two coordinates using Haversine formula
+     */
+    private function calculateDistance($lat1, $lng1, $lat2, $lng2)
+    {
+        $earthRadius = 6371000; // Earth's radius in meters
+
+        $latFrom = deg2rad($lat1);
+        $lonFrom = deg2rad($lng1);
+        $latTo = deg2rad($lat2);
+        $lonTo = deg2rad($lng2);
+
+        $latDelta = $latTo - $latFrom;
+        $lonDelta = $lonTo - $lonFrom;
+
+        $angle = 2 * asin(sqrt(pow(sin($latDelta / 2), 2) +
+            cos($latFrom) * cos($latTo) * pow(sin($lonDelta / 2), 2)));
+
+        return $angle * $earthRadius;
+    }
+    
+    /**
+     * Test method for geofence validation (for debugging purposes)
+     */
+    public function testGeofence()
+    {
+        // This is a temporary test method for geofence validation
+        // It will be removed in production
+        
+        $testCases = [
+            [
+                'name' => 'Within strict radius',
+                'lat' => -7.99478,
+                'lng' => 112.67384,
+                'accuracy' => 10
+            ],
+            [
+                'name' => 'Slightly outside strict radius with low accuracy',
+                'lat' => -7.99578,
+                'lng' => 112.67383,
+                'accuracy' => 10
+            ],
+            [
+                'name' => 'Slightly outside strict radius with high accuracy',
+                'lat' => -7.99578,
+                'lng' => 112.67383,
+                'accuracy' => 50
+            ],
+            [
+                'name' => 'Significantly outside',
+                'lat' => -7.99678,
+                'lng' => 112.67383,
+                'accuracy' => 10
+            ]
+        ];
+        
+        $results = [];
+        
+        foreach ($testCases as $case) {
+            $result = $this->validateGeofence($case['lat'], $case['lng'], $case['accuracy']);
+            
+            // Calculate actual distance for reporting
+            $geofenceCenterLat = \App\Models\LocationSetting::where('setting_key', 'geofence_center_lat')->first();
+            $geofenceCenterLng = \App\Models\LocationSetting::where('setting_key', 'geofence_center_lng')->first();
+            $geofenceRadius = \App\Models\LocationSetting::where('setting_key', 'geofence_radius')->first();
+            
+            $distance = 0;
+            if ($geofenceCenterLat && $geofenceCenterLng) {
+                $distance = $this->calculateDistance(
+                    $case['lat'], 
+                    $case['lng'], 
+                    floatval($geofenceCenterLat->setting_value),
+                    floatval($geofenceCenterLng->setting_value)
+                );
+            }
+            
+            $results[] = [
+                'name' => $case['name'],
+                'coordinates' => $case['lat'] . ', ' . $case['lng'],
+                'accuracy' => $case['accuracy'],
+                'distance' => round($distance, 2),
+                'accepted' => $result ? '✅ ACCEPTED' : '❌ REJECTED'
+            ];
+        }
+        
+        return response()->json($results);
     }
 }

@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    <!-- Permissions Policy for geolocation and camera access -->
+    <meta http-equiv="Permissions-Policy" content="geolocation=(self), camera=(self), microphone=*, autoplay=*, fullscreen=*">
     <title>@yield('title', 'Absensi MTsN 2 Kota Malang')</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>

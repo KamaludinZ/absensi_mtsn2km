@@ -126,11 +126,13 @@
                         <th class="py-3 px-4 border-b text-left">{!! sortableLink('Tanggal', 'date', $currentSort, $currentDirection) !!}</th>
                         <th class="py-3 px-4 border-b text-left">Nama Shift</th>
                         <th class="py-3 px-4 border-b text-left">Jam Masuk</th>
+                        <th class="py-3 px-4 border-b text-left">Koordinat Masuk</th>
                         <th class="py-3 px-4 border-b text-left">{!! sortableLink('Absensi Masuk', 'clock_in', $currentSort, $currentDirection) !!}</th>
                         <th class="py-3 px-4 border-b text-left">Selisih Masuk</th>
                         <th class="py-3 px-4 border-b text-left">Status Masuk</th>
                         <th class="py-3 px-4 border-b text-left">Selfie Masuk</th>
                         <th class="py-3 px-4 border-b text-left">Jam Pulang</th>
+                        <th class="py-3 px-4 border-b text-left">Koordinat Pulang</th>
                         <th class="py-3 px-4 border-b text-left">{!! sortableLink('Absensi Pulang', 'clock_out', $currentSort, $currentDirection) !!}</th>
                         <th class="py-3 px-4 border-b text-left">Selisih Pulang</th>
                         <th class="py-3 px-4 border-b text-left">Status Pulang</th>
@@ -179,6 +181,17 @@
                         </td>
                         <td class="py-3 px-4 border-b">
                             {{ $schedule ? \Carbon\Carbon::parse($schedule->start_time)->format('H:i:s') : '-' }}
+                        </td>
+                        <td class="py-3 px-4 border-b">
+                            @if($attendance->clock_in_latitude && $attendance->clock_in_longitude)
+                                <a href="https://www.google.com/maps?q={{ $attendance->clock_in_latitude }},{{ $attendance->clock_in_longitude }}" 
+                                   target="_blank" 
+                                   title="Lihat lokasi di peta">
+                                    {{ number_format($attendance->clock_in_latitude, 6) }}, {{ number_format($attendance->clock_in_longitude, 6) }}
+                                </a>
+                            @else
+                                -
+                            @endif
                         </td>
                         <td class="py-3 px-4 border-b">
                             {{ $attendance->clock_in ? $attendance->clock_in->format('H:i:s') : '-' }}
@@ -255,13 +268,26 @@
                         </td>
                         <td class="py-3 px-4 border-b">
                             @if($attendance->selfie_path_in)
-                                <a href="{{ asset('storage/' . $attendance->selfie_path_in) }}" target="_blank" class="text-blue-600 hover:underline">Foto Masuk</a>
+                                <a href="{{ Storage::url($attendance->selfie_path_in) }}" target="_blank">
+                                    <img src="{{ Storage::url($attendance->selfie_path_in) }}" alt="Selfie Masuk" class="w-16 h-16 object-cover rounded border cursor-pointer hover:opacity-80">
+                                </a>
                             @else
                                 -
                             @endif
                         </td>
                         <td class="py-3 px-4 border-b">
                             {{ $schedule ? \Carbon\Carbon::parse($schedule->end_time)->format('H:i:s') : '-' }}
+                        </td>
+                        <td class="py-3 px-4 border-b">
+                            @if($attendance->clock_out_latitude && $attendance->clock_out_longitude)
+                                <a href="https://www.google.com/maps?q={{ $attendance->clock_out_latitude }},{{ $attendance->clock_out_longitude }}" 
+                                   target="_blank" 
+                                   title="Lihat lokasi di peta">
+                                    {{ number_format($attendance->clock_out_latitude, 6) }}, {{ number_format($attendance->clock_out_longitude, 6) }}
+                                </a>
+                            @else
+                                -
+                            @endif
                         </td>
                         <td class="py-3 px-4 border-b">
                             {{ $attendance->clock_out ? $attendance->clock_out->format('H:i:s') : '-' }}
@@ -338,7 +364,9 @@
                         </td>
                         <td class="py-3 px-4 border-b">
                             @if($attendance->selfie_path_out)
-                                <a href="{{ asset('storage/' . $attendance->selfie_path_out) }}" target="_blank" class="text-blue-600 hover:underline">Foto Pulang</a>
+                                <a href="{{ Storage::url($attendance->selfie_path_out) }}" target="_blank">
+                                    <img src="{{ Storage::url($attendance->selfie_path_out) }}" alt="Selfie Pulang" class="w-16 h-16 object-cover rounded border cursor-pointer hover:opacity-80">
+                                </a>
                             @else
                                 -
                             @endif

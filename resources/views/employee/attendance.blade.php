@@ -25,12 +25,54 @@
                     <p class="text-sm text-gray-600 mt-1" x-text="currentDate"></p>
                 </div>
 
+                <!-- Location Information -->
+                <div class="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2">Lokasi Anda</h3>
+                    <div x-show="locationEnabled" class="flex items-center">
+                        <svg class="w-5 h-5 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                        <div>
+                            <p class="text-sm text-gray-700">Koordinat: 
+                                <span x-text="currentLocation ? currentLocation.latitude + ', ' + currentLocation.longitude : 'Mengambil lokasi...'"></span>
+                            </p>
+                            <p class="text-sm text-gray-600" x-text="currentLocation ? 'Akurasi: ' + Math.round(currentLocation.accuracy) + ' meter' : 'Akurasi: -'"></p>
+                            <template x-if="lastLocationCheck">
+                                <div>
+                                    <p class="text-sm" x-bind:class="locationInGeofence ? 'text-green-600' : 'text-red-600'" 
+                                       x-text="locationInGeofence ? 
+                                            ('Lokasi Anda berada di dalam area geofence (' + Math.round(lastLocationCheck.distance) + 'm dari pusat)') : 
+                                            ('Peringatan: Lokasi Anda di luar area geofence (' + Math.round(lastLocationCheck.distance) + 'm dari pusat)')">
+                                    </p>
+                                    <p class="text-xs text-gray-500" x-show="lastLocationCheck && !lastLocationCheck.withinStrictRadius && lastLocationCheck.withinAllowedRadius">
+                                        * Diperbolehkan karena toleransi akurasi GPS (radius: <span x-text="geofenceRadius"></span>m + akurasi: <span x-text="Math.round(currentLocation?.accuracy || 0)"></span>m)
+                                    </p>
+                                </div>
+                            </template>
+                            <template x-if="!lastLocationCheck">
+                                <p class="text-sm" x-bind:class="locationInGeofence ? 'text-green-600' : 'text-red-600'" 
+                                   x-text="locationInGeofence ? 'Lokasi Anda berada di dalam area geofence' : 'Peringatan: Lokasi Anda di luar area geofence'"></p>
+                            </template>
+                        </div>
+                    </div>
+                    <div x-show="!locationEnabled" class="flex items-center">
+                        <svg class="w-5 h-5 text-yellow-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.464 0L4.31 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+                        </svg>
+                        <div>
+                            <p class="text-sm text-gray-700">Izin lokasi belum diberikan</p>
+                            <button @click="requestLocation()" class="text-sm text-blue-600 hover:text-blue-800 underline">Izinkan akses lokasi</button>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Attendance Type Selection -->
                 <div class="space-y-4">
                     <button 
                         @click="selectAttendanceType('clock-in')" 
-                        :disabled="isDisabled('clock-in')"
-                        :class="isDisabled('clock-in') ? 'bg-gray-300 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'"
+                        :disabled="isDisabled('clock-in') || (locationRequired && !locationInGeofence)"
+                        :class="(isDisabled('clock-in') || (locationRequired && !locationInGeofence)) ? 'bg-gray-300 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'"
                         class="w-full py-4 px-6 rounded-lg text-white font-bold text-lg transition duration-200 disabled:opacity-50">
                         <div class="flex items-center justify-center">
                             <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -42,8 +84,8 @@
                     
                     <button 
                         @click="selectAttendanceType('clock-out')" 
-                        :disabled="isDisabled('clock-out')"
-                        :class="isDisabled('clock-out') ? 'bg-gray-300 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'"
+                        :disabled="isDisabled('clock-out') || (locationRequired && !locationInGeofence)"
+                        :class="(isDisabled('clock-out') || (locationRequired && !locationInGeofence)) ? 'bg-gray-300 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'"
                         class="w-full py-4 px-6 rounded-lg text-white font-bold text-lg transition duration-200 disabled:opacity-50">
                         <div class="flex items-center justify-center">
                             <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -64,6 +106,39 @@
                     <p class="text-2xl font-bold text-gray-800" x-text="currentTime"></p>
                     <p class="text-sm text-gray-600 mt-1" x-text="currentDate"></p>
                 </div>
+                
+                <!-- Location Information -->
+                <div class="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-1">Lokasi Absensi</h3>
+                    <div class="flex items-center">
+                        <svg class="w-5 h-5 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                        <div>
+                            <p class="text-sm text-gray-700">Koordinat: 
+                                <span x-text="currentLocation ? currentLocation.latitude + ', ' + currentLocation.longitude : 'Mengambil lokasi...'"></span>
+                            </p>
+                            <p class="text-sm text-gray-600" x-text="currentLocation ? 'Akurasi: ' + Math.round(currentLocation.accuracy) + ' meter' : 'Akurasi: -'"></p>
+                            <template x-if="lastLocationCheck">
+                                <div>
+                                    <p class="text-sm" x-bind:class="locationInGeofence ? 'text-green-600' : 'text-red-600'" 
+                                       x-text="locationInGeofence ? 
+                                            ('Sesuai area geofence (' + Math.round(lastLocationCheck.distance) + 'm dari pusat)') : 
+                                            ('Peringatan: Di luar area geofence (' + Math.round(lastLocationCheck.distance) + 'm dari pusat)')">
+                                    </p>
+                                    <p class="text-xs text-gray-500" x-show="lastLocationCheck && !lastLocationCheck.withinStrictRadius && lastLocationCheck.withinAllowedRadius">
+                                        * Diperbolehkan karena toleransi akurasi GPS (radius: <span x-text="geofenceRadius"></span>m + akurasi: <span x-text="Math.round(currentLocation?.accuracy || 0)"></span>m)
+                                    </p>
+                                </div>
+                            </template>
+                            <template x-if="!lastLocationCheck">
+                                <p class="text-sm" x-bind:class="locationInGeofence ? 'text-green-600' : 'text-red-600'" 
+                                   x-text="locationInGeofence ? 'Sesuai area geofence' : 'Peringatan: Di luar area geofence'"></p>
+                            </template>
+                        </div>
+                    </div>
+                </div>
 
                 <div class="mb-6">
                     <video x-ref="video" autoplay playsinline class="w-full rounded-lg border border-gray-300" style="display:none;"></video>
@@ -74,7 +149,7 @@
                 <!-- Loading State --> 
                 <div x-show="submitting" class="text-center mb-4">
                     <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                    <p class="text-gray-600 mt-2">Mengirim absensi...</p>
+                    <p class="text-gray-600 mt-2">Mengirim absensi beserta lokasi...</p>
                 </div>
 
                 <div class="flex space-x-4" x-show="!submitting">
@@ -145,6 +220,140 @@ function attendanceApp() {
         formattedDateTime: '',
         badge: 'Jam Datang',
         submitting: false,
+        locationEnabled: false,
+        locationRequired: false,
+        currentLocation: null,
+        locationInGeofence: false,
+        lastLocationCheck: null, // Detailed location check information
+        geofenceCenter: null,
+        geofenceRadius: null,
+
+        init() {
+            // Initialize clock and schedule
+            this.updateClock();
+            this.fetchScheduleStatus();
+            setInterval(() => this.updateClock(), 1000);
+            setInterval(() => this.fetchScheduleStatus(), 60000);
+            
+            // Initialize location settings
+            this.fetchLocationSettings();
+        },
+
+        // Fetch location settings from the server using public API endpoints
+        async fetchLocationSettings() {
+            try {
+                // Use AbortController for timeout handling
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+                // Use Promise.all to fetch all settings simultaneously for better performance
+                const [geofenceCenterLat, geofenceCenterLng, geofenceRadius, locationRequired] = await Promise.all([
+                    fetch('/api/location-settings/geofence-center-lat', { signal: controller.signal }).catch(() => null),
+                    fetch('/api/location-settings/geofence-center-lng', { signal: controller.signal }).catch(() => null),
+                    fetch('/api/location-settings/geofence-radius', { signal: controller.signal }).catch(() => null),
+                    fetch('/api/location-settings/location-required', { signal: controller.signal }).catch(() => null)
+                ]);
+
+                clearTimeout(timeoutId);
+
+                // Process geofence center coordinates
+                // Handle each request individually to be more robust
+                let latValue = null;
+                let lngValue = null;
+                
+                if (geofenceCenterLat && geofenceCenterLat.ok) {
+                    try {
+                        const latData = await geofenceCenterLat.json();
+                        latValue = latData.value ? parseFloat(latData.value) : null;
+                    } catch (e) {
+                        console.error('Failed to parse geofence center latitude:', e);
+                    }
+                }
+                
+                if (geofenceCenterLng && geofenceCenterLng.ok) {
+                    try {
+                        const lngData = await geofenceCenterLng.json();
+                        lngValue = lngData.value ? parseFloat(lngData.value) : null;
+                    } catch (e) {
+                        console.error('Failed to parse geofence center longitude:', e);
+                    }
+                }
+                
+                // Only set geofence center if both values are valid
+                if (latValue !== null && lngValue !== null) {
+                    this.geofenceCenter = {
+                        lat: latValue,
+                        lng: lngValue
+                    };
+                    console.log('Geofence center set:', this.geofenceCenter);
+                } else {
+                    // Use default geofence if API values are invalid
+                    console.warn('Using default geofence center due to invalid values');
+                    this.geofenceCenter = {
+                        lat: -7.99478, // Default to current school location
+                        lng: 112.67383
+                    };
+                }
+
+                // Process geofence radius
+                if (geofenceRadius && geofenceRadius.ok) {
+                    try {
+                        const radiusData = await geofenceRadius.json();
+                        const radiusValue = parseFloat(radiusData.value);
+                        this.geofenceRadius = isNaN(radiusValue) ? 100 : radiusValue; // Default radius of 100m if invalid
+                        console.log('Geofence radius set:', this.geofenceRadius);
+                    } catch (e) {
+                        console.error('Failed to parse geofence radius, using default:', e);
+                        this.geofenceRadius = 100; // Default radius
+                    }
+                } else {
+                    console.warn('Using default geofence radius due to API failure');
+                    this.geofenceRadius = 100; // Default radius
+                }
+
+                // Process location required setting
+                if (locationRequired && locationRequired.ok) {
+                    try {
+                        const requiredData = await locationRequired.json();
+                        this.locationRequired = requiredData.value === 'true' || requiredData.value === true;
+                        console.log('Location required set:', this.locationRequired);
+                    } catch (e) {
+                        console.error('Failed to parse location required setting, using default:', e);
+                        this.locationRequired = true; // Default to required
+                    }
+                } else {
+                    console.warn('Using default location required setting due to API failure');
+                    this.locationRequired = true; // Default to required
+                }
+
+                // Request location if required
+                if (this.locationRequired) {
+                    this.requestLocation();
+                }
+            } catch (error) {
+                console.error('Failed to fetch location settings:', error);
+                
+                // Handle different types of errors
+                if (error.name === 'AbortError') {
+                    console.warn('Location settings request timed out');
+                } else if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                    console.warn('Network error while fetching location settings');
+                }
+                
+                // Set default values and continue
+                this.geofenceCenter = {
+                    lat: -7.99478, // Default to current school location
+                    lng: 112.67383
+                };
+                this.geofenceRadius = 100;
+                this.locationRequired = true; // Default to required
+                
+                // Request location if required
+                if (this.locationRequired) {
+                    this.requestLocation();
+                }
+            }
+        },
 
         // Check if the attendance type is disabled based on current status
         isDisabled(type) {
@@ -160,10 +369,198 @@ function attendanceApp() {
 
         // Select attendance type and move to photo capture step
         selectAttendanceType(type) {
+            // Check if location is required and valid
+            if (this.locationRequired && !this.locationInGeofence) {
+                this.error = 'Lokasi Anda tidak berada di area geofence yang ditentukan. Silakan pindah ke area yang sesuai.';
+                return;
+            }
+            
             this.attendanceType = type;
             this.step = 2;
             // Start camera after moving to step 2
             this.startCamera();
+        },
+
+        // Request location access with improved cross-browser support
+        async requestLocation() {
+            this.error = 'Mengambil lokasi...';
+            
+            // Check if geolocation is supported
+            if (!navigator.geolocation) {
+                this.error = 'Browser Anda tidak mendukung geolokasi.';
+                return;
+            }
+
+            try {
+                // Try to get location with different fallback methods
+                let position;
+                
+                // First attempt with high accuracy
+                try {
+                    position = await new Promise((resolve, reject) => {
+                        navigator.geolocation.getCurrentPosition(resolve, reject, {
+                            enableHighAccuracy: true,
+                            timeout: 10000,
+                            maximumAge: 60000
+                        });
+                    });
+                } catch (highAccError) {
+                    // If high accuracy fails, try with less strict settings
+                    try {
+                        position = await new Promise((resolve, reject) => {
+                            navigator.geolocation.getCurrentPosition(resolve, reject, {
+                                enableHighAccuracy: false,
+                                timeout: 15000,
+                                maximumAge: 60000
+                            });
+                        });
+                    } catch (lowAccError) {
+                        // If all attempts fail, throw the original error
+                        throw highAccError;
+                    }
+                }
+
+                this.currentLocation = {
+                    latitude: position.coords.latitude,
+                    longitude: position.coords.longitude,
+                    accuracy: position.coords.accuracy || 100 // Default accuracy if not provided
+                };
+                
+                this.locationEnabled = true;
+                this.error = '';
+
+                // Check if location is within geofence
+                if (this.geofenceCenter && this.geofenceRadius && this.currentLocation) {
+                    this.locationInGeofence = this.isLocationInGeofence(
+                        this.currentLocation.latitude, 
+                        this.currentLocation.longitude,
+                        this.currentLocation.accuracy
+                    );
+                } else {
+                    this.locationInGeofence = true; // If no geofence is set or location not available, consider it OK
+                }
+            } catch (error) {
+                this.locationEnabled = false;
+                this.currentLocation = null;
+                this.locationInGeofence = false;
+                
+                // More specific error handling with better browser compatibility
+                switch(error.code) {
+                    case error.PERMISSION_DENIED:
+                        this.error = 'Izin lokasi ditolak. Mohon izinkan akses lokasi di pengaturan browser Anda.';
+                        break;
+                    case error.POSITION_UNAVAILABLE:
+                        this.error = 'Informasi lokasi tidak tersedia. Pastikan layanan lokasi aktif.';
+                        break;
+                    case error.TIMEOUT:
+                        // Try one more time with extended timeout
+                        try {
+                            const position = await new Promise((resolve, reject) => {
+                                navigator.geolocation.getCurrentPosition(resolve, reject, {
+                                    enableHighAccuracy: false,
+                                    timeout: 20000,
+                                    maximumAge: 60000
+                                });
+                            });
+                            
+                            this.currentLocation = {
+                                latitude: position.coords.latitude,
+                                longitude: position.coords.longitude,
+                                accuracy: position.coords.accuracy || 100
+                            };
+                            
+                            this.locationEnabled = true;
+                            this.error = '';
+
+                            // Check if location is within geofence
+                            if (this.geofenceCenter && this.geofenceRadius && this.currentLocation) {
+                                this.locationInGeofence = this.isLocationInGeofence(
+                                    this.currentLocation.latitude, 
+                                    this.currentLocation.longitude,
+                                    this.currentLocation.accuracy
+                                );
+                            } else {
+                                this.locationInGeofence = true; // If no geofence is set or location not available, consider it OK
+                            }
+                        } catch {
+                            this.error = 'Waktu permintaan lokasi habis. Coba periksa koneksi internet Anda.';
+                        }
+                        break;
+                    default:
+                        // Check if error message contains specific browser-related issues
+                        if (error.message && error.message.toLowerCase().includes('insecure')) {
+                            this.error = 'Layanan lokasi hanya tersedia di koneksi aman (HTTPS).';
+                        } else if (error.message && error.message.toLowerCase().includes('cross')) {
+                            this.error = 'Akses lokasi diblokir oleh kebijakan keamanan browser.';
+                        } else {
+                            this.error = 'Terjadi kesalahan saat mendapatkan lokasi: ' + error.message;
+                        }
+                        break;
+                }
+            }
+        },
+
+        // Check if a location is within the geofence
+        isLocationInGeofence(lat, lng, accuracy = 0) {
+            if (!this.geofenceCenter) return false;
+            
+            const distance = this.calculateDistance(
+                lat, 
+                lng, 
+                this.geofenceCenter.lat, 
+                this.geofenceCenter.lng
+            );
+            
+            // Enhanced validation with accuracy consideration
+            // Check if user is within strict radius first
+            const withinStrictRadius = distance <= this.geofenceRadius;
+            
+            if (withinStrictRadius) {
+                // If within strict radius, always allow regardless of accuracy
+                this.lastLocationCheck = {
+                    distance: distance,
+                    accuracy: accuracy,
+                    maxAllowedDistance: this.geofenceRadius,
+                    withinStrictRadius: true,
+                    withinAllowedRadius: true
+                };
+                return true;
+            }
+            
+            // For users outside strict radius, apply more lenient accuracy handling
+            // Cap accuracy at reasonable levels to prevent false negatives but be more forgiving
+            const safeAccuracy = Math.min(parseFloat(accuracy) || 0, 200);
+            
+            // Calculate max allowed distance with more generous accuracy buffer
+            // Allow up to 75% of radius as accuracy buffer for better tolerance
+            const maxAllowedDistance = this.geofenceRadius + Math.min(safeAccuracy, this.geofenceRadius * 0.75);
+            
+            // Store detailed information for UI feedback
+            this.lastLocationCheck = {
+                distance: distance,
+                accuracy: safeAccuracy,
+                maxAllowedDistance: maxAllowedDistance,
+                withinStrictRadius: withinStrictRadius,
+                withinAllowedRadius: distance <= maxAllowedDistance
+            };
+            
+            return distance <= maxAllowedDistance;
+        },
+
+        // Calculate distance between two coordinates using Haversine formula
+        calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371e3; // Earth's radius in meters
+            const φ1 = lat1 * Math.PI/180;
+            const φ2 = lat2 * Math.PI/180;
+            const Δφ = (lat2-lat1) * Math.PI/180;
+            const Δλ = (lon2-lon1) * Math.PI/180;
+
+            const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                    Math.cos(φ1) * Math.cos(φ2) *
+                    Math.sin(Δλ/2) * Math.sin(Δλ/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+            return R * c; // Distance in meters
         },
 
         async startCamera() {
@@ -244,7 +641,10 @@ function attendanceApp() {
                         'Content-Type': 'application/json',
                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
                     },
-                    body: JSON.stringify({ selfie: this.capturedImage })
+                    body: JSON.stringify({ 
+                        selfie: this.capturedImage,
+                        location: this.currentLocation  // Include location data
+                    })
                 });
 
                 // Check if response is ok before parsing
@@ -326,14 +726,6 @@ function attendanceApp() {
             } catch (error) {
                 console.error('Failed to fetch schedule status:', error);
             }
-        },
-
-        init() {
-            // Initialize clock and schedule
-            this.updateClock();
-            this.fetchScheduleStatus();
-            setInterval(() => this.updateClock(), 1000);
-            setInterval(() => this.fetchScheduleStatus(), 60000);
         }
     }
 }

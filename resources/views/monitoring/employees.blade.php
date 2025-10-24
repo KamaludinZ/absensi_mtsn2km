@@ -97,16 +97,19 @@
             <table class="min-w-full bg-white border border-gray-200">
                 <thead>
                     <tr class="bg-gray-100">
+                        <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase">Tanggal</th>
                         <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase">Nama Pegawai</th>
                         <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase">Jabatan</th>
                         <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase">Nama Shift</th>
                         <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase">Jam Masuk</th>
                         <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase">Absensi Masuk</th>
+                        <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase">Koordinat Masuk</th>
                         <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase">Selisih</th>
                         <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                         <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase">Selfie Masuk</th>
                         <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase">Jam Pulang</th>
                         <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase">Absensi Pulang</th>
+                        <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase">Koordinat Pulang</th>
                         <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase">Selisih</th>
                         <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                         <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase">Selfie Pulang</th>
@@ -115,6 +118,9 @@
                 <tbody>
                     @forelse($attendances as $attendance)
                     <tr class="hover:bg-gray-50">
+                        <td class="py-3 px-4 border-b whitespace-nowrap">
+                            {{ $attendance->date->format('d/m/Y') }}
+                        </td>
                         <td class="py-3 px-4 border-b whitespace-nowrap">
                             {{ $attendance->attendable->full_name ?? 'N/A' }}
                         </td>
@@ -214,10 +220,20 @@
                                 </span>
                             @endif
                         </td>
+                        <td class="py-3 px-4 border-b whitespace-nowrap">
+                            @if($attendance->clock_in_latitude && $attendance->clock_in_longitude)
+                                <div class="text-sm">
+                                    <p>{{ number_format($attendance->clock_in_latitude, 6) }}, {{ number_format($attendance->clock_in_longitude, 6) }}</p>
+                                    <p class="text-xs text-gray-500">±{{ number_format($attendance->clock_in_accuracy ?? 0, 0) }}m</p>
+                                </div>
+                            @else
+                                <span>-</span>
+                            @endif
+                        </td>
                         <td class="py-3 px-4 border-b">
                             @if($attendance->selfie_path_in)
                                 <a href="{{ Storage::url($attendance->selfie_path_in) }}" target="_blank">
-                                    <img src="{{ Storage::url($attendance->selfie_path_in) }}" alt="Selfie Masuk" class="w-12 h-12 object-cover rounded border cursor-pointer hover:opacity-80">
+                                    <img src="{{ Storage::url($attendance->selfie_path_in) }}" alt="Selfie Masuk" class="w-16 h-16 object-cover rounded border cursor-pointer hover:opacity-80">
                                 </a>
                             @else
                                 -
@@ -289,10 +305,20 @@
                                 </span>
                             @endif
                         </td>
+                        <td class="py-3 px-4 border-b whitespace-nowrap">
+                            @if($attendance->clock_out_latitude && $attendance->clock_out_longitude)
+                                <div class="text-sm">
+                                    <p>{{ number_format($attendance->clock_out_latitude, 6) }}, {{ number_format($attendance->clock_out_longitude, 6) }}</p>
+                                    <p class="text-xs text-gray-500">±{{ number_format($attendance->clock_out_accuracy ?? 0, 0) }}m</p>
+                                </div>
+                            @else
+                                <span>-</span>
+                            @endif
+                        </td>
                         <td class="py-3 px-4 border-b">
                             @if($attendance->selfie_path_out)
                                 <a href="{{ Storage::url($attendance->selfie_path_out) }}" target="_blank">
-                                    <img src="{{ Storage::url($attendance->selfie_path_out) }}" alt="Selfie Pulang" class="w-12 h-12 object-cover rounded border cursor-pointer hover:opacity-80">
+                                    <img src="{{ Storage::url($attendance->selfie_path_out) }}" alt="Selfie Pulang" class="w-16 h-16 object-cover rounded border cursor-pointer hover:opacity-80">
                                 </a>
                             @else
                                 -
@@ -301,7 +327,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="13" class="py-4 px-4 text-center text-gray-500">Belum ada data kehadiran hari ini</td>
+                        <td colspan="16" class="py-4 px-4 text-center text-gray-500">Belum ada data kehadiran hari ini</td>
                     </tr>
                     @endforelse
                 </tbody>

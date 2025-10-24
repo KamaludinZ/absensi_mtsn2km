@@ -6,10 +6,22 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="theme-color" content="#1e40af">
     <meta name="description" content="Sistem Absensi MTsN 2 Kota Malang">
+    <!-- Permissions Policy for geolocation and camera access -->
+    <meta http-equiv="Permissions-Policy" content="geolocation=(self), camera=(self), microphone=*, autoplay=*, fullscreen=*">
     <title>@yield('title', 'Absensi MTsN 2 Kota Malang')</title>
 
-    <!-- Vite CSS -->
-    @vite('resources/css/app.css')
+    @php
+        $manifestPath = public_path('build/manifest.json');
+        $cssPath = 'build/assets/app-Cv3Cf-7s.css'; // fallback
+
+        if (file_exists($manifestPath)) {
+            $manifest = json_decode(file_get_contents($manifestPath), true);
+            if (isset($manifest['resources/css/app.css']['file'])) {
+                $cssPath = 'build/' . $manifest['resources/css/app.css']['file'];
+            }
+        }
+    @endphp
+    <link rel="stylesheet" href="{{ asset($cssPath) }}">
 </head>
 <body>
     <div class="min-h-screen flex flex-col md:flex-row">
@@ -73,8 +85,18 @@
         </div>
     </div>
 
-    <!-- Vite JS -->
-    @vite('resources/js/app.js')
+    @php
+        $manifestPath = public_path('build/manifest.json');
+        $jsPath = 'build/assets/app-KNSYXkWY.js'; // fallback
+
+        if (file_exists($manifestPath)) {
+            $manifest = json_decode(file_get_contents($manifestPath), true);
+            if (isset($manifest['resources/js/app.js']['file'])) {
+                $jsPath = 'build/' . $manifest['resources/js/app.js']['file'];
+            }
+        }
+    @endphp
+    <script type="module" src="{{ asset($jsPath) }}"></script>
 
     @stack('scripts')
 </body>
