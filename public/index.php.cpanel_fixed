@@ -1,0 +1,50 @@
+<?php
+
+use Illuminate\Contracts\Http\Kernel;
+use Illuminate\Http\Request;
+
+define('LARAVEL_START', microtime(true));
+
+/*
+|--------------------------------------------------------------------------
+| Production Configuration for cPanel
+|--------------------------------------------------------------------------
+|
+| This index.php is configured for cPanel deployment.
+| Laravel application: /home/mtnkot4/absensi_app
+| Document root: /home/mtnkot4/public_html
+|
+*/
+
+// Determine if the application is in maintenance mode...
+if (file_exists($maintenance = __DIR__.'/../absensi_app/storage/framework/maintenance.php')) {
+    require $maintenance;
+}
+
+// Register the Composer autoloader...
+require __DIR__.'/../absensi_app/vendor/autoload.php';
+
+// Bootstrap Laravel and handle the request...
+$app = require_once __DIR__.'/../absensi_app/bootstrap/app.php';
+
+/*
+|--------------------------------------------------------------------------
+| CRITICAL FIX: Override public_path for cPanel
+|--------------------------------------------------------------------------
+|
+| By default, Laravel's public_path() points to /absensi_app/public/
+| but in cPanel, our document root is /public_html/
+| This override ensures files are saved to the correct location.
+|
+*/
+$app->bind('path.public', function() {
+    return realpath(__DIR__);
+});
+
+$kernel = $app->make(Kernel::class);
+
+$response = $kernel->handle(
+    $request = Request::capture()
+)->send();
+
+$kernel->terminate($request, $response);
