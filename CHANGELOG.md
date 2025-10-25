@@ -68,6 +68,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 🌐 Rollback capability untuk failed updates
 - 🌐 Production-ready .htaccess configuration
 
+## [v1.0.3] - 2025-10-25
+
+### Security
+- 🔒 Fixed security vulnerability: Direct URL access to selfie photos now requires authentication
+- 🔒 All /selfies/* routes now go through Laravel authentication system
+- 🔒 Enhanced access control for employee/student photos with role-based permissions
+
+### Added
+- ➕ Route untuk secure access ke selfie photos dengan middleware authentication
+
+### Fixed
+- 🐛 Bug: Akses langsung ke URL foto selfie tanpa login sekarang di-block oleh sistem
+
 ---
 
 ## Upcoming Features (Planned)

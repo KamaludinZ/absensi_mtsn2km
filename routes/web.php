@@ -20,6 +20,7 @@ use App\Http\Controllers\Admin\BackupController;
 use App\Http\Controllers\API\ScheduleController as ApiScheduleController;
 use App\Http\Controllers\Monitoring\AttendanceMonitorController;
 use App\Http\Controllers\Monitoring\PermissionMonitorController;
+use App\Http\Controllers\SelfieController;
 use App\Http\Middleware\CheckRole;
 
 // Public routes
@@ -51,6 +52,12 @@ Route::prefix('student/attendance')->name('student.attendance.')->middleware('th
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1'); // 5 attempts per minute
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middleware('auth');
+
+// Secure selfie access route - requires authentication
+Route::get('/selfies/{type}/{filename}', [SelfieController::class, 'show'])
+    ->middleware('auth')
+    ->where('type', 'employee|student')
+    ->where('filename', '.*');
 
 // Employee routes
 Route::middleware(['auth', CheckRole::class . ':pegawai'])->prefix('employee')->name('employee.')->group(function () {

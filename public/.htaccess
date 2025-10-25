@@ -18,6 +18,15 @@
     RewriteCond %{REQUEST_URI} (.+)/$
     RewriteRule ^ %1 [L,R=301]
 
+    # IMPORTANT: Skip rewrite for static folders
+    # DON'T skip rewrite for selfies - we need to validate access through Laravel
+    RewriteCond %{REQUEST_URI} ^/build [NC,OR]
+    RewriteCond %{REQUEST_URI} ^/storage [NC,OR]
+    RewriteCond %{REQUEST_URI} ^/favicon\\.ico$ [NC,OR]
+    RewriteCond %{REQUEST_URI} ^/favicon\\.svg$ [NC,OR]
+    RewriteCond %{REQUEST_URI} ^/robots\\.txt$ [NC]
+    RewriteRule .* - [L]
+
     # Send Requests To Front Controller...
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_FILENAME} !-f
