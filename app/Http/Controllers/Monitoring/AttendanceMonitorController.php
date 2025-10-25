@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\Attendance;
 use App\Models\Employee;
 use App\Models\Student;
+use App\Models\Schedule;
 use Carbon\Carbon;
 
 class AttendanceMonitorController extends Controller
@@ -39,10 +40,77 @@ class AttendanceMonitorController extends Controller
             $query->where('attendable_id', $request->employee_id);
         }
 
-        $attendances = $query->orderBy('clock_in', 'desc')->get();
+        // Sorting logic for employees
+        $sortField = $request->get('sort', 'date');
+        $sortDirection = $request->get('direction', 'desc');
+
+        // Validate sort direction
+        if (!in_array($sortDirection, ['asc', 'desc'])) {
+            $sortDirection = 'desc';
+        }
+
+        // Get pagination parameters
+        $perPage = $request->get('per_page', 10); // Default to 10 items per page
+        
+        // Handle "All" option
+        if ($perPage === 'all') {
+            // Apply sorting based on field
+            switch ($sortField) {
+                case 'full_name':
+                case 'position':
+                    // For relationship fields, we need to sort the collection
+                    $attendances = $query->get()->sortBy(function($attendance) use ($sortField, $sortDirection) {
+                        return strtolower($attendance->attendable->$sortField ?? '');
+                    }, SORT_REGULAR, $sortDirection === 'desc');
+                    break;
+
+                case 'date':
+                    $attendances = $query->orderBy('date', $sortDirection)->orderBy('clock_in', 'desc')->get();
+                    break;
+
+                case 'clock_in':
+                case 'clock_out':
+                    $attendances = $query->orderBy($sortField, $sortDirection)->orderBy('date', 'desc')->get();
+                    break;
+
+                default:
+                    // Default sorting by date and then by clock_in
+                    $attendances = $query->orderBy('date', $sortDirection)->orderBy('clock_in', 'desc')->get();
+                    break;
+            }
+            $paginated = false;
+        } else {
+            // Validate perPage to ensure it's one of the allowed values
+            $allowedPerPage = [10, 20, 30, 50, 100];
+            $perPage = in_array($perPage, $allowedPerPage) ? $perPage : 10;
+            
+            // Apply sorting based on field for paginated results
+            switch ($sortField) {
+                case 'full_name':
+                case 'position':
+                    // For relationship fields, we need to sort the collection
+                    $attendances = $query->orderBy('date', $sortDirection)->paginate($perPage);
+                    break;
+
+                case 'date':
+                    $attendances = $query->orderBy('date', $sortDirection)->orderBy('clock_in', 'desc')->paginate($perPage);
+                    break;
+
+                case 'clock_in':
+                case 'clock_out':
+                    $attendances = $query->orderBy($sortField, $sortDirection)->orderBy('date', 'desc')->paginate($perPage);
+                    break;
+
+                default:
+                    // Default sorting by date and then by clock_in
+                    $attendances = $query->orderBy('date', $sortDirection)->orderBy('clock_in', 'desc')->paginate($perPage);
+                    break;
+            }
+            $paginated = true;
+        }
 
         $totalEmployees = Employee::where('is_active', true)->count();
-        $presentCount = $attendances->where('clock_in', '!=', null)->count();
+        $presentCount = $paginated ? $attendances->where('clock_in', '!=', null)->count() : collect($attendances)->where('clock_in', '!=', null)->count();
 
         // Get all employees for the dropdown
         $employees = Employee::orderBy('full_name')->get();
@@ -69,7 +137,7 @@ class AttendanceMonitorController extends Controller
             ->orderBy('year', 'desc')
             ->pluck('year');
 
-        return view('monitoring.employees', compact('attendances', 'totalEmployees', 'presentCount', 'employees', 'months', 'years'));
+        return view('monitoring.employees', compact('attendances', 'totalEmployees', 'presentCount', 'employees', 'months', 'years', 'sortField', 'sortDirection', 'paginated'));
     }
 
     public function students(Request $request)
@@ -103,13 +171,83 @@ class AttendanceMonitorController extends Controller
             $query->whereIn('attendable_id', $studentIds);
         }
 
-        $attendances = $query->orderBy('clock_in', 'desc')->get();
+        // Sorting logic for students
+        $sortField = $request->get('sort', 'date');
+        $sortDirection = $request->get('direction', 'desc');
+
+        // Validate sort direction
+        if (!in_array($sortDirection, ['asc', 'desc'])) {
+            $sortDirection = 'desc';
+        }
+
+        // Get pagination parameters
+        $perPage = $request->get('per_page', 10); // Default to 10 items per page
+        
+        // Handle "All" option
+        if ($perPage === 'all') {
+            // Apply sorting based on field
+            switch ($sortField) {
+                case 'full_name':
+                case 'rombel':
+                    // For relationship fields, we need to sort the collection
+                    $attendances = $query->get()->sortBy(function($attendance) use ($sortField, $sortDirection) {
+                        if ($sortField === 'rombel') {
+                            return strtolower($attendance->attendable->rombel->name ?? '');
+                        }
+                        return strtolower($attendance->attendable->$sortField ?? '');
+                    }, SORT_REGULAR, $sortDirection === 'desc');
+                    break;
+
+                case 'date':
+                    $attendances = $query->orderBy('date', $sortDirection)->orderBy('clock_in', 'desc')->get();
+                    break;
+
+                case 'clock_in':
+                case 'clock_out':
+                    $attendances = $query->orderBy($sortField, $sortDirection)->orderBy('date', 'desc')->get();
+                    break;
+
+                default:
+                    // Default sorting by date and then by clock_in
+                    $attendances = $query->orderBy('date', $sortDirection)->orderBy('clock_in', 'desc')->get();
+                    break;
+            }
+            $paginated = false;
+        } else {
+            // Validate perPage to ensure it's one of the allowed values
+            $allowedPerPage = [10, 20, 30, 50, 100];
+            $perPage = in_array($perPage, $allowedPerPage) ? $perPage : 10;
+            
+            // Apply sorting based on field for paginated results
+            switch ($sortField) {
+                case 'full_name':
+                case 'rombel':
+                    // For relationship fields, we need to sort the collection
+                    $attendances = $query->orderBy('date', $sortDirection)->paginate($perPage);
+                    break;
+
+                case 'date':
+                    $attendances = $query->orderBy('date', $sortDirection)->orderBy('clock_in', 'desc')->paginate($perPage);
+                    break;
+
+                case 'clock_in':
+                case 'clock_out':
+                    $attendances = $query->orderBy($sortField, $sortDirection)->orderBy('date', 'desc')->paginate($perPage);
+                    break;
+
+                default:
+                    // Default sorting by date and then by clock_in
+                    $attendances = $query->orderBy('date', $sortDirection)->orderBy('clock_in', 'desc')->paginate($perPage);
+                    break;
+            }
+            $paginated = true;
+        }
 
         $totalStudents = Student::where('is_active', true)->count();
-        $presentCount = $attendances->where('clock_in', '!=', null)->count();
+        $presentCount = $paginated ? $attendances->where('clock_in', '!=', null)->count() : collect($attendances)->where('clock_in', '!=', null)->count();
 
         $rombels = \App\Models\Rombel::with('academicYear')->orderBy('name')->get();
 
-        return view('monitoring.students', compact('attendances', 'totalStudents', 'presentCount', 'rombels'));
+        return view('monitoring.students', compact('attendances', 'totalStudents', 'presentCount', 'rombels', 'sortField', 'sortDirection', 'paginated'));
     }
 }

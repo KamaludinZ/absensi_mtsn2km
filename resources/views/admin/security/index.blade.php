@@ -165,7 +165,7 @@
                         @elseif($recommendation['type'] === 'warning') text-yellow-700
                         @else text-green-700
                         @endif">
-                        {{ $recommendation['description'] }}
+                        {{ $recommendation['message'] }}
                     </p>
                     @if($recommendation['action'])
                         <a href="{{ $recommendation['action_url'] }}" class="inline-block mt-2 text-sm font-semibold

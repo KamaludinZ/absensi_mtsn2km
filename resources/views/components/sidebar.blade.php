@@ -267,7 +267,7 @@
             </div>
 
             <!-- Pengaturan Group -->
-            <div class="nav-group" x-data="{ open: @if(request()->routeIs('admin.users.*') || request()->routeIs('admin.security.*') || request()->routeIs('admin.backup.*') || request()->routeIs('admin.update.*') || request()->routeIs('admin.academic-years.*') || request()->routeIs('admin.holidays.*') || request()->routeIs('admin.location-settings.*')) true @else false @endif }">
+            <div class="nav-group" x-data="{ open: @if(request()->routeIs('admin.users.*') || request()->routeIs('admin.security.*') || request()->routeIs('admin.backup.*') || request()->routeIs('admin.update.*') || request()->routeIs('admin.academic-years.*') || request()->routeIs('admin.holidays.*') || request()->routeIs('admin.location-settings.*') || request()->routeIs('admin.profile.*')) true @else false @endif }">
                 <button @click="open = !open" class="nav-group-header" :aria-expanded="open" aria-controls="pengaturan-submenu">
                     <div class="nav-group-title">
                         <div class="nav-icon">
@@ -354,6 +354,12 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                         </svg>
                         <span class="nav-text">Pengaturan Lokasi</span>
+                    </a>
+                    <a href="{{ route('admin.profile.change-password') }}" class="nav-sub-item {{ request()->routeIs('admin.profile.*') ? 'active' : '' }}">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                        </svg>
+                        <span class="nav-text">Ubah Password</span>
                     </a>
                 </div>
             </div>
@@ -479,6 +485,15 @@
                     </a>
                 </div>
             </div>
+            
+            <a href="{{ route('monitoring.profile.change-password') }}" class="nav-item {{ request()->routeIs('monitoring.profile.*') ? 'active' : '' }}">
+                <div class="nav-icon">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                    </svg>
+                </div>
+                <span class="nav-text">Ubah Password</span>
+            </a>
         @endif
     </nav>
 </aside>

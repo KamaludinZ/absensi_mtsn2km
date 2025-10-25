@@ -7,11 +7,13 @@ use Illuminate\Http\Request;
 use App\Models\Student;
 use App\Models\Rombel;
 use App\Models\AcademicYear;
+use App\Traits\Paginable;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Imports\StudentsImport;
 
 class StudentController extends Controller
 {
+    use Paginable;
     public function index(Request $request)
     {
         $query = Student::with(['rombel.grade', 'rombel.academicYear']);
@@ -38,7 +40,105 @@ class StudentController extends Controller
             $query->where('is_active', $request->is_active);
         }
 
-        $students = $query->orderBy('full_name')->paginate(20);
+        // Sorting logic
+        $sortField = $request->get('sort', 'full_name');
+        $sortDirection = $request->get('direction', 'asc');
+
+        // Validate sort direction
+        if (!in_array($sortDirection, ['asc', 'desc'])) {
+            $sortDirection = 'asc';
+        }
+
+        // Apply sorting based on field
+        switch ($sortField) {
+            case 'full_name':
+                $query->orderBy('full_name', $sortDirection);
+                break;
+
+            case 'grade_name':
+                // For relationship fields, we need to sort the collection
+                $students = $query->get()->sortBy(function($student) {
+                    return strtolower($student->rombel->grade->name ?? '');
+                }, SORT_REGULAR, $sortDirection === 'desc');
+                
+                // Manually paginate with customizable pagination
+                $perPage = $this->getPerPagePreference();
+                $currentPage = request()->get('page', 1);
+                
+                if ($perPage === 'all') {
+                    // Show all records without pagination
+                    $students = new \Illuminate\Pagination\LengthAwarePaginator(
+                        $students,
+                        $students->count(),
+                        $students->count(),
+                        $currentPage,
+                        ['path' => request()->url(), 'query' => request()->query()]
+                    );
+                } else {
+                    $students = new \Illuminate\Pagination\LengthAwarePaginator(
+                        $students->forPage($currentPage, $perPage),
+                        $students->count(),
+                        $perPage,
+                        $currentPage,
+                        ['path' => request()->url(), 'query' => request()->query()]
+                    );
+                }
+                break;
+
+            case 'rombel_name':
+                $students = $query->get()->sortBy(function($student) {
+                    return strtolower($student->rombel->name ?? '');
+                }, SORT_REGULAR, $sortDirection === 'desc');
+                
+                // Manually paginate with customizable pagination
+                $perPage = $this->getPerPagePreference();
+                $currentPage = request()->get('page', 1);
+                
+                if ($perPage === 'all') {
+                    // Show all records without pagination
+                    $paginatedStudents = new \Illuminate\Pagination\LengthAwarePaginator(
+                        $students,
+                        $students->count(),
+                        $students->count(),
+                        $currentPage,
+                        ['path' => request()->url(), 'query' => request()->query()]
+                    );
+                    $students = collect($students);
+                } else {
+                    $paginatedStudents = new \Illuminate\Pagination\LengthAwarePaginator(
+                        $students->forPage($currentPage, $perPage),
+                        $students->count(),
+                        $perPage,
+                        $currentPage,
+                        ['path' => request()->url(), 'query' => request()->query()]
+                    );
+                    $students = $paginatedStudents;
+                }
+                break;
+
+            case 'is_active':
+                $query->orderBy('is_active', $sortDirection);
+                break;
+
+            default:
+                $query->orderBy('full_name', $sortDirection);
+                $perPage = $this->getPerPagePreference();
+                if ($perPage === 'all') {
+                    $students = collect($query->get());
+                } else {
+                    $students = $query->paginate($perPage);
+                }
+                break;
+        }
+        
+        if (!isset($students)) {
+            $perPage = $this->getPerPagePreference();
+            if ($perPage === 'all') {
+                $students = collect($query->get());
+            } else {
+                $students = $query->paginate($perPage);
+            }
+        }
         
         // Get all grades for filter dropdown
         $grades = \App\Models\Grade::orderBy('name')->get();
@@ -50,7 +150,7 @@ class StudentController extends Controller
         }
         $rombels = $rombelsQuery->get();
 
-        return view('admin.students.index', compact('students', 'grades', 'rombels'));
+        return view('admin.students.index', compact('students', 'grades', 'rombels', 'sortField', 'sortDirection'));
     }
 
     public function create()

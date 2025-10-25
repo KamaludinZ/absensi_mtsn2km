@@ -1,3 +1,30 @@
+@php
+    function sortableLink($label, $sortField, $currentSort, $currentDirection) {
+        $newDirection = 'asc';
+        $icon = '';
+
+        if ($currentSort == $sortField) {
+            // If this column is currently sorted
+            $newDirection = $currentDirection == 'asc' ? 'desc' : 'asc';
+            $icon = $currentDirection == 'asc' ? ' ↑' : ' ↓';
+        }
+
+        // Build query string preserving filters
+        $params = request()->except(['sort', 'direction', 'page']);
+        $params['sort'] = $sortField;
+        $params['direction'] = $newDirection;
+
+        $url = request()->url() . '?' . http_build_query($params);
+
+        $class = $currentSort == $sortField ? 'text-blue-600 font-semibold' : 'text-gray-700 hover:text-blue-600';
+
+        return '<a href="' . $url . '" class="' . $class . '">' . $label . $icon . '</a>';
+    }
+
+    $currentSort = $sortField ?? request('sort', 'date');
+    $currentDirection = $sortDirection ?? request('direction', 'desc');
+@endphp
+
 @extends('layouts.app')
 @section('title', 'Monitor Pegawai')
 @section('page-title', 'Monitor Kehadiran Pegawai')
@@ -97,17 +124,17 @@
             <table class="min-w-full bg-white border border-gray-200">
                 <thead>
                     <tr class="bg-gray-100">
-                        <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase">Tanggal</th>
-                        <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase">Nama Pegawai</th>
-                        <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase">Jabatan</th>
+                        <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase">{!! sortableLink('Tanggal', 'date', $currentSort, $currentDirection) !!}</th>
+                        <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase">{!! sortableLink('Nama Pegawai', 'full_name', $currentSort, $currentDirection) !!}</th>
+                        <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase">{!! sortableLink('Jabatan', 'position', $currentSort, $currentDirection) !!}</th>
                         <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase">Nama Shift</th>
-                        <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase">Jam Masuk</th>
+                        <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase">{!! sortableLink('Jam Masuk', 'clock_in', $currentSort, $currentDirection) !!}</th>
                         <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase">Absensi Masuk</th>
                         <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase">Koordinat Masuk</th>
                         <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase">Selisih</th>
                         <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                         <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase">Selfie Masuk</th>
-                        <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase">Jam Pulang</th>
+                        <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase">{!! sortableLink('Jam Pulang', 'clock_out', $currentSort, $currentDirection) !!}</th>
                         <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase">Absensi Pulang</th>
                         <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase">Koordinat Pulang</th>
                         <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase">Selisih</th>
@@ -333,6 +360,89 @@
                 </tbody>
             </table>
         </div>
+        
+        <!-- Pagination Controls -->
+        @if(isset($paginated) && $paginated && $attendances->hasPages())
+        <div class="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4 bg-gray-50 p-4 rounded-lg">
+            <div class="text-sm text-gray-600">
+                Menampilkan {{ $attendances->firstItem() }} sampai {{ $attendances->lastItem() }} dari {{ $attendances->total() }} data
+            </div>
+            
+            <div class="flex items-center space-x-2">
+                <form method="GET" class="flex items-center space-x-2">
+                    @if(request()->has('sort'))
+                        <input type="hidden" name="sort" value="{{ request('sort') }}">
+                    @endif
+                    @if(request()->has('direction'))
+                        <input type="hidden" name="direction" value="{{ request('direction') }}">
+                    @endif
+                    @if(request()->has('employee_id'))
+                        <input type="hidden" name="employee_id" value="{{ request('employee_id') }}">
+                    @endif
+                    @if(request()->has('start_date'))
+                        <input type="hidden" name="start_date" value="{{ request('start_date') }}">
+                    @endif
+                    @if(request()->has('end_date'))
+                        <input type="hidden" name="end_date" value="{{ request('end_date') }}">
+                    @endif
+                    
+                    <label for="per_page" class="text-sm text-gray-700">Tampilkan:</label>
+                    <select name="per_page" id="per_page" onchange="this.form.submit()" 
+                            class="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="10" {{ request('per_page') == 10 ? 'selected' : '' }}>10</option>
+                        <option value="20" {{ request('per_page') == 20 ? 'selected' : '' }}>20</option>
+                        <option value="30" {{ request('per_page') == 30 ? 'selected' : '' }}>30</option>
+                        <option value="50" {{ request('per_page') == 50 ? 'selected' : '' }}>50</option>
+                        <option value="100" {{ request('per_page') == 100 ? 'selected' : '' }}>100</option>
+                        <option value="all" {{ request('per_page') == 'all' ? 'selected' : '' }}>Semua</option>
+                    </select>
+                    <span class="text-sm text-gray-700">data per halaman</span>
+                </form>
+            </div>
+            
+            <div class="pagination-wrapper">
+                {{ $attendances->appends(request()->except('page'))->links() }}
+            </div>
+        </div>
+        @elseif(isset($paginated) && !$paginated && count($attendances) > 0)
+        <div class="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4 bg-gray-50 p-4 rounded-lg">
+            <div class="text-sm text-gray-600">
+                Menampilkan semua {{ count($attendances) }} data (tanpa pagination)
+            </div>
+            
+            <div class="flex items-center space-x-2">
+                <form method="GET" class="flex items-center space-x-2">
+                    @if(request()->has('sort'))
+                        <input type="hidden" name="sort" value="{{ request('sort') }}">
+                    @endif
+                    @if(request()->has('direction'))
+                        <input type="hidden" name="direction" value="{{ request('direction') }}">
+                    @endif
+                    @if(request()->has('employee_id'))
+                        <input type="hidden" name="employee_id" value="{{ request('employee_id') }}">
+                    @endif
+                    @if(request()->has('start_date'))
+                        <input type="hidden" name="start_date" value="{{ request('start_date') }}">
+                    @endif
+                    @if(request()->has('end_date'))
+                        <input type="hidden" name="end_date" value="{{ request('end_date') }}">
+                    @endif
+                    
+                    <label for="per_page" class="text-sm text-gray-700">Tampilkan:</label>
+                    <select name="per_page" id="per_page" onchange="this.form.submit()" 
+                            class="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="10">10</option>
+                        <option value="20">20</option>
+                        <option value="30">30</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                        <option value="all" selected>Semua</option>
+                    </select>
+                    <span class="text-sm text-gray-700">data per halaman</span>
+                </form>
+            </div>
+        </div>
+        @endif
 
         @if($attendances->count() > 0)
         <div class="mt-4 text-sm text-gray-600">

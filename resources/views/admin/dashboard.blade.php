@@ -363,7 +363,7 @@
                         @endif
                     </span>
                     <div class="flex-1 text-white">
-                        <span class="font-semibold">{{ $recommendation['title'] }}:</span> {{ $recommendation['description'] }}
+                        <span class="font-semibold">{{ $recommendation['title'] }}:</span> {{ $recommendation['message'] }}
                         @if($recommendation['action'])
                         <a href="{{ $recommendation['action_url'] }}" class="block mt-1 text-blue-200 hover:text-white text-xs underline">
                             {{ $recommendation['action'] }}

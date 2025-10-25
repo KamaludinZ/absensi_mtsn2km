@@ -4,14 +4,16 @@ namespace App\Http\Controllers\Student;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Models\Student;
 use App\Models\Attendance;
+use App\Models\Student;
 use App\Models\Schedule;
 use App\Models\Rombel;
+use App\Models\Grade;
 use Carbon\Carbon;
 use Intervention\Image\Laravel\Facades\Image;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class AttendanceController extends Controller
 {
@@ -22,12 +24,10 @@ class AttendanceController extends Controller
 
     public function getGrades()
     {
-        $grades = Cache::remember('active_grades', 3600, function () {
-            return \App\Models\Grade::where('is_active', true)
-                ->orderBy('name')
-                ->select('id', 'name', 'description')
-                ->get();
-        });
+        $grades = Grade::where('is_active', true)
+            ->orderBy('name')
+            ->select('id', 'name', 'description')
+            ->get();
         
         return response()->json([
             'grades' => $grades
@@ -36,11 +36,9 @@ class AttendanceController extends Controller
 
     public function getRombels($grade)
     {
-        $rombels = Cache::remember("active_rombels_{$grade}", 3600, function () use ($grade) {
-            return Rombel::where('grade_id', $grade)
-                ->orderBy('name', 'asc')
-                ->get(['id', 'name']);
-        });
+        $rombels = Rombel::where('grade_id', $grade)
+            ->orderBy('name', 'asc')
+            ->get(['id', 'name']);
         
         return response()->json([
             'rombels' => $rombels
@@ -57,14 +55,12 @@ class AttendanceController extends Controller
             ]);
         }
 
-        $students = Cache::remember("active_students_{$rombelId}", 300, function () use ($rombelId) { // Reduced cache time to 5 minutes
-            return Student::where('rombel_id', $rombelId)
-                ->where('is_active', true)
-                ->with('rombel') // Load rombel relationship
-                ->select('id', 'full_name', 'rombel_id')
-                ->orderBy('full_name', 'asc')
-                ->get();
-        });
+        $students = Student::where('rombel_id', $rombelId)
+            ->where('is_active', true)
+            ->with('rombel') // Load rombel relationship
+            ->select('id', 'full_name', 'rombel_id')
+            ->orderBy('full_name', 'asc')
+            ->get();
         
         // Format the data to include rombel name
         $formattedStudents = $students->map(function ($student) {
@@ -76,7 +72,7 @@ class AttendanceController extends Controller
         });
         
         // Log for debugging purposes
-        \Log::info('getStudents called', [
+        Log::info('getStudents called', [
             'rombelId' => $rombelId,
             'studentCount' => count($formattedStudents)
         ]);
@@ -116,8 +112,9 @@ class AttendanceController extends Controller
             'student' => [
                 'id' => $student->id,
                 'full_name' => $student->full_name,
-
-                'rombel' => $student->rombel->name,
+                'rombel' => $student->rombel ? $student->rombel->name : 'N/A',
+                'grade_info' => $student->rombel && $student->rombel->grade ? 
+                    ($student->rombel->grade->name . ' - ' . $student->rombel->grade->description) : 'N/A',
                 'has_clocked_in' => $attendance && $attendance->clock_in !== null,
                 'has_clocked_out' => $attendance && $attendance->clock_out !== null,
             ],
@@ -203,7 +200,7 @@ class AttendanceController extends Controller
             $now = Carbon::now();
             $schedule = Schedule::where('type', 'siswa')
                 ->where('day_of_week', $now->dayOfWeek)
-                ->first();
+                .first();
 
             $status = 'Tepat Waktu';
             if ($schedule) {
@@ -267,7 +264,7 @@ class AttendanceController extends Controller
                 'redirect_url' => '/' // Redirect to landing page after successful attendance
             ]);
         } catch (\Exception $e) {
-            \Log::error('Student clock-in error: ' . $e->getMessage(), [
+            Log::error('Student clock-in error: ' . $e->getMessage(), [
                 'student_id' => $request->student_id ?? null,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
@@ -411,7 +408,7 @@ class AttendanceController extends Controller
                 'redirect_url' => '/' // Redirect to landing page after successful attendance
             ]);
         } catch (\Exception $e) {
-            \Log::error('Student clock-out error: ' . $e->getMessage(), [
+            Log::error('Student clock-out error: ' . $e->getMessage(), [
                 'student_id' => $request->student_id ?? null,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
@@ -427,19 +424,19 @@ class AttendanceController extends Controller
     private function processSelfie($base64Image, $type, $id, $direction)
     {
         // Verify the image is a valid base64 encoded image
-        if (!preg_match('/^data:image\/(?:jpeg|png|jpg);base64,[A-Za-z0-9+\/=]+$/', $base64Image)) {
+        if (!preg_match('/^data:image\/(?:jpeg|png|jpg);base64,[A-Za-z0-9+\/=]+$/',$base64Image)) {
             throw new \InvalidArgumentException('Invalid image format');
         }
 
         // Remove data URI prefix
         $image = preg_replace('/^data:image\/(?:jpeg|png|jpg);base64,/', '', $base64Image);
         $image = str_replace(' ', '+', $image);
-        
+
         // Verify base64 is valid
         if (!base64_decode($image, true)) {
             throw new \InvalidArgumentException('Invalid base64 image data');
         }
-        
+
         $imageData = base64_decode($image);
 
         // Validate image content by attempting to create image instance
@@ -465,38 +462,44 @@ class AttendanceController extends Controller
             throw new \InvalidArgumentException('Invalid directory path');
         }
 
-        // Create directory if not exists
-        Storage::disk('public')->makeDirectory($directory);
+        // Detect environment and use appropriate storage path
+        // Production: public/storage/selfies (without symlink, inside web root)
+        // Development: storage/app/public/selfies (with symlink)
+        $isProduction = config('app.env') === 'production';
 
-        $path = storage_path('app/public/' . $directory . '/' . $filename);
+        if ($isProduction) {
+            // Production: Save to public/storage/selfies (inside web root, no symlink needed)
+            // Create folder if not exists
+            if (!file_exists(public_path('storage'))) {
+                @mkdir(public_path('storage'), 0755, true);
+                @mkdir(public_path('storage/selfies/employee'), 0755, true);
+                @mkdir(public_path('storage/selfies/student'), 0755, true);
+            }
+
+            $path = public_path('storage/' . $directory . '/' . $filename);
+
+            // Create directory if not exists
+            $directoryPath = public_path('storage/' . $directory);
+            if (!file_exists($directoryPath)) {
+                mkdir($directoryPath, 0755, true);
+            }
+        } else {
+            // Local development: Use storage with symlink
+            Storage::disk('public')->makeDirectory($directory);
+            $path = storage_path('app/public/' . $directory . '/' . $filename);
+        }
 
         // Sanitize filename to prevent directory traversal
-        $path = str_replace(['../', './', '..\\', '.\\'], '', $path);
+        $path = str_replace(["../", "./", "..\\", ".\\"], '', $path);
 
-        // Verify the final path is within the allowed storage directory
-        $allowedPath = storage_path('app/public/');
-        $realPath = realpath($path) ?: $path;
-        
-        // Normalize path separators to ensure consistent comparison (use forward slashes)
-        $normalizedAllowedPath = str_replace('\\', '/', $allowedPath);
-        $normalizedRealPath = str_replace('\\', '/', $realPath);
-        
-        // Check if the path starts with the allowed path
-        // strpos returns 0 when the needle is found at the beginning of the haystack
-        if (strpos($normalizedRealPath, $normalizedAllowedPath) !== 0) {
-            // For debugging, log the paths
-            \Log::debug('Student path validation failed', [
-                'allowed_path' => $allowedPath,
-                'real_path' => $realPath,
-                'normalized_allowed' => $normalizedAllowedPath,
-                'normalized_real' => $normalizedRealPath,
-                'position' => strpos($normalizedRealPath, $normalizedAllowedPath)
-            ]);
+        // Verify the final path is within the allowed directory
+        $allowedPath = $isProduction ? public_path('storage') : storage_path('app/public/');
+        if (strpos(realpath(dirname($path)) ?: dirname($path), $allowedPath) !== 0) {
             throw new \InvalidArgumentException('Invalid file path');
         }
 
         // Resize image to max width of 800px while maintaining aspect ratio
-        $img = $img->scaleDown(width: 800);
+        $img->scaleDown(width: 800);
 
         // Start with high quality (85) and decrease until file size is under 500KB
         $maxFileSize = 500 * 1024; // 500KB in bytes
@@ -506,7 +509,7 @@ class AttendanceController extends Controller
         // Try different quality levels until we get under the target size or reach minimum quality
         while ($quality >= 30) {
             // Save with current quality
-            $img->toJpeg(quality: $quality)->save($path);
+            $img->toJpeg($quality)->save($path);
 
             // Check the file size
             $fileSize = filesize($path);
@@ -522,13 +525,13 @@ class AttendanceController extends Controller
 
         // If still over size limit after reducing quality, try further resizing
         if (!$compressed) {
-            // Re-read the image and resize to smaller dimensions
-            $img = Image::read($imageData)->scaleDown(width: 600);
+            // Calculate new dimensions that should get us under the size limit
+            $img->scaleDown(width: 600);
 
             // Try again with reduced size and quality
             $quality = 75;
             while ($quality >= 20) {
-                $img->toJpeg(quality: $quality)->save($path);
+                $img->toJpeg($quality)->save($path);
                 $fileSize = filesize($path);
 
                 if ($fileSize <= $maxFileSize) {
@@ -542,7 +545,7 @@ class AttendanceController extends Controller
 
         // If still over size limit, just save with minimum quality
         if (!$compressed) {
-            $img->toJpeg(quality: 20)->save($path);
+            $img->toJpeg(20)->save($path);
         }
 
         return $directory . '/' . $filename;
@@ -631,7 +634,7 @@ class AttendanceController extends Controller
      */
     private function calculateDistance($lat1, $lng1, $lat2, $lng2)
     {
-        $earthRadius = 6371000; // Earth's radius in meters
+        $earthRadius = 6371e3; // Earth's radius in meters
 
         $latFrom = deg2rad($lat1);
         $lonFrom = deg2rad($lng1);

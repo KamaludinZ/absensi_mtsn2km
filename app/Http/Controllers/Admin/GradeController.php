@@ -13,8 +13,33 @@ class GradeController extends Controller
      */
     public function index()
     {
-        $grades = Grade::orderBy('name')->get();
-        return view('admin.grades.index', compact('grades'));
+        $query = Grade::query();
+        
+        // Sorting logic
+        $sortField = request('sort', 'name');
+        $sortDirection = request('direction', 'asc');
+
+        // Validate sort direction
+        if (!in_array($sortDirection, ['asc', 'desc'])) {
+            $sortDirection = 'asc';
+        }
+
+        // Apply sorting based on field
+        switch ($sortField) {
+            case 'name':
+            case 'description':
+            case 'is_active':
+                $query->orderBy($sortField, $sortDirection);
+                break;
+                
+            default:
+                $query->orderBy('name', $sortDirection);
+                break;
+        }
+        
+        $grades = $query->paginate(20);
+        
+        return view('admin.grades.index', compact('grades', 'sortField', 'sortDirection'));
     }
 
     /**

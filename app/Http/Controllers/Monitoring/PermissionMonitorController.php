@@ -27,9 +27,68 @@ class PermissionMonitorController extends Controller
             }
         }
 
-        $permissions = $query->orderBy('created_at', 'desc')->paginate(20);
+        // Sorting logic for all permissions
+        $sortField = $request->get('sort', 'created_at');
+        $sortDirection = $request->get('direction', 'desc');
 
-        return view('monitoring.permissions.index', compact('permissions'));
+        // Validate sort direction
+        if (!in_array($sortDirection, ['asc', 'desc'])) {
+            $sortDirection = 'desc';
+        }
+
+        // Apply sorting based on field
+        switch ($sortField) {
+            case 'full_name':
+                // For relationship fields, we need to sort in collection
+                $permissions = $query->with('permissible')->get()->sortBy(function($permission) {
+                    return strtolower($permission->permissible->full_name ?? '');
+                }, SORT_REGULAR, $sortDirection === 'desc');
+                
+                // Manually paginate
+                $perPage = 20;
+                $currentPage = request()->get('page', 1);
+                $permissions = new \Illuminate\Pagination\LengthAwarePaginator(
+                    $permissions->forPage($currentPage, $perPage),
+                    $permissions->count(),
+                    $perPage,
+                    $currentPage,
+                    ['path' => request()->url(), 'query' => request()->query()]
+                );
+                break;
+
+            case 'permissible_type':
+                $permissions = $query->with('permissible')->get()->sortBy(function($permission) {
+                    return strtolower($permission->permissible_type ?? '');
+                }, SORT_REGULAR, $sortDirection === 'desc');
+                
+                // Manually paginate
+                $perPage = 20;
+                $currentPage = request()->get('page', 1);
+                $permissions = new \Illuminate\Pagination\LengthAwarePaginator(
+                    $permissions->forPage($currentPage, $perPage),
+                    $permissions->count(),
+                    $perPage,
+                    $currentPage,
+                    ['path' => request()->url(), 'query' => request()->query()]
+                );
+                break;
+
+            case 'start_date':
+            case 'end_date':
+            case 'status':
+            case 'reason':
+                $query->orderBy($sortField, $sortDirection);
+                $permissions = $query->paginate(20);
+                break;
+
+            case 'created_at':
+            default:
+                $query->orderBy('created_at', $sortDirection);
+                $permissions = $query->paginate(20);
+                break;
+        }
+
+        return view('monitoring.permissions.index', compact('permissions', 'sortField', 'sortDirection'));
     }
 
     public function employees(Request $request)
@@ -63,12 +122,54 @@ class PermissionMonitorController extends Controller
             $query->where('permissible_id', $request->employee_id);
         }
 
-        $permissions = $query->orderBy('created_at', 'desc')->paginate(20);
+        // Sorting logic for employee permissions
+        $sortField = $request->get('sort', 'created_at');
+        $sortDirection = $request->get('direction', 'desc');
+
+        // Validate sort direction
+        if (!in_array($sortDirection, ['asc', 'desc'])) {
+            $sortDirection = 'desc';
+        }
+
+        // Apply sorting based on field
+        switch ($sortField) {
+            case 'full_name':
+                // For relationship fields, we need to sort in collection
+                $permissions = $query->with('permissible')->get()->sortBy(function($permission) {
+                    return strtolower($permission->permissible->full_name ?? '');
+                }, SORT_REGULAR, $sortDirection === 'desc');
+                
+                // Manually paginate
+                $perPage = 20;
+                $currentPage = request()->get('page', 1);
+                $permissions = new \Illuminate\Pagination\LengthAwarePaginator(
+                    $permissions->forPage($currentPage, $perPage),
+                    $permissions->count(),
+                    $perPage,
+                    $currentPage,
+                    ['path' => request()->url(), 'query' => request()->query()]
+                );
+                break;
+
+            case 'start_date':
+            case 'end_date':
+            case 'status':
+            case 'reason':
+                $query->orderBy($sortField, $sortDirection);
+                $permissions = $query->paginate(20);
+                break;
+
+            case 'created_at':
+            default:
+                $query->orderBy('created_at', $sortDirection);
+                $permissions = $query->paginate(20);
+                break;
+        }
 
         // Get employees for filter dropdown
         $employees = Employee::orderBy('full_name')->get();
 
-        return view('monitoring.permissions.employees', compact('permissions', 'employees'));
+        return view('monitoring.permissions.employees', compact('permissions', 'employees', 'sortField', 'sortDirection'));
     }
 
     public function students(Request $request)
@@ -109,12 +210,72 @@ class PermissionMonitorController extends Controller
             $query->whereIn('permissible_id', $studentIds);
         }
 
-        $permissions = $query->orderBy('created_at', 'desc')->paginate(20);
+        // Sorting logic for student permissions
+        $sortField = $request->get('sort', 'created_at');
+        $sortDirection = $request->get('direction', 'desc');
+
+        // Validate sort direction
+        if (!in_array($sortDirection, ['asc', 'desc'])) {
+            $sortDirection = 'desc';
+        }
+
+        // Apply sorting based on field
+        switch ($sortField) {
+            case 'full_name':
+                // For relationship fields, we need to sort in collection
+                $permissions = $query->with(['permissible.rombel'])->get()->sortBy(function($permission) {
+                    return strtolower($permission->permissible->full_name ?? '');
+                }, SORT_REGULAR, $sortDirection === 'desc');
+                
+                // Manually paginate
+                $perPage = 20;
+                $currentPage = request()->get('page', 1);
+                $permissions = new \Illuminate\Pagination\LengthAwarePaginator(
+                    $permissions->forPage($currentPage, $perPage),
+                    $permissions->count(),
+                    $perPage,
+                    $currentPage,
+                    ['path' => request()->url(), 'query' => request()->query()]
+                );
+                break;
+
+            case 'rombel':
+                // For relationship fields, we need to sort in collection
+                $permissions = $query->with(['permissible.rombel'])->get()->sortBy(function($permission) {
+                    return strtolower($permission->permissible->rombel->name ?? '');
+                }, SORT_REGULAR, $sortDirection === 'desc');
+                
+                // Manually paginate
+                $perPage = 20;
+                $currentPage = request()->get('page', 1);
+                $permissions = new \Illuminate\Pagination\LengthAwarePaginator(
+                    $permissions->forPage($currentPage, $perPage),
+                    $permissions->count(),
+                    $perPage,
+                    $currentPage,
+                    ['path' => request()->url(), 'query' => request()->query()]
+                );
+                break;
+
+            case 'start_date':
+            case 'end_date':
+            case 'status':
+            case 'reason':
+                $query->orderBy($sortField, $sortDirection);
+                $permissions = $query->paginate(20);
+                break;
+
+            case 'created_at':
+            default:
+                $query->orderBy('created_at', $sortDirection);
+                $permissions = $query->paginate(20);
+                break;
+        }
 
         // Get rombels for filter dropdown
         $rombels = Rombel::orderBy('name')->get();
 
-        return view('monitoring.permissions.students', compact('permissions', 'rombels'));
+        return view('monitoring.permissions.students', compact('permissions', 'rombels', 'sortField', 'sortDirection'));
     }
 
     public function approve(Permission $permission)

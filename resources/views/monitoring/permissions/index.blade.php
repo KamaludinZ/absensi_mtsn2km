@@ -1,10 +1,37 @@
+@php
+    function sortableLink($label, $sortField, $currentSort, $currentDirection) {
+        $newDirection = 'asc';
+        $icon = '';
+
+        if ($currentSort == $sortField) {
+            // If this column is currently sorted
+            $newDirection = $currentDirection == 'asc' ? 'desc' : 'asc';
+            $icon = $currentDirection == 'asc' ? ' ↑' : ' ↓';
+        }
+
+        // Build query string preserving filters
+        $params = request()->except(['sort', 'direction', 'page']);
+        $params['sort'] = $sortField;
+        $params['direction'] = $newDirection;
+
+        $url = request()->url() . '?' . http_build_query($params);
+
+        $class = $currentSort == $sortField ? 'text-blue-600 font-semibold' : 'text-gray-700 hover:text-blue-600';
+
+        return '<a href="' . $url . '" class="' . $class . '">' . $label . $icon . '</a>';
+    }
+
+    $currentSort = $sortField ?? request('sort', 'created_at');
+    $currentDirection = $sortDirection ?? request('direction', 'desc');
+@endphp
+
 @extends('layouts.app')
 @section('title', 'Manajemen Perizinan')
 @section('page-title', 'Manajemen Perizinan')
 @section('content')
 <div class="bg-white rounded-lg shadow overflow-hidden">
     <table class="min-w-full">
-        <thead class="bg-gray-50"><tr><th class="px-6 py-3 text-left">Nama</th><th class="px-6 py-3 text-left">Tipe</th><th class="px-6 py-3 text-left">Tanggal</th><th class="px-6 py-3 text-left">Alasan</th><th class="px-6 py-3 text-left">Dokumen Pendukung</th><th class="px-6 py-3 text-left">Status</th><th class="px-6 py-3 text-left">Aksi</th></tr></thead>
+        <thead class="bg-gray-50"><tr><th class="px-6 py-3 text-left">{!! sortableLink('Nama', 'full_name', $currentSort, $currentDirection) !!}</th><th class="px-6 py-3 text-left">{!! sortableLink('Tipe', 'permissible_type', $currentSort, $currentDirection) !!}</th><th class="px-6 py-3 text-left">{!! sortableLink('Tanggal', 'start_date', $currentSort, $currentDirection) !!}</th><th class="px-6 py-3 text-left">{!! sortableLink('Alasan', 'reason', $currentSort, $currentDirection) !!}</th><th class="px-6 py-3 text-left">Dokumen Pendukung</th><th class="px-6 py-3 text-left">{!! sortableLink('Status', 'status', $currentSort, $currentDirection) !!}</th><th class="px-6 py-3 text-left">Aksi</th></tr></thead>
         <tbody>
             @forelse($permissions as $permission)
             <tr><td class="px-6 py-4">{{ $permission->permissible->full_name }}</td>

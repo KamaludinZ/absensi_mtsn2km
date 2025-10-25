@@ -44,9 +44,34 @@ class ScheduleController extends Controller
             $query->where('day_of_week', request('day_of_week'));
         }
         
-        $schedules = $query->orderBy('day_of_week')->paginate(20);
+        // Sorting logic
+        $sortField = request('sort', 'day_of_week');
+        $sortDirection = request('direction', 'asc');
+
+        // Validate sort direction
+        if (!in_array($sortDirection, ['asc', 'desc'])) {
+            $sortDirection = 'asc';
+        }
+
+        // Apply sorting based on field
+        switch ($sortField) {
+            case 'type':
+            case 'shift_type':
+            case 'shift_name':
+            case 'start_time':
+            case 'end_time':
+                $query->orderBy($sortField, $sortDirection);
+                break;
+                
+            case 'day_of_week':
+            default:
+                $query->orderBy('day_of_week', $sortDirection);
+                break;
+        }
         
-        return view('admin.schedules.index', compact('schedules'));
+        $schedules = $query->paginate(20);
+        
+        return view('admin.schedules.index', compact('schedules', 'sortField', 'sortDirection'));
     }
     
     public function siswa()
@@ -62,9 +87,34 @@ class ScheduleController extends Controller
             $query->where('day_of_week', request('day_of_week'));
         }
         
-        $schedules = $query->orderBy('day_of_week')->paginate(20);
+        // Sorting logic
+        $sortField = request('sort', 'day_of_week');
+        $sortDirection = request('direction', 'asc');
+
+        // Validate sort direction
+        if (!in_array($sortDirection, ['asc', 'desc'])) {
+            $sortDirection = 'asc';
+        }
+
+        // Apply sorting based on field
+        switch ($sortField) {
+            case 'type':
+            case 'shift_type':
+            case 'shift_name':
+            case 'start_time':
+            case 'end_time':
+                $query->orderBy($sortField, $sortDirection);
+                break;
+                
+            case 'day_of_week':
+            default:
+                $query->orderBy('day_of_week', $sortDirection);
+                break;
+        }
         
-        return view('admin.schedules.index', compact('schedules'));
+        $schedules = $query->paginate(20);
+        
+        return view('admin.schedules.index', compact('schedules', 'sortField', 'sortDirection'));
     }
     
     public function create()

@@ -7,14 +7,86 @@ use Illuminate\Http\Request;
 use App\Models\Employee;
 use App\Models\User;
 use App\Models\Role;
+use App\Traits\Paginable;
 use Illuminate\Support\Facades\Hash;
 
 class EmployeeController extends Controller
 {
+    use Paginable;
     public function index()
     {
-        $employees = Employee::with('user')->orderBy('full_name')->paginate(20);
-        return view('admin.employees.index', compact('employees'));
+        $query = Employee::with('user');
+        
+        // Sorting logic
+        $sortField = request('sort', 'full_name');
+        $sortDirection = request('direction', 'asc');
+
+        // Validate sort direction
+        if (!in_array($sortDirection, ['asc', 'desc'])) {
+            $sortDirection = 'asc';
+        }
+
+        // Apply sorting based on field
+        switch ($sortField) {
+            case 'position':
+            case 'is_active':
+                $query->orderBy($sortField, $sortDirection);
+                break;
+
+            case 'username':
+                // For username (relationship field), we need to sort the collection
+                $employees = $query->get()->sortBy(function($employee) {
+                    return strtolower($employee->user->username ?? '');
+                }, SORT_REGULAR, $sortDirection === 'desc');
+                
+                // Manually paginate with customizable pagination
+                $perPage = $this->getPerPagePreference();
+                $currentPage = request()->get('page', 1);
+                
+                if ($perPage === 'all') {
+                    // Show all records without pagination
+                    $paginatedEmployees = new \Illuminate\Pagination\LengthAwarePaginator(
+                        $employees,
+                        $employees->count(),
+                        $employees->count(),
+                        $currentPage,
+                        ['path' => request()->url(), 'query' => request()->query()]
+                    );
+                    $employees = collect($employees);
+                } else {
+                    $paginatedEmployees = new \Illuminate\Pagination\LengthAwarePaginator(
+                        $employees->forPage($currentPage, $perPage),
+                        $employees->count(),
+                        $perPage,
+                        $currentPage,
+                        ['path' => request()->url(), 'query' => request()->query()]
+                    );
+                    $employees = $paginatedEmployees;
+                }
+                break;
+
+            case 'full_name':
+            default:
+                $query->orderBy('full_name', $sortDirection);
+                $perPage = $this->getPerPagePreference();
+                if ($perPage === 'all') {
+                    $employees = collect($query->get());
+                } else {
+                    $employees = $query->paginate($perPage);
+                }
+                break;
+        }
+        
+        if (!isset($employees)) {
+            $perPage = $this->getPerPagePreference();
+            if ($perPage === 'all') {
+                $employees = collect($query->get());
+            } else {
+                $employees = $query->paginate($perPage);
+            }
+        }
+        
+        return view('admin.employees.index', compact('employees', 'sortField', 'sortDirection'));
     }
 
     public function create()

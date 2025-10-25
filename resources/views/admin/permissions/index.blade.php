@@ -1,3 +1,30 @@
+@php
+    function sortableLink($label, $sortField, $currentSort, $currentDirection) {
+        $newDirection = 'asc';
+        $icon = '';
+
+        if ($currentSort == $sortField) {
+            // If this column is currently sorted
+            $newDirection = $currentDirection == 'asc' ? 'desc' : 'asc';
+            $icon = $currentDirection == 'asc' ? ' ↑' : ' ↓';
+        }
+
+        // Build query string preserving filters
+        $params = request()->except(['sort', 'direction', 'page']);
+        $params['sort'] = $sortField;
+        $params['direction'] = $newDirection;
+
+        $url = request()->url() . '?' . http_build_query($params);
+
+        $class = $currentSort == $sortField ? 'text-blue-600 font-semibold' : 'text-gray-700 hover:text-blue-600';
+
+        return '<a href="' . $url . '" class="' . $class . '">' . $label . $icon . '</a>';
+    }
+
+    $currentSort = $sortField ?? request('sort', 'created_at');
+    $currentDirection = $sortDirection ?? request('direction', 'desc');
+@endphp
+
 @extends('layouts.app')
 
 @section('title', 'Perizinan')
@@ -125,16 +152,16 @@
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nama</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{!! sortableLink('Nama', 'full_name', $currentSort, $currentDirection) !!}</th>
                         @if(request()->routeIs('admin.permissions.students') || request()->routeIs('admin.permissions.students.*'))
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rombel</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{!! sortableLink('Rombel', 'rombel', $currentSort, $currentDirection) !!}</th>
                         @else
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jabatan</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{!! sortableLink('Jabatan', 'position', $currentSort, $currentDirection) !!}</th>
                         @endif
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal Izin</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Alasan</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{!! sortableLink('Tanggal Izin', 'start_date', $currentSort, $currentDirection) !!}</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{!! sortableLink('Alasan', 'reason', $currentSort, $currentDirection) !!}</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dokumen Pendukung</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{!! sortableLink('Status', 'status', $currentSort, $currentDirection) !!}</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
                     </tr>
                 </thead>
@@ -245,9 +272,54 @@
             </table>
         </div>
         
-        <div class="p-4 border-t">
-            {{ $permissions->appends(request()->query())->links() }}
-        </div>
+        <!-- Custom Pagination with per_page selector -->
+        @if ($permissions instanceof \Illuminate\Pagination\LengthAwarePaginator)
+            {{ $permissions->appends(request()->query())->links('vendor.pagination.tailwind-custom') }}
+        @else
+            <!-- For "Show All" records -->
+            <div class="p-4 border-t">
+                <div class="flex flex-col md:flex-row items-center justify-between space-y-4 md:space-y-0">
+                    <div class="flex items-center space-x-2">
+                        <label for="per_page" class="text-sm text-gray-700">Tampilkan:</label>
+                        <select id="per_page" name="per_page" 
+                                class="border border-gray-300 rounded px-2 py-1 text-sm focus:ring-blue-500 focus:border-blue-500"
+                                onchange="updatePerPage(this)">
+                            <option value="10" {{ request('per_page') == '10' ? 'selected' : '' }}>10</option>
+                            <option value="20" {{ !request('per_page') || request('per_page') == '20' ? 'selected' : '' }}>20</option>
+                            <option value="30" {{ request('per_page') == '30' ? 'selected' : '' }}>30</option>
+                            <option value="50" {{ request('per_page') == '50' ? 'selected' : '' }}>50</option>
+                            <option value="100" {{ request('per_page') == '100' ? 'selected' : '' }}>100</option>
+                            <option value="all" selected>Semua</option>
+                        </select>
+                        <span class="text-sm text-gray-700">entri</span>
+                        
+                        <div class="text-sm text-gray-700 ml-4">
+                            Menampilkan semua <span class="font-medium">{{ $permissions->count() }}</span> entri
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <script>
+                function updatePerPage(selectElement) {
+                    const perPage = selectElement.value;
+                    const url = new URL(window.location);
+                    const params = new URLSearchParams(url.search);
+                    
+                    if (perPage && perPage !== 'all') {
+                        params.set('per_page', perPage);
+                    } else {
+                        params.delete('per_page');
+                    }
+                    
+                    // Reset to first page when changing per_page
+                    params.delete('page');
+                    
+                    url.search = params.toString();
+                    window.location.href = url.toString();
+                }
+            </script>
+        @endif
     </div>
 </div>
 @endsection

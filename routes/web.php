@@ -26,9 +26,9 @@ use App\Http\Middleware\CheckRole;
 Route::get('/', [WelcomeController::class, 'index'])->name('welcome');
 
 // Public API endpoints
-Route::get('/api/schedules/current-status', [ApiScheduleController::class, 'getCurrentStatus']);
-Route::get('/api/rombels/by-grade/{grade}', [RombelController::class, 'getByGrade']);
-Route::get('/api/students/by-rombel/{rombelId}', [StudentController::class, 'getByRombel']);
+Route::get('/api/schedules/current-status', [ApiScheduleController::class, 'getCurrentStatus'])->middleware('throttle:30,1');
+Route::get('/api/rombels/by-grade/{grade}', [RombelController::class, 'getByGrade'])->middleware('throttle:30,1');
+Route::get('/api/students/by-rombel/{rombelId}', [StudentController::class, 'getByRombel'])->middleware('throttle:30,1');
 
 // Public location settings API
 Route::get('/api/location-settings/geofence-center-lat', [\App\Http\Controllers\API\LocationSettingController::class, 'getGeofenceCenterLat']);
@@ -91,6 +91,12 @@ Route::middleware(['auth', CheckRole::class . ':monitoring'])->prefix('monitorin
         Route::post('/{permission}/approve', [PermissionMonitorController::class, 'approve'])->name('approve');
         Route::post('/{permission}/reject', [PermissionMonitorController::class, 'reject'])->name('reject');
         Route::post('/manual', [PermissionMonitorController::class, 'createManual'])->name('manual');
+    });
+    
+    // Profile routes for monitoring users
+    Route::prefix('profile')->name('profile.')->group(function () {
+        Route::get('/change-password', [App\Http\Controllers\Monitoring\ProfileController::class, 'showChangePasswordForm'])->name('change-password');
+        Route::put('/change-password', [App\Http\Controllers\Monitoring\ProfileController::class, 'updatePassword'])->name('update-password');
     });
 });
 
@@ -224,6 +230,12 @@ Route::middleware(['auth', CheckRole::class . ':admin'])->prefix('admin')->name(
         Route::get('/', [App\Http\Controllers\Admin\UpdateController::class, 'index'])->name('index');
         Route::get('/check', [App\Http\Controllers\Admin\UpdateController::class, 'check'])->name('check');
         Route::post('/update', [App\Http\Controllers\Admin\UpdateController::class, 'update'])->name('update');
+    });
+
+    // Profile routes for admin users
+    Route::prefix('profile')->name('profile.')->group(function () {
+        Route::get('/change-password', [App\Http\Controllers\Admin\ProfileController::class, 'showChangePasswordForm'])->name('change-password');
+        Route::put('/change-password', [App\Http\Controllers\Admin\ProfileController::class, 'updatePassword'])->name('update-password');
     });
 
     // Holidays

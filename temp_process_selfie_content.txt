@@ -1,0 +1,129 @@
+    private function processSelfie($base64Image, $type, $id, $direction)
+    {
+        // Verify the image is a valid base64 encoded image
+        if (!preg_match('/^data:image\/(?:jpeg|png|jpg);base64,[A-Za-z0-9+\/=]+$/',$base64Image)) {
+            throw new \InvalidArgumentException('Invalid image format');
+        }
+
+        // Remove data URI prefix
+        $image = preg_replace('/^data:image\/(?:jpeg|png|jpg);base64,/', '', $base64Image);
+        $image = str_replace(' ', '+', $image);
+
+        // Verify base64 is valid
+        if (!base64_decode($image, true)) {
+            throw new \InvalidArgumentException('Invalid base64 image data');
+        }
+
+        $imageData = base64_decode($image);
+
+        // Validate image content by attempting to create image instance
+        try {
+            $img = Image::read($imageData);
+        } catch (\Exception $e) {
+            throw new \InvalidArgumentException('Invalid image file');
+        }
+
+        // Verify image dimensions are reasonable
+        $width = $img->width();
+        $height = $img->height();
+        if ($width > 5000 || $height > 5000) {
+            throw new \InvalidArgumentException('Image dimensions are too large');
+        }
+
+        // Create filename with security in mind
+        $filename = $type . '_' . preg_replace('/[^a-zA-Z0-9_]/', '_', $id) . '_' . $direction . '_' . time() . '.jpg';
+        $directory = 'selfies/' . preg_replace('/[^a-zA-Z0-9_\-]/', '_', $type);
+
+        // Validate directory path to prevent directory traversal
+        if (strpos($directory, '..') !== false || strpos($directory, '/') === 0) {
+            throw new \InvalidArgumentException('Invalid directory path');
+        }
+
+        // Detect environment and use appropriate storage path
+        // Production: public/storage/selfies (without symlink, inside web root)
+        // Development: storage/app/public/selfies (with symlink)
+        $isProduction = config('app.env') === 'production';
+
+        if ($isProduction) {
+            // Production: Save to public/storage/selfies (inside web root, no symlink needed)
+            // Create folder if not exists
+            if (!file_exists(public_path('storage'))) {
+                @mkdir(public_path('storage'), 0755, true);
+                @mkdir(public_path('storage/selfies/employee'), 0755, true);
+                @mkdir(public_path('storage/selfies/student'), 0755, true);
+            }
+
+            $path = public_path('storage/' . $directory . '/' . $filename);
+
+            // Create directory if not exists
+            $directoryPath = public_path('storage/' . $directory);
+            if (!file_exists($directoryPath)) {
+                mkdir($directoryPath, 0755, true);
+            }
+        } else {
+            // Local development: Use storage with symlink
+            Storage::disk('public')->makeDirectory($directory);
+            $path = storage_path('app/public/' . $directory . '/' . $filename);
+        }
+
+        // Sanitize filename to prevent directory traversal
+        $path = str_replace(["../", "./", "..\\", ".\\"], '', $path);
+
+        // Verify the final path is within the allowed directory
+        $allowedPath = $isProduction ? public_path('storage') : storage_path('app/public/');
+        if (strpos(realpath(dirname($path)) ?: dirname($path), $allowedPath) !== 0) {
+            throw new \InvalidArgumentException('Invalid file path');
+        }
+
+        // Resize image to max width of 800px while maintaining aspect ratio
+        $img->scaleDown(width: 800);
+
+        // Start with high quality (85) and decrease until file size is under 500KB
+        $maxFileSize = 500 * 1024; // 500KB in bytes
+        $quality = 85;
+        $compressed = false;
+
+        // Try different quality levels until we get under the target size or reach minimum quality
+        while ($quality >= 30) {
+            // Save with current quality
+            $img->toJpeg($quality)->save($path);
+
+            // Check the file size
+            $fileSize = filesize($path);
+
+            if ($fileSize <= $maxFileSize) {
+                $compressed = true;
+                break;
+            }
+
+            // Reduce quality for next attempt
+            $quality -= 5;
+        }
+
+        // If still over size limit after reducing quality, try further resizing
+        if (!$compressed) {
+            // Calculate new dimensions that should get us under the size limit
+            $img->scaleDown(width: 600);
+
+            // Try again with reduced size and quality
+            $quality = 75;
+            while ($quality >= 20) {
+                $img->toJpeg($quality)->save($path);
+                $fileSize = filesize($path);
+
+                if ($fileSize <= $maxFileSize) {
+                    $compressed = true;
+                    break;
+                }
+
+                $quality -= 5;
+            }
+        }
+
+        // If still over size limit, just save with minimum quality
+        if (!$compressed) {
+            $img->toJpeg(20)->save($path);
+        }
+
+        return $directory . '/' . $filename;
+    }

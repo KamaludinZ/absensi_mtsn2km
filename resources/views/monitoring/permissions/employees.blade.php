@@ -1,3 +1,30 @@
+@php
+    function sortableLink($label, $sortField, $currentSort, $currentDirection) {
+        $newDirection = 'asc';
+        $icon = '';
+
+        if ($currentSort == $sortField) {
+            // If this column is currently sorted
+            $newDirection = $currentDirection == 'asc' ? 'desc' : 'asc';
+            $icon = $currentDirection == 'asc' ? ' ↑' : ' ↓';
+        }
+
+        // Build query string preserving filters
+        $params = request()->except(['sort', 'direction', 'page']);
+        $params['sort'] = $sortField;
+        $params['direction'] = $newDirection;
+
+        $url = request()->url() . '?' . http_build_query($params);
+
+        $class = $currentSort == $sortField ? 'text-blue-600 font-semibold' : 'text-gray-700 hover:text-blue-600';
+
+        return '<a href="' . $url . '" class="' . $class . '">' . $label . $icon . '</a>';
+    }
+
+    $currentSort = $sortField ?? request('sort', 'created_at');
+    $currentDirection = $sortDirection ?? request('direction', 'desc');
+@endphp
+
 @extends('layouts.app')
 @section('title', 'Perizinan Pegawai')
 @section('page-title', 'Perizinan Pegawai')
@@ -70,12 +97,12 @@
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nama Pegawai</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{!! sortableLink('Nama Pegawai', 'full_name', $currentSort, $currentDirection) !!}</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jabatan</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal Izin</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Alasan</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{!! sortableLink('Tanggal Izin', 'start_date', $currentSort, $currentDirection) !!}</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{!! sortableLink('Alasan', 'reason', $currentSort, $currentDirection) !!}</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dokumen</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{!! sortableLink('Status', 'status', $currentSort, $currentDirection) !!}</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
                     </tr>
                 </thead>

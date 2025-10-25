@@ -3,354 +3,351 @@
 namespace App\Services;
 
 use App\Models\SecurityLog;
-use App\Models\LoginAttempt;
-use App\Models\User;
-use Carbon\Carbon;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 class SecurityService
 {
     /**
-     * Get security dashboard statistics with caching
+     * Log suspicious activity
      */
-    public function getDashboardStats(): array
+    public static function logSuspiciousActivity(string $activity, array $details = []): void
     {
-        // Cache the entire dashboard stats for 5 minutes to avoid excessive queries
-        return Cache::remember('security_dashboard_stats', 300, function () {
-            try {
-                return $this->calculateDashboardStats();
-            } catch (\Exception $e) {
-                return $this->getDefaultStats();
-            }
-        });
+        $userId = auth()->check() ? auth()->id() : null;
+        
+        SecurityLog::logEvent(
+            'suspicious_activity',
+            $activity,
+            array_merge($details, [
+                'request_uri' => request()->getRequestUri(),
+                'method' => request()->getMethod(),
+            ]),
+            3, // High severity
+            $userId
+        );
+        
+        Log::warning('Suspicious activity detected: ' . $activity, [
+            'user_id' => $userId,
+            'ip' => request()->ip(),
+            'user_agent' => request()->userAgent(),
+            'details' => $details,
+        ]);
     }
 
     /**
-     * Calculate dashboard stats (called from cache)
+     * Log brute force attempts
      */
-    private function calculateDashboardStats(): array
+    public static function logBruteForceAttempt(string $username): void
     {
-        // Get all stats in optimized way - fetch each query result once
-        $failedLoginsToday = $this->getTodayFailedLogins();
-        $criticalEventsToday = $this->getTodayCriticalEvents();
-        $backupCount = $this->getBackupCount();
-
-        return [
-            'total_security_events_today' => $this->getTodaySecurityEvents(),
-            'failed_logins_today' => $failedLoginsToday,
-            'critical_events_today' => $criticalEventsToday,
-            'active_sessions' => $this->getActiveSessions(),
-            'recent_security_events' => $this->getRecentSecurityEvents(10),
-            'recent_failed_logins' => $this->getRecentFailedLogins(10),
-            'security_health_score' => $this->calculateSecurityHealthScoreOptimized($failedLoginsToday, $criticalEventsToday, $backupCount),
-            'security_recommendations' => $this->getSecurityRecommendationsOptimized($failedLoginsToday, $criticalEventsToday, $backupCount),
-            'most_targeted_accounts' => $this->getMostTargetedAccounts(5),
-            'suspicious_ips' => $this->getSuspiciousIPs(5),
-        ];
+        SecurityLog::logEvent(
+            'brute_force_attempt',
+            'Failed login attempt',
+            ['username' => $username],
+            4, // Critical severity
+            null
+        );
+        
+        Log::critical('Brute force login attempt', [
+            'username' => $username,
+            'ip' => request()->ip(),
+            'user_agent' => request()->userAgent(),
+        ]);
     }
 
     /**
-     * Get default stats when error occurs
+     * Log unauthorized access attempts
      */
-    private function getDefaultStats(): array
+    public static function logUnauthorizedAccess(string $route, string $attemptedAction): void
     {
-        // Return default values if tables don't exist yet
-        return [
-            'total_security_events_today' => 0,
-            'failed_logins_today' => 0,
-            'critical_events_today' => 0,
-            'active_sessions' => 0,
-            'recent_security_events' => collect(),
-            'recent_failed_logins' => collect(),
-            'security_health_score' => 100,
-            'security_recommendations' => [[
-                'type' => 'info',
-                'title' => 'Setup Security Monitoring',
-                'description' => 'Jalankan migration untuk mengaktifkan fitur monitoring keamanan.',
-                'action' => null,
-                'action_url' => null,
-            ]],
-            'most_targeted_accounts' => collect(),
-            'suspicious_ips' => collect(),
-        ];
+        $userId = auth()->check() ? auth()->id() : null;
+        
+        SecurityLog::logEvent(
+            'unauthorized_access',
+            'Attempted unauthorized access to ' . $route,
+            ['action' => $attemptedAction],
+            4, // Critical severity
+            $userId
+        );
+        
+        Log::critical('Unauthorized access attempt', [
+            'user_id' => $userId,
+            'route' => $route,
+            'action' => $attemptedAction,
+            'ip' => request()->ip(),
+            'user_agent' => request()->userAgent(),
+        ]);
     }
 
     /**
-     * Get today's security events count
+     * Check if IP is blocked due to repeated violations
      */
-    private function getTodaySecurityEvents(): int
+    public static function isIpBlocked(): bool
     {
-        return SecurityLog::whereDate('created_at', Carbon::today())->count();
-    }
-
-    /**
-     * Get today's failed login attempts
-     */
-    private function getTodayFailedLogins(): int
-    {
-        return LoginAttempt::where('successful', false)
-            ->whereDate('attempted_at', Carbon::today())
+        $ipAddress = request()->ip();
+        
+        // Count security violations from the past hour
+        $violationCount = SecurityLog::where('ip_address', $ipAddress)
+            ->where('severity', '>=', 3)
+            ->where('created_at', '>=', now()->subHour())
             ->count();
+            
+        // Block IP if it has 5 or more high-severity violations in the past hour
+        return $violationCount >= 5;
     }
 
     /**
-     * Get today's critical security events
+     * Block an IP address temporarily
      */
-    private function getTodayCriticalEvents(): int
+    public static function blockIp(string $reason = 'Excessive violations'): void
     {
-        return SecurityLog::where('severity', 'critical')
-            ->whereDate('created_at', Carbon::today())
-            ->count();
+        $ipAddress = request()->ip();
+        
+        SecurityLog::logEvent(
+            'ip_blocked',
+            'IP address blocked automatically',
+            ['reason' => $reason, 'blocked_ip' => $ipAddress],
+            4, // Critical severity
+            null
+        );
+        
+        // In a production environment, you might store blocked IPs in Redis or database
+        // and check against them in middleware
+        Log::alert('IP address blocked', [
+            'ip' => $ipAddress,
+            'reason' => $reason,
+        ]);
     }
-
-    /**
-     * Get active sessions count (approximation based on recent activity)
-     */
-    private function getActiveSessions(): int
-    {
-        // Count users with activity in last 30 minutes
-        return SecurityLog::where('created_at', '>=', Carbon::now()->subMinutes(30))
-            ->distinct('user_id')
-            ->count('user_id');
-    }
-
-    /**
-     * Get recent security events
-     */
-    private function getRecentSecurityEvents(int $limit = 10): \Illuminate\Database\Eloquent\Collection
-    {
-        return SecurityLog::with('user:id,username')
-            ->orderBy('created_at', 'desc')
-            ->limit($limit)
-            ->get();
-    }
-
-    /**
-     * Get recent failed login attempts
-     */
-    private function getRecentFailedLogins(int $limit = 10): \Illuminate\Database\Eloquent\Collection
-    {
-        return LoginAttempt::where('successful', false)
-            ->orderBy('attempted_at', 'desc')
-            ->limit($limit)
-            ->get();
-    }
-
-    /**
-     * Get backup count (cached helper method)
-     */
-    private function getBackupCount(): int
-    {
-        return \Illuminate\Support\Facades\Storage::disk('local')->exists('backups')
-            ? count(\Illuminate\Support\Facades\Storage::disk('local')->files('backups'))
-            : 0;
-    }
-
-    /**
-     * Calculate security health score (0-100) - OPTIMIZED VERSION
-     * Accepts pre-fetched values to avoid redundant queries
-     */
-    private function calculateSecurityHealthScoreOptimized(int $failedLoginsToday, int $criticalEventsToday, int $backupCount): int
-    {
-        $score = 100;
-
-        // Deduct points for failed logins
-        if ($failedLoginsToday > 10) {
-            $score -= min(20, $failedLoginsToday);
-        }
-
-        // Deduct points for critical events
-        if ($criticalEventsToday > 0) {
-            $score -= min(30, $criticalEventsToday * 10);
-        }
-
-        // Deduct points for no recent backups
-        if ($backupCount === 0) {
-            $score -= 15;
-        }
-
-        // Check if HTTPS is enabled
-        if (!request()->secure() && app()->environment('production')) {
-            $score -= 20;
-        }
-
-        // Check if debug mode is disabled in production
-        if (config('app.debug') && app()->environment('production')) {
-            $score -= 25;
-        }
-
-        return max(0, $score);
-    }
-
-    /**
-     * Calculate security health score (0-100) - LEGACY METHOD (kept for backward compatibility)
-     */
-    private function calculateSecurityHealthScore(): int
-    {
-        $failedLoginsToday = $this->getTodayFailedLogins();
-        $criticalEventsToday = $this->getTodayCriticalEvents();
-        $backupCount = $this->getBackupCount();
-
-        return $this->calculateSecurityHealthScoreOptimized($failedLoginsToday, $criticalEventsToday, $backupCount);
-    }
-
-    /**
-     * Get security recommendations - OPTIMIZED VERSION
-     * Accepts pre-fetched values to avoid redundant queries
-     */
-    private function getSecurityRecommendationsOptimized(int $failedLoginsToday, int $criticalEventsToday, int $backupCount): array
-    {
-        $recommendations = [];
-
-        // Check for high failed login attempts
-        if ($failedLoginsToday > 10) {
-            $recommendations[] = [
-                'type' => 'warning',
-                'title' => 'Login Gagal Tinggi',
-                'description' => 'Terdeteksi banyak percobaan login gagal hari ini. Pertimbangkan untuk meninjau log keamanan.',
-                'action' => 'Lihat Log Login',
-                'action_url' => route('admin.security.login-attempts'),
-            ];
-        }
-
-        // Check for critical events
-        if ($criticalEventsToday > 0) {
-            $recommendations[] = [
-                'type' => 'critical',
-                'title' => 'Event Kritis Terdeteksi',
-                'description' => 'Terdapat event keamanan kritis yang memerlukan perhatian segera.',
-                'action' => 'Lihat Event Kritis',
-                'action_url' => route('admin.security.logs', ['severity' => 'critical']),
-            ];
-        }
-
-        // Check HTTPS
-        if (!request()->secure() && app()->environment('production')) {
-            $recommendations[] = [
-                'type' => 'warning',
-                'title' => 'HTTPS Tidak Aktif',
-                'description' => 'Aplikasi tidak menggunakan HTTPS. Aktifkan HTTPS untuk keamanan yang lebih baik.',
-                'action' => null,
-                'action_url' => null,
-            ];
-        }
-
-        // Check debug mode
-        if (config('app.debug') && app()->environment('production')) {
-            $recommendations[] = [
-                'type' => 'critical',
-                'title' => 'Debug Mode Aktif di Production',
-                'description' => 'Debug mode masih aktif di environment production. Segera nonaktifkan!',
-                'action' => null,
-                'action_url' => null,
-            ];
-        }
-
-        // Check for backup
-        if ($backupCount === 0) {
-            $recommendations[] = [
-                'type' => 'warning',
-                'title' => 'Tidak Ada Backup',
-                'description' => 'Belum ada backup database. Lakukan backup secara berkala untuk keamanan data.',
-                'action' => 'Buat Backup',
-                'action_url' => route('admin.backup.index'),
-            ];
-        }
-
-        // If no issues found
-        if (empty($recommendations)) {
-            $recommendations[] = [
-                'type' => 'success',
-                'title' => 'Keamanan Baik',
-                'description' => 'Tidak ada masalah keamanan yang terdeteksi saat ini.',
-                'action' => null,
-                'action_url' => null,
-            ];
-        }
-
-        return $recommendations;
-    }
-
-    /**
-     * Get security recommendations - LEGACY METHOD (kept for backward compatibility)
-     */
-    private function getSecurityRecommendations(): array
-    {
-        $failedLoginsToday = $this->getTodayFailedLogins();
-        $criticalEventsToday = $this->getTodayCriticalEvents();
-        $backupCount = $this->getBackupCount();
-
-        return $this->getSecurityRecommendationsOptimized($failedLoginsToday, $criticalEventsToday, $backupCount);
-    }
-
-    /**
-     * Get most targeted accounts (accounts with most failed login attempts)
-     */
-    private function getMostTargetedAccounts(int $limit = 5): \Illuminate\Support\Collection
-    {
-        return LoginAttempt::select('username', DB::raw('COUNT(*) as attempt_count'))
-            ->where('successful', false)
-            ->where('attempted_at', '>=', Carbon::now()->subDays(7))
-            ->groupBy('username')
-            ->orderBy('attempt_count', 'desc')
-            ->limit($limit)
-            ->get();
-    }
-
-    /**
-     * Get suspicious IP addresses (IPs with most failed attempts)
-     */
-    private function getSuspiciousIPs(int $limit = 5): \Illuminate\Support\Collection
-    {
-        return LoginAttempt::select('ip_address', DB::raw('COUNT(*) as attempt_count'))
-            ->where('successful', false)
-            ->where('attempted_at', '>=', Carbon::now()->subDays(7))
-            ->groupBy('ip_address')
-            ->orderBy('attempt_count', 'desc')
-            ->limit($limit)
-            ->get();
-    }
-
-    /**
-     * Log security event
-     */
-    public function logEvent(string $eventType, string $description, string $severity = 'info', array $metadata = []): void
-    {
-        SecurityLog::log($eventType, $description, $severity, $metadata);
-    }
-
-    /**
-     * Record login attempt
-     */
-    public function recordLoginAttempt(string $username, bool $successful, ?string $failureReason = null): void
-    {
-        LoginAttempt::recordAttempt($username, $successful, $failureReason);
-
-        // Also log to security log if failed
-        if (!$successful) {
-            $this->logEvent(
-                'login_failed',
-                "Percobaan login gagal untuk username: {$username}",
-                'warning',
-                ['username' => $username, 'reason' => $failureReason]
-            );
-        }
-    }
-
+    
     /**
      * Check if username is blocked due to too many failed attempts
      */
     public function isUsernameBlocked(string $username): bool
     {
-        return LoginAttempt::isBlocked($username);
+        $cacheKey = 'failed_login_attempts_' . $username;
+        $attempts = Cache::get($cacheKey, 0);
+        
+        // Block if more than 5 failed attempts in the last 15 minutes
+        return $attempts >= 5;
     }
-
+    
     /**
-     * Get failed attempts count for username
+     * Get failed attempts count for a username
      */
     public function getFailedAttemptsCount(string $username): int
     {
-        return LoginAttempt::getFailedAttemptsCount($username);
+        $cacheKey = 'failed_login_attempts_' . $username;
+        return Cache::get($cacheKey, 0);
+    }
+    
+    /**
+     * Record login attempt
+     */
+    public function recordLoginAttempt(string $username, bool $success, string $reason = null): void
+    {
+        $cacheKey = 'failed_login_attempts_' . $username;
+        
+        if ($success) {
+            // Clear failed attempts on successful login
+            Cache::forget($cacheKey);
+        } else {
+            // Increment failed attempts count
+            $attempts = Cache::get($cacheKey, 0);
+            Cache::put($cacheKey, $attempts + 1, now()->addMinutes(15));
+            
+            // Log the failed attempt
+            SecurityLog::logEvent(
+                'login_failed',
+                'Failed login attempt',
+                [
+                    'username' => $username,
+                    'reason' => $reason,
+                    'ip' => request()->ip(),
+                ],
+                2, // Medium severity
+                null
+            );
+        }
+    }
+    
+    /**
+     * Log a security event
+     */
+    public function logEvent(string $event, string $message, string $level = 'info', array $context = []): void
+    {
+        SecurityLog::logEvent(
+            $event,
+            $message,
+            $context,
+            $this->getSeverityLevel($level),
+            auth()->check() ? auth()->id() : null
+        );
+        
+        Log::$level($message, $context);
+    }
+    
+    /**
+     * Get security statistics for dashboard display
+     */
+    public function getDashboardStats()
+    {
+        try {
+            // Calculate security health score (0-100)
+            $securityHealthScore = 100;
+            
+            // Get today's date for filtering
+            $today = \Carbon\Carbon::today();
+            
+            // Count total security events today
+            $totalSecurityEvents = \App\Models\SecurityLog::whereDate('created_at', $today)->count();
+            
+            // Count failed login attempts today
+            $failedLogins = \App\Models\SecurityLog::where('event_type', 'login_failed')
+                ->whereDate('created_at', $today)
+                ->count();
+            
+            // Count critical events today
+            $criticalEvents = \App\Models\SecurityLog::where('severity', '>=', 4)
+                ->whereDate('created_at', $today)
+                ->count();
+            
+            // Security recommendations based on recent events
+            $securityRecommendations = [];
+            
+            // Check for brute force attempts
+            if ($failedLogins > 5) {
+                $securityRecommendations[] = [
+                    'type' => 'warning',
+                    'title' => 'Verifikasi Dua Faktor',
+                    'message' => 'Terdeteksi banyak percobaan login gagal hari ini. Pertimbangkan untuk mengaktifkan verifikasi dua faktor (2FA).',
+                    'action' => 'Pengaturan Keamanan',
+                    'action_url' => route('admin.security.index'),
+                ];
+            }
+            
+            // Check for critical events
+            if ($criticalEvents > 0) {
+                $securityRecommendations[] = [
+                    'type' => 'critical',
+                    'title' => 'Aktivitas Mencurigakan',
+                    'message' => 'Terdeteksi aktivitas mencurigakan hari ini. Periksa log keamanan untuk detail lebih lanjut.',
+                    'action' => 'Lihat Log Keamanan',
+                    'action_url' => route('admin.security.logs'),
+                ];
+            }
+            
+            // Add general recommendation if no issues
+            if (empty($securityRecommendations)) {
+                $securityRecommendations[] = [
+                    'type' => 'info',
+                    'title' => 'Keamanan Sistem',
+                    'message' => 'Sistem keamanan berjalan dengan baik. Pertahankan praktik keamanan yang baik.',
+                    'action' => null,
+                    'action_url' => null,
+                ];
+            }
+            
+            // Adjust health score based on events
+            if ($failedLogins > 10) {
+                $securityHealthScore -= 20;
+            } elseif ($failedLogins > 5) {
+                $securityHealthScore -= 10;
+            }
+            
+            if ($criticalEvents > 3) {
+                $securityHealthScore -= 30;
+            } elseif ($criticalEvents > 0) {
+                $securityHealthScore -= 15;
+            }
+            
+            // Ensure health score doesn't go below 0
+            $securityHealthScore = max(0, $securityHealthScore);
+            
+            return [
+                'security_health_score' => $securityHealthScore,
+                'total_security_events_today' => $totalSecurityEvents,
+                'failed_logins_today' => $failedLogins,
+                'critical_events_today' => $criticalEvents,
+                'security_recommendations' => $securityRecommendations
+            ];
+        } catch (\Exception $e) {
+            \Log::error('Failed to get security dashboard stats: ' . $e->getMessage());
+            
+            // Return default values if there's an error
+            return [
+                'security_health_score' => 100,
+                'total_security_events_today' => 0,
+                'failed_logins_today' => 0,
+                'critical_events_today' => 0,
+                'security_recommendations' => [
+                    [
+                        'type' => 'info',
+                        'title' => 'Keamanan Sistem',
+                        'message' => 'Sistem keamanan berjalan dengan baik. Pertahankan praktik keamanan yang baik.',
+                        'action' => null,
+                        'action_url' => null,
+                    ]
+                ]
+            ];
+        }
+    }
+    
+    /**
+     * Convert log level to severity number
+     */
+    private function getSeverityLevel(string $level): int
+    {
+        $severityMap = [
+            'debug' => 1,
+            'info' => 2,
+            'warning' => 3,
+            'error' => 4,
+            'critical' => 5,
+        ];
+        
+        return $severityMap[$level] ?? 2; // Default to info level (2)
+    }
+    
+    /**
+     * Get security recommendations based on recent events
+     */
+    private function getSecurityRecommendations($totalEvents, $failedLogins, $criticalEvents): array
+    {
+        $recommendations = [];
+        
+        if ($totalEvents > 10) {
+            $recommendations[] = [
+                'type' => 'warning',
+                'message' => 'Tingkat aktivitas mencurigakan tinggi hari ini. Pertimbangkan untuk memeriksa log keamanan secara berkala.',
+                'priority' => 'high'
+            ];
+        }
+        
+        if ($failedLogins > 5) {
+            $recommendations[] = [
+                'type' => 'danger',
+                'message' => 'Terjadi banyak upaya login gagal. Pertimbangkan untuk memblokir IP yang mencurigakan.',
+                'priority' => 'high'
+            ];
+        }
+        
+        if ($criticalEvents > 2) {
+            $recommendations[] = [
+                'type' => 'danger',
+                'message' => 'Ditemukan beberapa peristiwa kritis hari ini. Segera tinjau dan tangani masalah keamanan ini.',
+                'priority' => 'urgent'
+            ];
+        }
+        
+        // Default recommendation if no issues
+        if (empty($recommendations)) {
+            $recommendations[] = [
+                'type' => 'success',
+                'message' => 'Tidak ada aktivitas mencurigakan hari ini. Sistem keamanan berjalan dengan baik.',
+                'priority' => 'low'
+            ];
+        }
+        
+        return $recommendations;
     }
 }

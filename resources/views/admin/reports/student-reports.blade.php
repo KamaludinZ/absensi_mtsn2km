@@ -366,9 +366,53 @@
         </table>
     </div>
     
-    <!-- Pagination -->
-    <div class="mt-6">
-        {{ $attendances->appends(request()->query())->links() }}
-    </div>
+    <!-- Custom Pagination with per_page selector -->
+    @if ($attendances instanceof \Illuminate\Pagination\LengthAwarePaginator)
+        {{ $attendances->appends(request()->query())->links('vendor.pagination.tailwind-custom') }}
+    @else
+        <!-- For "Show All" records -->
+        <div class="mt-6">
+            <div class="flex flex-col md:flex-row items-center justify-between space-y-4 md:space-y-0">
+                <div class="flex items-center space-x-2">
+                    <label for="per_page" class="text-sm text-gray-700">Tampilkan:</label>
+                    <select id="per_page" name="per_page" 
+                            class="border border-gray-300 rounded px-2 py-1 text-sm focus:ring-blue-500 focus:border-blue-500"
+                            onchange="updatePerPage(this)">
+                        <option value="10" {{ request('per_page') == '10' ? 'selected' : '' }}>10</option>
+                        <option value="20" {{ !request('per_page') || request('per_page') == '20' ? 'selected' : '' }}>20</option>
+                        <option value="30" {{ request('per_page') == '30' ? 'selected' : '' }}>30</option>
+                        <option value="50" {{ request('per_page') == '50' ? 'selected' : '' }}>50</option>
+                        <option value="100" {{ request('per_page') == '100' ? 'selected' : '' }}>100</option>
+                        <option value="all" selected>Semua</option>
+                    </select>
+                    <span class="text-sm text-gray-700">entri</span>
+                    
+                    <div class="text-sm text-gray-700 ml-4">
+                        Menampilkan semua <span class="font-medium">{{ $attendances->count() }}</span> entri
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <script>
+            function updatePerPage(selectElement) {
+                const perPage = selectElement.value;
+                const url = new URL(window.location);
+                const params = new URLSearchParams(url.search);
+                
+                if (perPage && perPage !== 'all') {
+                    params.set('per_page', perPage);
+                } else {
+                    params.delete('per_page');
+                }
+                
+                // Reset to first page when changing per_page
+                params.delete('page');
+                
+                url.search = params.toString();
+                window.location.href = url.toString();
+            }
+        </script>
+    @endif
 </div>
 @endsection

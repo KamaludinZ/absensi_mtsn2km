@@ -11,10 +11,71 @@ class RombelController extends Controller
 {
     public function index()
     {
-        $rombels = Rombel::with('academicYear', 'grade')->orderBy('name')->paginate(20);
+        $query = Rombel::with('academicYear', 'grade');
+        
+        // Sorting logic
+        $sortField = request('sort', 'name');
+        $sortDirection = request('direction', 'asc');
+
+        // Validate sort direction
+        if (!in_array($sortDirection, ['asc', 'desc'])) {
+            $sortDirection = 'asc';
+        }
+
+        // Apply sorting based on field
+        switch ($sortField) {
+            case 'name':
+                $query->orderBy('name', $sortDirection);
+                break;
+                
+            case 'grade_name':
+                // For relationship fields, we need to sort the collection
+                $rombels = $query->get()->sortBy(function($rombel) {
+                    return strtolower($rombel->grade->name ?? '');
+                }, SORT_REGULAR, $sortDirection === 'desc');
+                
+                // Manually paginate
+                $perPage = 20;
+                $currentPage = request()->get('page', 1);
+                $rombels = new \Illuminate\Pagination\LengthAwarePaginator(
+                    $rombels->forPage($currentPage, $perPage),
+                    $rombels->count(),
+                    $perPage,
+                    $currentPage,
+                    ['path' => request()->url(), 'query' => request()->query()]
+                );
+                break;
+                
+            case 'year_name':
+                $rombels = $query->get()->sortBy(function($rombel) {
+                    return strtolower($rombel->academicYear->year_name ?? '');
+                }, SORT_REGULAR, $sortDirection === 'desc');
+                
+                // Manually paginate
+                $perPage = 20;
+                $currentPage = request()->get('page', 1);
+                $rombels = new \Illuminate\Pagination\LengthAwarePaginator(
+                    $rombels->forPage($currentPage, $perPage),
+                    $rombels->count(),
+                    $perPage,
+                    $currentPage,
+                    ['path' => request()->url(), 'query' => request()->query()]
+                );
+                break;
+                
+            default:
+                $query->orderBy('name', $sortDirection);
+                $rombels = $query->paginate(20);
+                break;
+        }
+        
+        if (!isset($rombels)) {
+            $rombels = $query->paginate(20);
+        }
+        
         $grades = \App\Models\Grade::orderBy('name')->get();
         $academicYears = AcademicYear::orderBy('year_name')->get();
-        return view('admin.rombels.index', compact('rombels', 'grades', 'academicYears'));
+        return view('admin.rombels.index', compact('rombels', 'grades', 'academicYears', 'sortField', 'sortDirection'));
     }
 
     public function store(Request $request)

@@ -63,7 +63,11 @@
                 <div class="container-layout">
                     <div class="flex flex-col md:flex-row justify-between items-center">
                         <p class="text-sm text-gray-600 mb-2 md:mb-0">
-                            &copy; {{ date('Y') }} MTsN 2 Kota Malang. Sistem Absensi.
+                            Versi: {{ 
+                                file_exists(base_path('VERSION')) 
+                                    ? trim(file_get_contents(base_path('VERSION'))) 
+                                    : '1.0.2' 
+                            }} | &copy; {{ date('Y') }} MTsN 2 Kota Malang. Sistem Absensi.
                         </p>
                         <div class="flex space-x-6">
                             <a href="#" class="text-gray-500 hover:text-gray-700 transition-colors">

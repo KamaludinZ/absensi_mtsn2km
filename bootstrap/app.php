@@ -19,6 +19,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // Add security headers to all requests
         $middleware->web(append: [
             \App\Http\Middleware\SecurityHeaders::class,
+            \App\Http\Middleware\EnhancedSecurity::class,
         ]);
 
         // Configure rate limiting

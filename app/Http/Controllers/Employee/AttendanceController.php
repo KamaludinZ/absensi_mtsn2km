@@ -727,24 +727,23 @@ class AttendanceController extends Controller
         }
 
         // Detect environment and use appropriate storage path
-        // Production: /absensi_app/storage/selfies (tanpa symlink)
-        // Development: storage/app/public/selfies (dengan symlink)
-        $productionSelfiesPath = base_path('storage/selfies');
+        // Production: public/storage/selfies (without symlink, inside web root)
+        // Development: storage/app/public/selfies (with symlink)
         $isProduction = config('app.env') === 'production';
 
         if ($isProduction) {
-            // Production: Save to /absensi_app/storage/selfies (outside Laravel storage/app)
+            // Production: Save to public/storage/selfies (inside web root, no symlink needed)
             // Create folder if not exists
-            if (!file_exists($productionSelfiesPath)) {
-                @mkdir($productionSelfiesPath, 0755, true);
-                @mkdir(base_path('storage/selfies/employee'), 0755, true);
-                @mkdir(base_path('storage/selfies/student'), 0755, true);
+            if (!file_exists(public_path('storage'))) {
+                @mkdir(public_path('storage'), 0755, true);
+                @mkdir(public_path('storage/selfies/employee'), 0755, true);
+                @mkdir(public_path('storage/selfies/student'), 0755, true);
             }
 
-            $path = base_path('storage/' . $directory . '/' . $filename);
+            $path = public_path('storage/' . $directory . '/' . $filename);
 
             // Create directory if not exists
-            $directoryPath = base_path('storage/' . $directory);
+            $directoryPath = public_path('storage/' . $directory);
             if (!file_exists($directoryPath)) {
                 mkdir($directoryPath, 0755, true);
             }
@@ -758,7 +757,7 @@ class AttendanceController extends Controller
         $path = str_replace(["../", "./", "..\\", ".\\"], '', $path);
 
         // Verify the final path is within the allowed directory
-        $allowedPath = $isProduction ? base_path('storage') : storage_path('app/public/');
+        $allowedPath = $isProduction ? public_path('storage') : storage_path('app/public/');
         $realPath = realpath(dirname($path)) ?: dirname($path);
         
         // Normalize path separators to ensure consistent comparison (use forward slashes)

@@ -9,6 +9,7 @@ use App\Models\Employee;
 use App\Models\Student;
 use App\Models\Rombel;
 use App\Models\Setting;
+use App\Traits\Paginable;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\AttendanceExport;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -16,6 +17,7 @@ use Carbon\Carbon;
 
 class ReportController extends Controller
 {
+    use Paginable;
     public function index(Request $request)
     {
         $query = Attendance::with('attendable')
@@ -75,13 +77,23 @@ class ReportController extends Controller
             case 'clock_in':
             case 'clock_out':
                 $query->orderBy($sortField, $sortDirection);
-                $attendances = $query->orderBy('date', 'desc')->paginate(20);
+                $perPage = $this->getPerPagePreference();
+                if ($perPage === 'all') {
+                    $attendances = collect($query->orderBy('date', 'desc')->get());
+                } else {
+                    $attendances = $query->orderBy('date', 'desc')->paginate($perPage);
+                }
                 break;
 
             case 'date':
             default:
                 $query->orderBy('date', $sortDirection);
-                $attendances = $query->orderBy('created_at', 'desc')->paginate(20);
+                $perPage = $this->getPerPagePreference();
+                if ($perPage === 'all') {
+                    $attendances = collect($query->orderBy('created_at', 'desc')->get());
+                } else {
+                    $attendances = $query->orderBy('created_at', 'desc')->paginate($perPage);
+                }
                 break;
         }
 
@@ -229,7 +241,12 @@ class ReportController extends Controller
             $query->whereIn('attendable_id', $studentIds);
         }
 
-        $attendances = $query->paginate(20);
+        $perPage = $this->getPerPagePreference();
+        if ($perPage === 'all') {
+            $attendances = collect($query->get());
+        } else {
+            $attendances = $query->paginate($perPage);
+        }
         $rombels = Rombel::orderBy('name')->get();
 
         return view('admin.reports.student-reports', compact('attendances', 'rombels'));

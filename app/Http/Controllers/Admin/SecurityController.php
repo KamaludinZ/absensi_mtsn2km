@@ -23,6 +23,52 @@ class SecurityController extends Controller
     public function index()
     {
         $stats = $this->securityService->getDashboardStats();
+        
+        // Calculate active sessions (sessions active in last 30 minutes)
+        // The sessions table stores last_activity as Unix timestamp
+        $activeSessions = \DB::table('sessions')
+            ->where('last_activity', '>', now()->subMinutes(30)->timestamp)
+            ->count();
+        
+        $stats['active_sessions'] = $activeSessions;
+        
+        // Get recent security events
+        $recentSecurityEvents = \App\Models\SecurityLog::with('user:id,username')
+            ->orderBy('created_at', 'desc')
+            ->limit(10) // Get 10 for potential use, but display 5 in template
+            ->get();
+        
+        $stats['recent_security_events'] = $recentSecurityEvents;
+        
+        // Get recent failed logins
+        $recentFailedLogins = \App\Models\LoginAttempt::where('successful', false)
+            ->orderBy('attempted_at', 'desc')
+            ->limit(10) // Get 10 for potential use, but display 5 in template
+            ->get();
+        
+        $stats['recent_failed_logins'] = $recentFailedLogins;
+        
+        // Get most targeted accounts (failed login attempts in last 7 days)
+        $mostTargetedAccounts = \App\Models\LoginAttempt::select('username', \DB::raw('COUNT(*) as attempt_count'))
+            ->where('successful', false)
+            ->where('attempted_at', '>', now()->subDays(7))
+            ->groupBy('username')
+            ->orderBy('attempt_count', 'desc')
+            ->limit(5)
+            ->get();
+        
+        $stats['most_targeted_accounts'] = $mostTargetedAccounts;
+        
+        // Get suspicious IPs (failed attempts in last 7 days)
+        $suspiciousIPs = \App\Models\LoginAttempt::select('ip_address', \DB::raw('COUNT(*) as attempt_count'))
+            ->where('successful', false)
+            ->where('attempted_at', '>', now()->subDays(7))
+            ->groupBy('ip_address')
+            ->orderBy('attempt_count', 'desc')
+            ->limit(5)
+            ->get();
+        
+        $stats['suspicious_ips'] = $suspiciousIPs;
 
         return view('admin.security.index', $stats);
     }

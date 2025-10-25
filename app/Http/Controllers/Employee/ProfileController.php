@@ -47,7 +47,9 @@ class ProfileController extends Controller
             'password' => Hash::make($request->password),
         ]);
 
-        return redirect()->route('employee.profile.change-password')
-            ->with('success', 'Password berhasil diubah!');
+        // Logout user after password change for security
+        auth()->logout();
+
+        return redirect()->route('login')->with('success', 'Password berhasil diubah! Silakan login kembali dengan password baru.');
     }
 }
