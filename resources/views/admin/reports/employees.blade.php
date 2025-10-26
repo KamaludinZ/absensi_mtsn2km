@@ -268,8 +268,12 @@
                         </td>
                         <td class="py-3 px-4 border-b">
                             @if($attendance->selfie_path_in)
-                                <a href="{{ Storage::url($attendance->selfie_path_in) }}" target="_blank">
-                                    <img src="{{ Storage::url($attendance->selfie_path_in) }}" alt="Selfie Masuk" class="w-16 h-16 object-cover rounded border cursor-pointer hover:opacity-80">
+                                @php
+                                    $filename = basename($attendance->selfie_path_in);
+                                    $type = 'employee';
+                                @endphp
+                                <a href="{{ route('selfies.show', ['type' => $type, 'filename' => $filename]) }}" target="_blank">
+                                    <img src="{{ route('selfies.show', ['type' => $type, 'filename' => $filename]) }}" alt="Selfie Masuk" class="w-16 h-16 object-cover rounded border cursor-pointer hover:opacity-80">
                                 </a>
                             @else
                                 -
@@ -364,8 +368,12 @@
                         </td>
                         <td class="py-3 px-4 border-b">
                             @if($attendance->selfie_path_out)
-                                <a href="{{ Storage::url($attendance->selfie_path_out) }}" target="_blank">
-                                    <img src="{{ Storage::url($attendance->selfie_path_out) }}" alt="Selfie Pulang" class="w-16 h-16 object-cover rounded border cursor-pointer hover:opacity-80">
+                                @php
+                                    $filename = basename($attendance->selfie_path_out);
+                                    $type = 'employee';
+                                @endphp
+                                <a href="{{ route('selfies.show', ['type' => $type, 'filename' => $filename]) }}" target="_blank">
+                                    <img src="{{ route('selfies.show', ['type' => $type, 'filename' => $filename]) }}" alt="Selfie Pulang" class="w-16 h-16 object-cover rounded border cursor-pointer hover:opacity-80">
                                 </a>
                             @else
                                 -
@@ -398,10 +406,10 @@
             <!-- For "Show All" records -->
             <div class="mt-6">
                 <div class="flex flex-col md:flex-row items-center justify-between space-y-4 md:space-y-0">
-                    <div class="flex items-center space-x-2">
+                    <div class="flex flex-wrap items-center gap-2">
                         <label for="per_page" class="text-sm text-gray-700">Tampilkan:</label>
                         <select id="per_page" name="per_page" 
-                                class="border border-gray-300 rounded px-2 py-1 text-sm focus:ring-blue-500 focus:border-blue-500"
+                                class="border border-gray-300 rounded px-2 py-1 text-sm focus:ring-blue-500 focus:border-blue-500 w-auto min-w-[80px]"
                                 onchange="updatePerPage(this)">
                             <option value="10" {{ request('per_page') == '10' ? 'selected' : '' }}>10</option>
                             <option value="20" {{ !request('per_page') || request('per_page') == '20' ? 'selected' : '' }}>20</option>
@@ -411,10 +419,6 @@
                             <option value="all" selected>Semua</option>
                         </select>
                         <span class="text-sm text-gray-700">entri</span>
-                        
-                        <div class="text-sm text-gray-700 ml-4">
-                            Menampilkan semua <span class="font-medium">{{ $attendances->count() }}</span> entri
-                        </div>
                     </div>
                 </div>
             </div>

@@ -57,7 +57,8 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middl
 Route::get('/selfies/{type}/{filename}', [SelfieController::class, 'show'])
     ->middleware('auth')
     ->where('type', 'employee|student')
-    ->where('filename', '.*');
+    ->where('filename', '.*')
+    ->name('selfies.show');
 
 // Employee routes
 Route::middleware(['auth', CheckRole::class . ':pegawai'])->prefix('employee')->name('employee.')->group(function () {

@@ -48,7 +48,7 @@
                         <input type="password"
                                name="current_password"
                                id="current_password"
-                               class="form-input pl-10 @error('current_password') border-red-500 @enderror"
+                               class="input-with-icon @error('current_password') border-red-500 @enderror"
                                placeholder="Masukkan password saat ini"
                                required>
                     </div>
@@ -73,7 +73,7 @@
                         <input type="password"
                                name="password"
                                id="password"
-                               class="form-input pl-10 @error('password') border-red-500 @enderror"
+                               class="input-with-icon @error('password') border-red-500 @enderror"
                                placeholder="Masukkan password baru"
                                required>
                     </div>
@@ -97,7 +97,7 @@
                         <input type="password"
                                name="password_confirmation"
                                id="password_confirmation"
-                               class="form-input pl-10"
+                               class="input-with-icon"
                                placeholder="Konfirmasi password baru"
                                required>
                     </div>

@@ -219,8 +219,12 @@
                         </td>
                         <td class="py-3 px-4 border-b">
                             @if($attendance->selfie_path_in)
-                                <a href="{{ Storage::url($attendance->selfie_path_in) }}" target="_blank">
-                                    <img src="{{ Storage::url($attendance->selfie_path_in) }}" alt="Selfie Masuk" class="w-16 h-16 object-cover rounded border cursor-pointer hover:opacity-80">
+                                @php
+                                    $filename = basename($attendance->selfie_path_in);
+                                    $type = 'student';
+                                @endphp
+                                <a href="{{ route('selfies.show', ['type' => $type, 'filename' => $filename]) }}" target="_blank">
+                                    <img src="{{ route('selfies.show', ['type' => $type, 'filename' => $filename]) }}" alt="Selfie Masuk" class="w-16 h-16 object-cover rounded border cursor-pointer hover:opacity-80">
                                 </a>
                             @else
                                 -
@@ -304,8 +308,12 @@
                         </td>
                         <td class="py-3 px-4 border-b">
                             @if($attendance->selfie_path_out)
-                                <a href="{{ Storage::url($attendance->selfie_path_out) }}" target="_blank">
-                                    <img src="{{ Storage::url($attendance->selfie_path_out) }}" alt="Selfie Pulang" class="w-16 h-16 object-cover rounded border cursor-pointer hover:opacity-80">
+                                @php
+                                    $filename = basename($attendance->selfie_path_out);
+                                    $type = 'student';
+                                @endphp
+                                <a href="{{ route('selfies.show', ['type' => $type, 'filename' => $filename]) }}" target="_blank">
+                                    <img src="{{ route('selfies.show', ['type' => $type, 'filename' => $filename]) }}" alt="Selfie Pulang" class="w-16 h-16 object-cover rounded border cursor-pointer hover:opacity-80">
                                 </a>
                             @else
                                 -

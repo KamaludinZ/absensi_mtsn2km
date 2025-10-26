@@ -30,10 +30,10 @@ class SelfieController extends Controller
         $filename = basename($filename);
         $directory = 'selfies/' . $type;
 
-        $filePath = public_path($directory . '/' . $filename);
+        $fullPath = $directory . '/' . $filename;
 
-        // Check if file exists
-        if (!file_exists($filePath)) {
+        // Check if file exists using Storage facade
+        if (!Storage::disk('public')->exists($fullPath)) {
             abort(404, 'File not found');
         }
 
@@ -42,13 +42,13 @@ class SelfieController extends Controller
             abort(403, 'Unauthorized access');
         }
 
-        // Get file content
-        $file = file_get_contents($filePath);
-        $type = mime_content_type($filePath);
+        // Get file content using Storage facade
+        $file = Storage::disk('public')->get($fullPath);
+        $mimeType = Storage::disk('public')->mimeType($fullPath);
 
         // Return the file with appropriate headers
         return Response::make($file, 200, [
-            'Content-Type' => $type,
+            'Content-Type' => $mimeType,
             'Content-Disposition' => 'inline; filename="' . $filename . '"',
             'Cache-Control' => 'private, max-age=3600',
         ]);

@@ -137,16 +137,24 @@
                         @if($attendance->selfie_path_in)
                         <div class="bg-gray-50 p-3 rounded">
                             <p class="text-xs text-gray-600 mb-2">Foto Masuk:</p>
-                            <a href="{{ Storage::url($attendance->selfie_path_in) }}" target="_blank">
-                                <img src="{{ Storage::url($attendance->selfie_path_in) }}" alt="Selfie Masuk" class="w-16 h-16 object-cover rounded border cursor-pointer hover:opacity-80">
+                            @php
+                                $filename = basename($attendance->selfie_path_in);
+                                $type = 'employee';
+                            @endphp
+                            <a href="{{ route('selfies.show', ['type' => $type, 'filename' => $filename]) }}" target="_blank">
+                                <img src="{{ route('selfies.show', ['type' => $type, 'filename' => $filename]) }}" alt="Selfie Masuk" class="w-16 h-16 object-cover rounded border cursor-pointer hover:opacity-80">
                             </a>
                         </div>
                         @endif
                         @if($attendance->selfie_path_out)
                         <div class="bg-gray-50 p-3 rounded">
                             <p class="text-xs text-gray-600 mb-2">Foto Keluar:</p>
-                            <a href="{{ Storage::url($attendance->selfie_path_out) }}" target="_blank">
-                                <img src="{{ Storage::url($attendance->selfie_path_out) }}" alt="Selfie Pulang" class="w-16 h-16 object-cover rounded border cursor-pointer hover:opacity-80">
+                            @php
+                                $filename = basename($attendance->selfie_path_out);
+                                $type = 'employee';
+                            @endphp
+                            <a href="{{ route('selfies.show', ['type' => $type, 'filename' => $filename]) }}" target="_blank">
+                                <img src="{{ route('selfies.show', ['type' => $type, 'filename' => $filename]) }}" alt="Selfie Pulang" class="w-16 h-16 object-cover rounded border cursor-pointer hover:opacity-80">
                             </a>
                         </div>
                         @endif

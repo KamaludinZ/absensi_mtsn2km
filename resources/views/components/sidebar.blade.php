@@ -20,12 +20,17 @@
                this.open = !this.open;
                const sidebar = document.getElementById('sidebar');
                const overlay = document.getElementById('overlay');
+               
                if (this.open) {
                    sidebar.classList.add('show');
                    overlay.classList.add('show');
+                   // Prevent body scroll when sidebar is open
+                   document.body.style.overflow = 'hidden';
                } else {
                    sidebar.classList.remove('show');
                    overlay.classList.remove('show');
+                   // Restore body scroll when sidebar is closed
+                   document.body.style.overflow = '';
                }
            },
            init() {
@@ -52,6 +57,11 @@
                        sidebar.classList.remove('show');
                        overlay.classList.remove('show');
                    }
+               });
+               
+               // Listen for mobile sidebar toggle event from navbar using Alpine's event system
+               document.addEventListener('toggle-mobile-sidebar', () => {
+                   this.toggleMobileSidebar();
                });
            }
        }">
@@ -499,7 +509,7 @@
 </aside>
 
 <!-- Mobile overlay -->
-<div class="sidebar-overlay" id="overlay" onclick="toggleSidebar()"></div>
+<div class="sidebar-overlay" id="overlay" x-show="open" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" @click="toggleMobileSidebar()"></div>
 
 <style>
 /* Direct CSS for Sidebar - No @apply directives */
@@ -876,28 +886,25 @@
 </style>
 
 <script>
-function toggleSidebar() {
-    const sidebar = document.getElementById('sidebar');
-    const overlay = document.getElementById('overlay');
-    sidebar.classList.toggle('show');
-    overlay.classList.toggle('show');
-}
-
 // Improved mobile sidebar handling
 document.addEventListener('DOMContentLoaded', function() {
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('overlay');
     
     // Close sidebar when clicking on overlay
-    overlay.addEventListener('click', toggleSidebar);
+    overlay.addEventListener('click', function() {
+        // Dispatch event to Alpine to handle state properly
+        window.dispatchEvent(new CustomEvent('toggle-mobile-sidebar'));
+    });
     
     // Close sidebar when clicking outside on mobile
     document.addEventListener('click', function(event) {
         if (window.innerWidth < 768 && 
             sidebar.classList.contains('show') && 
             !sidebar.contains(event.target) && 
-            !event.target.closest('button[onclick="toggleSidebar()"]')) {
-            toggleSidebar();
+            !event.target.closest('[x-on\\:click*="toggleMobileSidebar"]')) {
+            // Dispatch event to Alpine to handle state properly
+            window.dispatchEvent(new CustomEvent('toggle-mobile-sidebar'));
         }
     });
     
@@ -919,7 +926,8 @@ document.addEventListener('DOMContentLoaded', function() {
         // Close sidebar with Escape key
         if (e.key === 'Escape') {
             if (sidebar.classList.contains('show')) {
-                toggleSidebar();
+                // Dispatch event to Alpine to handle state properly
+                window.dispatchEvent(new CustomEvent('toggle-mobile-sidebar'));
             }
         }
     });

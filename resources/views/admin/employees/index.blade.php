@@ -36,42 +36,84 @@
     </div>
 </div>
 <div class="bg-white rounded-lg shadow overflow-hidden">
-    <table class="min-w-full divide-y divide-gray-200">
-        <thead class="bg-gray-50">
-            <tr>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{!! sortableLink('Nama', 'full_name', $currentSort, $currentDirection) !!}</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{!! sortableLink('Jabatan', 'position', $currentSort, $currentDirection) !!}</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{!! sortableLink('Username', 'username', $currentSort, $currentDirection) !!}</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{!! sortableLink('Status', 'is_active', $currentSort, $currentDirection) !!}</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Aksi</th>
-            </tr>
-        </thead>
-        <tbody class="bg-white divide-y divide-gray-200">
+    <!-- Mobile view for smaller screens -->
+    <div class="block md:hidden">
+        <div class="divide-y divide-gray-200">
             @forelse($employees as $employee)
-            <tr>
-                <td class="px-6 py-4">{{ $employee->full_name }}</td>
-                <td class="px-6 py-4">{{ $employee->position }}</td>
-                <td class="px-6 py-4">
-                    {{ $employee->user ? $employee->user->username : '-' }}
-                </td>
-                <td class="px-6 py-4">
-                    <span class="px-2 py-1 text-xs rounded {{ $employee->is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">
-                        {{ $employee->is_active ? 'Aktif' : 'Tidak Aktif' }}
-                    </span>
-                </td>
-                <td class="px-6 py-4">
-                    <a href="{{ route('admin.employees.edit', $employee) }}" class="text-blue-600 hover:text-blue-800">Edit</a>
-                    <form action="{{ route('admin.employees.destroy', $employee) }}" method="POST" class="inline">
-                        @csrf @method('DELETE')
-                        <button type="submit" class="text-red-600 hover:text-red-800 ml-2" onclick="return confirm('Yakin hapus?')">Hapus</button>
-                    </form>
-                </td>
-            </tr>
+            <div class="p-4 border-b">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <div class="text-sm font-medium text-gray-900">
+                            {{ $employee->full_name }}
+                        </div>
+                        <div class="mt-1 text-sm text-gray-500">
+                            Jabatan: {{ $employee->position }}
+                        </div>
+                        <div class="mt-1 text-sm text-gray-500">
+                            Username: {{ $employee->user ? $employee->user->username : '-' }}
+                        </div>
+                        <div class="mt-1">
+                            <span class="px-2 py-1 text-xs rounded {{ $employee->is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">
+                                {{ $employee->is_active ? 'Aktif' : 'Tidak Aktif' }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="ml-4 flex-shrink-0">
+                        <a href="{{ route('admin.employees.edit', $employee) }}" class="text-blue-600 hover:text-blue-800 text-sm block">Edit</a>
+                        <form action="{{ route('admin.employees.destroy', $employee) }}" method="POST" class="inline mt-1">
+                            @csrf @method('DELETE')
+                            <button type="submit" class="text-red-600 hover:text-red-800 text-sm block" onclick="return confirm('Yakin hapus?')">Hapus</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
             @empty
-            <tr><td colspan="6" class="px-6 py-4 text-center text-gray-500">Tidak ada data</td></tr>
+            <div class="p-4 text-center text-gray-500">
+                Tidak ada data
+            </div>
             @endforelse
-        </tbody>
-    </table>
+        </div>
+    </div>
+    
+    <!-- Desktop view for larger screens -->
+    <div class="hidden md:block overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{!! sortableLink('Nama', 'full_name', $currentSort, $currentDirection) !!}</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{!! sortableLink('Jabatan', 'position', $currentSort, $currentDirection) !!}</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{!! sortableLink('Username', 'username', $currentSort, $currentDirection) !!}</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{!! sortableLink('Status', 'is_active', $currentSort, $currentDirection) !!}</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Aksi</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                @forelse($employees as $employee)
+                <tr>
+                    <td class="px-6 py-4">{{ $employee->full_name }}</td>
+                    <td class="px-6 py-4">{{ $employee->position }}</td>
+                    <td class="px-6 py-4">
+                        {{ $employee->user ? $employee->user->username : '-' }}
+                    </td>
+                    <td class="px-6 py-4">
+                        <span class="px-2 py-1 text-xs rounded {{ $employee->is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">
+                            {{ $employee->is_active ? 'Aktif' : 'Tidak Aktif' }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4">
+                        <a href="{{ route('admin.employees.edit', $employee) }}" class="text-blue-600 hover:text-blue-800">Edit</a>
+                        <form action="{{ route('admin.employees.destroy', $employee) }}" method="POST" class="inline">
+                            @csrf @method('DELETE')
+                            <button type="submit" class="text-red-600 hover:text-red-800 ml-2" onclick="return confirm('Yakin hapus?')">Hapus</button>
+                        </form>
+                    </td>
+                </tr>
+                @empty
+                <tr><td colspan="6" class="px-6 py-4 text-center text-gray-500">Tidak ada data</td></tr>
+                @endforelse
+            </tbody>
+        </table>
+    </div>
 </div>
 </div>
 

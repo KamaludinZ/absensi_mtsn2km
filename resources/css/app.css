@@ -122,6 +122,29 @@
         @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors;
     }
     
+    .form-input {
+        @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors;
+    }
+    
+    .input-with-icon {
+        @apply w-full px-4 py-2 pl-14 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors;
+    }
+
+    /* Compact pagination for mobile */
+    @media (max-width: 640px) {
+        .pagination-mobile-compact .relative {
+            @apply px-2 py-1 text-xs min-w-[24px] h-8 flex items-center justify-center;
+        }
+        
+        .pagination-mobile-compact .text-sm {
+            @apply text-xs;
+        }
+        
+        .pagination-mobile-compact .space-x-1 {
+            @apply space-x-0.5;
+        }
+    }
+    
     .input:focus, .textarea:focus, .select:focus {
         @apply outline-none;
     }
