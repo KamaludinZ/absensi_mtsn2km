@@ -20,7 +20,7 @@ trait Paginable
      * @param string $default
      * @return int|string
      */
-    protected function getPerPagePreference(string $default = '20')
+    public function getPerPagePreference(string $default = '20')
     {
         // Check if per_page is set in request
         $perPage = request()->get('per_page', session('per_page', $default));
