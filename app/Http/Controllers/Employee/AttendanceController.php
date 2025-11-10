@@ -9,6 +9,8 @@ use App\Models\Employee;
 use App\Models\Schedule;
 use App\Models\User;
 use App\Models\LocationSetting;
+use App\Models\AttendanceSetting;
+use App\Helpers\AttendanceHelper;
 use Carbon\Carbon;
 use Intervention\Image\Laravel\Facades\Image;
 use Illuminate\Support\Facades\Storage;
@@ -33,24 +35,57 @@ class AttendanceController extends Controller
             ->whereDate('date', $today)
             ->first();
 
-        return view('employee.attendance', compact('employee', 'attendance'));
+        // Get attendance settings
+        $requireSelfie = AttendanceSetting::where('setting_key', 'require_selfie_photo')->first();
+        $requireCheckIn = AttendanceSetting::where('setting_key', 'require_check_in')->first();
+        $requireCheckOut = AttendanceSetting::where('setting_key', 'require_check_out')->first();
+
+        $attendanceSettings = [
+            'require_selfie_photo' => $requireSelfie ? filter_var($requireSelfie->setting_value, FILTER_VALIDATE_BOOLEAN) : true,
+            'require_check_in' => $requireCheckIn ? filter_var($requireCheckIn->setting_value, FILTER_VALIDATE_BOOLEAN) : true,
+            'require_check_out' => $requireCheckOut ? filter_var($requireCheckOut->setting_value, FILTER_VALIDATE_BOOLEAN) : true,
+        ];
+
+        // Get location display settings
+        $displayWithCoordinates = LocationSetting::where('setting_key', 'display_with_coordinates')->first();
+        $displayWithMap = LocationSetting::where('setting_key', 'display_with_map')->first();
+
+        $locationSettings = [
+            'display_with_coordinates' => $displayWithCoordinates ? filter_var($displayWithCoordinates->setting_value, FILTER_VALIDATE_BOOLEAN) : true,
+            'display_with_map' => $displayWithMap ? filter_var($displayWithMap->setting_value, FILTER_VALIDATE_BOOLEAN) : true,
+        ];
+
+        return view('employee.attendance', compact('employee', 'attendance', 'attendanceSettings', 'locationSettings'));
     }
 
     public function clockIn(Request $request)
     {
         try {
-            $request->validate([
-                'selfie' => [
-                    'required',
-                    'string',
-                    'regex:/^data:image\/(?:jpeg|png|jpg);base64,[A-Za-z0-9+\/=]+$/',
-                    'max:2000000' // 2MB max file size
-                ],
+            // Check attendance settings
+            $requireSelfie = AttendanceSetting::where('setting_key', 'require_selfie_photo')->first();
+            $requireSelfiePhoto = $requireSelfie ? filter_var($requireSelfie->setting_value, FILTER_VALIDATE_BOOLEAN) : true;
+
+            // Build validation rules dynamically based on settings
+            $validationRules = [
                 'location' => 'array|nullable',
                 'location.latitude' => 'required_with:location|numeric|between:-90,90',
                 'location.longitude' => 'required_with:location|numeric|between:-180,180',
                 'location.accuracy' => 'required_with:location|numeric|min:0',
-            ]);
+            ];
+
+            // Add selfie validation only if required
+            if ($requireSelfiePhoto) {
+                $validationRules['selfie'] = [
+                    'required',
+                    'string',
+                    'regex:/^data:image\/(?:jpeg|png|jpg);base64,[A-Za-z0-9+\/=]+$/',
+                    'max:2000000' // 2MB max file size
+                ];
+            } else {
+                $validationRules['selfie'] = 'nullable|string|regex:/^data:image\/(?:jpeg|png|jpg);base64,[A-Za-z0-9+\/=]+$/|max:2000000';
+            }
+
+            $request->validate($validationRules);
 
             /** @var User $user */
             $user = Auth::user();
@@ -104,8 +139,11 @@ class AttendanceController extends Controller
                 ]);
             }
 
-            // Process selfie
-            $selfiePath = $this->processSelfie($request->selfie, 'employee', $employee->id, 'in');
+            // Process selfie only if provided
+            $selfiePath = null;
+            if ($request->has('selfie') && !empty($request->selfie)) {
+                $selfiePath = $this->processSelfie($request->selfie, 'employee', $employee->id, 'in');
+            }
 
             // Get location data if provided
             $latitude = null;
@@ -202,18 +240,34 @@ class AttendanceController extends Controller
     public function clockOut(Request $request)
     {
         try {
-            $request->validate([
-                'selfie' => [
-                    'required',
-                    'string',
-                    'regex:/^data:image\/(?:jpeg|png|jpg);base64,[A-Za-z0-9+\/=]+$/',
-                    'max:2000000' // 2MB max file size
-                ],
+            // Check attendance settings
+            $requireSelfie = AttendanceSetting::where('setting_key', 'require_selfie_photo')->first();
+            $requireSelfiePhoto = $requireSelfie ? filter_var($requireSelfie->setting_value, FILTER_VALIDATE_BOOLEAN) : true;
+
+            $requireCheckInSetting = AttendanceSetting::where('setting_key', 'require_check_in')->first();
+            $requireCheckIn = $requireCheckInSetting ? filter_var($requireCheckInSetting->setting_value, FILTER_VALIDATE_BOOLEAN) : true;
+
+            // Build validation rules dynamically based on settings
+            $validationRules = [
                 'location' => 'array|nullable',
                 'location.latitude' => 'required_with:location|numeric|between:-90,90',
                 'location.longitude' => 'required_with:location|numeric|between:-180,180',
                 'location.accuracy' => 'required_with:location|numeric|min:0',
-            ]);
+            ];
+
+            // Add selfie validation only if required
+            if ($requireSelfiePhoto) {
+                $validationRules['selfie'] = [
+                    'required',
+                    'string',
+                    'regex:/^data:image\/(?:jpeg|png|jpg);base64,[A-Za-z0-9+\/=]+$/',
+                    'max:2000000' // 2MB max file size
+                ];
+            } else {
+                $validationRules['selfie'] = 'nullable|string|regex:/^data:image\/(?:jpeg|png|jpg);base64,[A-Za-z0-9+\/=]+$/|max:2000000';
+            }
+
+            $request->validate($validationRules);
 
             /** @var User $user */
             $user = Auth::user();
@@ -260,10 +314,22 @@ class AttendanceController extends Controller
                 ->whereDate('date', $today)
                 ->first();
 
-            if (!$attendance || !$attendance->clock_in) {
+            // ENFORCEMENT OF 'require_check_in'
+            if ($requireCheckIn && (!$attendance || !$attendance->clock_in)) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Anda belum melakukan absen masuk hari ini.',
+                    'message' => 'Anda belum melakukan absen masuk hari ini. Absen masuk diwajibkan.',
+                ]);
+            }
+
+            // If clock-in is NOT required, and there's no attendance record yet, create one for clock-out
+            // This handles the case where a user only clocks out.
+            if (!$requireCheckIn && !$attendance) {
+                 $attendance = Attendance::create([
+                    'attendable_type' => Employee::class,
+                    'attendable_id' => $employee->id,
+                    'date' => $today,
+                    // clock_in remains null
                 ]);
             }
 
@@ -274,8 +340,11 @@ class AttendanceController extends Controller
                 ]);
             }
 
-            // Process selfie
-            $selfiePath = $this->processSelfie($request->selfie, 'employee', $employee->id, 'out');
+            // Process selfie only if provided
+            $selfiePath = null;
+            if ($request->has('selfie') && !empty($request->selfie)) {
+                $selfiePath = $this->processSelfie($request->selfie, 'employee', $employee->id, 'out');
+            }
 
             // Determine status
             $now = Carbon::now();
@@ -391,9 +460,28 @@ class AttendanceController extends Controller
         $month = $request->filled('month') ? $request->month : now()->month;
         $query->whereMonth('date', $month);
 
-        $attendances = $query->orderBy('date', 'desc')
+        // Handle sorting
+        $sortField = $request->get('sort', 'date'); // Default sort by date
+        $sortDirection = $request->get('direction', 'desc'); // Default descending
+
+        // Validate sort field to prevent SQL injection
+        $allowedSortFields = ['date', 'clock_in', 'clock_out', 'status_in', 'status_out'];
+        if (!in_array($sortField, $allowedSortFields)) {
+            $sortField = 'date';
+        }
+
+        // Validate sort direction
+        $sortDirection = strtolower($sortDirection) === 'asc' ? 'asc' : 'desc';
+
+        $attendances = $query->orderBy($sortField, $sortDirection)
             ->with(['attendable']) // Load employee relationship
-            ->paginate(20);
+            ->paginate(20)
+            ->appends([
+                'sort' => $sortField,
+                'direction' => $sortDirection,
+                'month' => $month,
+                'academic_year_id' => $selectedAcademicYearId
+            ]);
 
         // Pre-load employee shifts and schedules to avoid N+1 queries in view
         $employeeId = $employee->id;
@@ -427,7 +515,11 @@ class AttendanceController extends Controller
             12 => 'Desember'
         ];
 
-        return view('employee.report', compact('attendances', 'months', 'academicYears', 'selectedAcademicYearId', 'employeeShifts', 'schedules'));
+        // Get time difference format setting
+        $timeDiffFormatSetting = \App\Models\AttendanceSetting::where('setting_key', 'time_difference_format')->first();
+        $timeDiffFormat = $timeDiffFormatSetting ? $timeDiffFormatSetting->setting_value : 'time';
+
+        return view('employee.report', compact('attendances', 'months', 'academicYears', 'selectedAcademicYearId', 'employeeShifts', 'schedules', 'sortField', 'sortDirection', 'timeDiffFormat'));
     }
 
     public function export(Request $request)
@@ -601,88 +693,12 @@ class AttendanceController extends Controller
 
     private static function getInTimeDifference($attendance)
     {
-        $schedule = self::getSchedule($attendance);
-
-        if ($attendance->clock_in && $schedule) {
-            // Ambil waktu ABSENSI MASUK dalam format H:i:s
-            $absensiMasukTime = Carbon::parse($attendance->clock_in)->format('H:i:s');
-            list($h1, $i1, $s1) = explode(':', $absensiMasukTime);
-            $absensiMasukDetik = ($h1 * 3600) + ($i1 * 60) + $s1;
-
-            // Ambil waktu JAM MASUK dalam format H:i:s
-            $jamMasukTime = Carbon::parse($schedule->start_time)->format('H:i:s');
-            list($h2, $i2, $s2) = explode(':', $jamMasukTime);
-            $jamMasukDetik = ($h2 * 3600) + ($i2 * 60) + $s2;
-
-            // Hitung selisih: ABSENSI MASUK - JAM MASUK
-            $selisihDetik = $absensiMasukDetik - $jamMasukDetik;
-
-            // Convert ke format H:i:s
-            $selisihAbs = abs($selisihDetik);
-
-            $jam = floor($selisihAbs / 3600);
-            $sisaSetelahJam = $selisihAbs - ($jam * 3600);
-            $menit = floor($sisaSetelahJam / 60);
-            $detik = $sisaSetelahJam - ($menit * 60);
-
-            $formatWaktu = sprintf('%02d:%02d:%02d', $jam, $menit, $detik);
-
-            if ($selisihDetik > 0) {
-                // Absensi masuk > jam masuk (terlambat)
-                return '+' . $formatWaktu;
-            } elseif ($selisihDetik < 0) {
-                // Absensi masuk < jam masuk (lebih awal)
-                return '-' . $formatWaktu;
-            } else {
-                // Tepat waktu
-                return '00:00:00';
-            }
-        }
-
-        return '-';
+        return AttendanceHelper::formatCheckInDifference($attendance);
     }
 
     private static function getOutTimeDifference($attendance)
     {
-        $schedule = self::getSchedule($attendance);
-
-        if ($attendance->clock_out && $schedule) {
-            // Ambil waktu ABSENSI PULANG dalam format H:i:s
-            $absensiPulangTime = Carbon::parse($attendance->clock_out)->format('H:i:s');
-            list($h1, $i1, $s1) = explode(':', $absensiPulangTime);
-            $absensiPulangDetik = ($h1 * 3600) + ($i1 * 60) + $s1;
-
-            // Ambil waktu JAM PULANG dalam format H:i:s
-            $jamPulangTime = Carbon::parse($schedule->end_time)->format('H:i:s');
-            list($h2, $i2, $s2) = explode(':', $jamPulangTime);
-            $jamPulangDetik = ($h2 * 3600) + ($i2 * 60) + $s2;
-
-            // Hitung selisih: ABSENSI PULANG - JAM PULANG
-            $selisihDetik = $absensiPulangDetik - $jamPulangDetik;
-
-            // Convert ke format H:i:s
-            $selisihAbs = abs($selisihDetik);
-
-            $jam = floor($selisihAbs / 3600);
-            $sisaSetelahJam = $selisihAbs - ($jam * 3600);
-            $menit = floor($sisaSetelahJam / 60);
-            $detik = $sisaSetelahJam - ($menit * 60);
-
-            $formatWaktu = sprintf('%02d:%02d:%02d', $jam, $menit, $detik);
-
-            if ($selisihDetik < 0) {
-                // Absensi pulang < Jam pulang = Pulang Awal
-                return '-' . $formatWaktu;
-            } elseif ($selisihDetik > 0) {
-                // Absensi pulang > Jam pulang = Pulang Lebih Lama
-                return '+' . $formatWaktu;
-            } else {
-                // Tepat waktu
-                return '00:00:00';
-            }
-        }
-
-        return '-';
+        return AttendanceHelper::formatCheckOutDifference($attendance);
     }
 
     private function processSelfie($base64Image, $type, $id, $direction)

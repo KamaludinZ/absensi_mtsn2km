@@ -190,36 +190,26 @@
                         <td class="py-3 px-4 border-b whitespace-nowrap">
                             @if($attendance->clock_in && $schedule)
                                 @php
-                                    $absensiMasukTime = \Carbon\Carbon::parse($attendance->clock_in)->format('H:i:s');
-                                    list($h1, $i1, $s1) = explode(':', $absensiMasukTime);
-                                    $absensiMasukDetik = ($h1 * 3600) + ($i1 * 60) + $s1;
+                                    $clockIn = \Carbon\Carbon::parse($attendance->clock_in);
+                                    $startTime = \Carbon\Carbon::parse($schedule->start_time)->setDate($clockIn->year, $clockIn->month, $clockIn->day);
+                                    $diffInSeconds = $clockIn->diffInSeconds($startTime, false);
 
-                                    $jamMasukTime = \Carbon\Carbon::parse($schedule->start_time)->format('H:i:s');
-                                    list($h2, $i2, $s2) = explode(':', $jamMasukTime);
-                                    $jamMasukDetik = ($h2 * 3600) + ($i2 * 60) + $s2;
+                                    $absDiff = abs($diffInSeconds);
+                                    $formattedValue = ($timeDiffFormat === 'minutes')
+                                        ? ceil($absDiff / 60) . ' menit'
+                                        : sprintf('%02d:%02d:%02d', floor($absDiff / 3600), floor(($absDiff % 3600) / 60), $absDiff % 60);
 
-                                    $selisihDetik = $absensiMasukDetik - $jamMasukDetik;
-                                    $selisihAbs = abs($selisihDetik);
-
-                                    $jam = floor($selisihAbs / 3600);
-                                    $sisaSetelahJam = $selisihAbs - ($jam * 3600);
-                                    $menit = floor($sisaSetelahJam / 60);
-                                    $detik = $sisaSetelahJam - ($menit * 60);
-
-                                    $formatWaktu = sprintf('%02d:%02d:%02d', $jam, $menit, $detik);
-
-                                    if ($selisihDetik > 0) {
-                                        $warna = 'text-red-600 font-semibold';
-                                        $label = '+' . $formatWaktu;
-                                    } elseif ($selisihDetik < 0) {
-                                        $warna = 'text-green-600 font-semibold';
-                                        $label = '-' . $formatWaktu;
-                                    } else {
-                                        $warna = 'text-green-600 font-semibold';
-                                        $label = '00:00:00';
+                                    // Based on user's observation, a late clock-in produces a negative diff.
+                                    // So we check for < 0 to mean LATE and display '+'.
+                                    if ($diffInSeconds > 0) { // This block now represents ON-TIME or EARLY
+                                        $selisihColor = 'text-green-600 font-semibold';
+                                        $selisihLabel = '-' . $formattedValue;
+                                    } else { // This block now represents LATE or EXACTLY ON TIME
+                                        $selisihColor = 'text-red-600 font-semibold';
+                                        $selisihLabel = '+' . $formattedValue;
                                     }
                                 @endphp
-                                <span class="{{ $warna }}">{{ $label }}</span>
+                                <span class="{{ $selisihColor }}">{{ $selisihLabel }}</span>
                             @else
                                 -
                             @endif
@@ -227,15 +217,17 @@
                         <td class="py-3 px-4 border-b whitespace-nowrap">
                             @if($attendance->clock_in && $schedule)
                                 @php
-                                    $absensiMasukTime = \Carbon\Carbon::parse($attendance->clock_in)->format('H:i:s');
-                                    $jamMasukTime = \Carbon\Carbon::parse($schedule->start_time)->format('H:i:s');
+                                    $clockIn = \Carbon\Carbon::parse($attendance->clock_in);
+                                    $startTime = \Carbon\Carbon::parse($schedule->start_time)->setDate($clockIn->year, $clockIn->month, $clockIn->day);
+                                    $diffInSeconds = $clockIn->diffInSeconds($startTime, false);
 
-                                    if ($absensiMasukTime > $jamMasukTime) {
-                                        $statusText = 'Terlambat';
-                                        $statusColor = 'bg-red-100 text-red-800';
-                                    } else {
+                                    // Based on user's observation, a late clock-in produces a negative diff.
+                                    if ($diffInSeconds > 0) { // This is ON-TIME or EARLY
                                         $statusText = 'Tepat Waktu';
                                         $statusColor = 'bg-green-100 text-green-800';
+                                    } else { // This is LATE
+                                        $statusText = 'Terlambat';
+                                        $statusColor = 'bg-red-100 text-red-800';
                                     }
                                 @endphp
                                 <span class="px-2 py-1 rounded text-xs {{ $statusColor }}">
@@ -279,36 +271,26 @@
                         <td class="py-3 px-4 border-b whitespace-nowrap">
                             @if($attendance->clock_out && $schedule)
                                 @php
-                                    $absensiPulangTime = \Carbon\Carbon::parse($attendance->clock_out)->format('H:i:s');
-                                    list($h1, $i1, $s1) = explode(':', $absensiPulangTime);
-                                    $absensiPulangDetik = ($h1 * 3600) + ($i1 * 60) + $s1;
+                                    $clockOut = \Carbon\Carbon::parse($attendance->clock_out);
+                                    $endTime = \Carbon\Carbon::parse($schedule->end_time)->setDate($clockOut->year, $clockOut->month, $clockOut->day);
+                                    // Calculation: Actual Time - Scheduled Time
+                                    $diffInSeconds = $clockOut->diffInSeconds($endTime, false);
 
-                                    $jamPulangTime = \Carbon\Carbon::parse($schedule->end_time)->format('H:i:s');
-                                    list($h2, $i2, $s2) = explode(':', $jamPulangTime);
-                                    $jamPulangDetik = ($h2 * 3600) + ($i2 * 60) + $s2;
+                                    $absDiff = abs($diffInSeconds);
+                                    $formattedValue = ($timeDiffFormat === 'minutes')
+                                        ? ceil($absDiff / 60) . ' menit'
+                                        : sprintf('%02d:%02d:%02d', floor($absDiff / 3600), floor(($absDiff % 3600) / 60), $absDiff % 60);
 
-                                    $selisihDetik = $absensiPulangDetik - $jamPulangDetik;
-                                    $selisihAbs = abs($selisihDetik);
-
-                                    $jam = floor($selisihAbs / 3600);
-                                    $sisaSetelahJam = $selisihAbs - ($jam * 3600);
-                                    $menit = floor($sisaSetelahJam / 60);
-                                    $detik = $sisaSetelahJam - ($menit * 60);
-
-                                    $formatWaktu = sprintf('%02d:%02d:%02d', $jam, $menit, $detik);
-
-                                    if ($selisihDetik < 0) {
-                                        $warna = 'text-red-600 font-semibold';
-                                        $label = '-' . $formatWaktu;
-                                    } elseif ($selisihDetik > 0) {
-                                        $warna = 'text-green-600 font-semibold';
-                                        $label = '+' . $formatWaktu;
-                                    } else {
-                                        $warna = 'text-green-600 font-semibold';
-                                        $label = '00:00:00';
+                                    // Based on debug output, a positive diff means EARLY departure
+                                    if ($diffInSeconds > 0) { // Early Departure
+                                        $selisihColor = 'text-red-600 font-semibold';
+                                        $selisihLabel = '-' . $formattedValue;
+                                    } else { // On Time or Late Departure
+                                        $selisihColor = 'text-green-600 font-semibold';
+                                        $selisihLabel = '+' . $formattedValue;
                                     }
                                 @endphp
-                                <span class="{{ $warna }}">{{ $label }}</span>
+                                <span class="{{ $selisihColor }}">{{ $selisihLabel }}</span>
                             @else
                                 -
                             @endif
@@ -316,13 +298,16 @@
                         <td class="py-3 px-4 border-b whitespace-nowrap">
                             @if($attendance->clock_out && $schedule)
                                 @php
-                                    $absensiPulangTime = \Carbon\Carbon::parse($attendance->clock_out)->format('H:i:s');
-                                    $jamPulangTime = \Carbon\Carbon::parse($schedule->end_time)->format('H:i:s');
+                                    $clockOut = \Carbon\Carbon::parse($attendance->clock_out);
+                                    $endTime = \Carbon\Carbon::parse($schedule->end_time)->setDate($clockOut->year, $clockOut->month, $clockOut->day);
+                                    // Calculation: Actual Time - Scheduled Time
+                                    $diffInSeconds = $clockOut->diffInSeconds($endTime, false);
 
-                                    if ($absensiPulangTime < $jamPulangTime) {
+                                    // Based on debug output, a positive diff means EARLY departure
+                                    if ($diffInSeconds > 0) { // Early Departure
                                         $statusText = 'Pulang Awal';
-                                        $statusColor = 'bg-yellow-100 text-yellow-800';
-                                    } else {
+                                        $statusColor = 'bg-red-100 text-red-800';
+                                    } else { // On Time or Late Departure
                                         $statusText = 'Tepat Waktu';
                                         $statusColor = 'bg-green-100 text-green-800';
                                     }

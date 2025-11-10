@@ -14,12 +14,16 @@ class LocationSettingsController extends Controller
         $geofenceCenterLng = LocationSetting::where('setting_key', 'geofence_center_lng')->first();
         $geofenceRadius = LocationSetting::where('setting_key', 'geofence_radius')->first();
         $locationRequired = LocationSetting::where('setting_key', 'location_required')->first();
+        $displayWithCoordinates = LocationSetting::where('setting_key', 'display_with_coordinates')->first();
+        $displayWithMap = LocationSetting::where('setting_key', 'display_with_map')->first();
 
         $settings = [
             'geofence_center_lat' => $geofenceCenterLat ? $geofenceCenterLat->setting_value : '-6.200000',
             'geofence_center_lng' => $geofenceCenterLng ? $geofenceCenterLng->setting_value : '106.816666',
             'geofence_radius' => $geofenceRadius ? $geofenceRadius->setting_value : '50',
             'location_required' => $locationRequired ? filter_var($locationRequired->setting_value, FILTER_VALIDATE_BOOLEAN) : true,
+            'display_with_coordinates' => $displayWithCoordinates ? filter_var($displayWithCoordinates->setting_value, FILTER_VALIDATE_BOOLEAN) : true,
+            'display_with_map' => $displayWithMap ? filter_var($displayWithMap->setting_value, FILTER_VALIDATE_BOOLEAN) : true,
         ];
 
         return view('admin.location-settings.index', compact('settings'));
@@ -32,6 +36,8 @@ class LocationSettingsController extends Controller
             'geofence_center_lng' => 'required|numeric|between:-180,180',
             'geofence_radius' => 'required|numeric|min:1',
             'location_required' => 'required|boolean',
+            'display_with_coordinates' => 'required|boolean',
+            'display_with_map' => 'required|boolean',
         ]);
 
         // Update or create geofence settings
@@ -64,6 +70,22 @@ class LocationSettingsController extends Controller
             [
                 'setting_value' => $request->location_required ? 'true' : 'false',
                 'description' => 'Whether location is required for attendance'
+            ]
+        );
+
+        LocationSetting::updateOrCreate(
+            ['setting_key' => 'display_with_coordinates'],
+            [
+                'setting_value' => $request->display_with_coordinates ? 'true' : 'false',
+                'description' => 'Tampilkan dengan titik koordinat'
+            ]
+        );
+
+        LocationSetting::updateOrCreate(
+            ['setting_key' => 'display_with_map'],
+            [
+                'setting_value' => $request->display_with_map ? 'true' : 'false',
+                'description' => 'Tampilkan dengan maps sesuai koordinat'
             ]
         );
 

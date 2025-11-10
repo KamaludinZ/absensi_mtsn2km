@@ -109,8 +109,13 @@ class AttendanceMonitorController extends Controller
             $paginated = true;
         }
 
+        // Calculate present count (has either clock_in or clock_out)
+        $presentCount = (clone $query)->where(function($q) {
+            $q->whereNotNull('clock_in')
+              ->orWhereNotNull('clock_out');
+        })->count();
+
         $totalEmployees = Employee::where('is_active', true)->count();
-        $presentCount = $paginated ? $attendances->where('clock_in', '!=', null)->count() : collect($attendances)->where('clock_in', '!=', null)->count();
 
         // Get all employees for the dropdown
         $employees = Employee::orderBy('full_name')->get();
@@ -137,7 +142,11 @@ class AttendanceMonitorController extends Controller
             ->orderBy('year', 'desc')
             ->pluck('year');
 
-        return view('monitoring.employees', compact('attendances', 'totalEmployees', 'presentCount', 'employees', 'months', 'years', 'sortField', 'sortDirection', 'paginated'));
+        // Get time difference format setting
+        $timeDiffFormatSetting = \App\Models\AttendanceSetting::where('setting_key', 'time_difference_format')->first();
+        $timeDiffFormat = $timeDiffFormatSetting ? $timeDiffFormatSetting->setting_value : 'time';
+
+        return view('monitoring.employees', compact('attendances', 'totalEmployees', 'presentCount', 'employees', 'months', 'years', 'sortField', 'sortDirection', 'paginated', 'timeDiffFormat'));
     }
 
     public function students(Request $request)

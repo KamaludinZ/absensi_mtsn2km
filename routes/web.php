@@ -275,12 +275,18 @@ Route::middleware(['auth', CheckRole::class . ':admin'])->prefix('admin')->name(
     Route::prefix('location-settings')->name('location-settings.')->group(function () {
         Route::get('/', [App\Http\Controllers\Admin\LocationSettingsController::class, 'index'])->name('index');
         Route::post('/', [App\Http\Controllers\Admin\LocationSettingsController::class, 'store'])->name('store');
-        
+
         // API endpoints for geofence settings
         Route::get('/geofence-center-lat', [App\Http\Controllers\Admin\LocationSettingsController::class, 'getGeofenceCenterLat'])->name('geofence-center-lat');
         Route::get('/geofence-center-lng', [App\Http\Controllers\Admin\LocationSettingsController::class, 'getGeofenceCenterLng'])->name('geofence-center-lng');
         Route::get('/geofence-radius', [App\Http\Controllers\Admin\LocationSettingsController::class, 'getGeofenceRadius'])->name('geofence-radius');
         Route::get('/location-required', [App\Http\Controllers\Admin\LocationSettingsController::class, 'getLocationRequired'])->name('location-required');
+    });
+
+    // Attendance Settings
+    Route::prefix('attendance-settings')->name('attendance-settings.')->group(function () {
+        Route::get('/', [App\Http\Controllers\Admin\AttendanceSettingController::class, 'index'])->name('index');
+        Route::post('/', [App\Http\Controllers\Admin\AttendanceSettingController::class, 'store'])->name('store');
     });
 });
 

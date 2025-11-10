@@ -22,6 +22,7 @@
         }
     @endphp
     <link rel="stylesheet" href="{{ asset($cssPath) }}">
+    @stack('styles')
 </head>
 <body>
     <div class="min-h-screen flex flex-col md:flex-row">

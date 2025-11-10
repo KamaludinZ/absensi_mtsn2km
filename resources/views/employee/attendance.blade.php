@@ -3,6 +3,21 @@
 @section('title', 'Absensi Pegawai')
 @section('page-title', 'Absensi')
 
+@if(isset($locationSettings['display_with_map']) && $locationSettings['display_with_map'])
+@push('styles')
+<!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""/>
+<style>
+    #attendance-map {
+        height: 400px;
+        z-index: 1;
+    }
+</style>
+@endpush
+@endif
+
 @section('content')
 <div class="max-w-2xl mx-auto">
     <div x-data="attendanceApp()" class="bg-white rounded-lg shadow p-8">
@@ -34,24 +49,42 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
                         </svg>
                         <div>
-                            <p class="text-sm text-gray-700">Koordinat: 
+                            @if(isset($locationSettings['display_with_coordinates']) && $locationSettings['display_with_coordinates'])
+                            <p class="text-sm text-gray-700">Koordinat:
                                 <span x-text="currentLocation ? currentLocation.latitude + ', ' + currentLocation.longitude : 'Mengambil lokasi...'"></span>
                             </p>
                             <p class="text-sm text-gray-600" x-text="currentLocation ? 'Akurasi: ' + Math.round(currentLocation.accuracy) + ' meter' : 'Akurasi: -'"></p>
+                            @else
+                            <p class="text-sm text-gray-700">Status lokasi:
+                                <span x-text="currentLocation ? 'Lokasi terdeteksi' : 'Mengambil lokasi...'"></span>
+                            </p>
+                            @endif
                             <template x-if="lastLocationCheck">
                                 <div>
-                                    <p class="text-sm" x-bind:class="locationInGeofence ? 'text-green-600' : 'text-red-600'" 
-                                       x-text="locationInGeofence ? 
-                                            ('Lokasi Anda berada di dalam area geofence (' + Math.round(lastLocationCheck.distance) + 'm dari pusat)') : 
-                                            ('Peringatan: Lokasi Anda di luar area geofence (' + Math.round(lastLocationCheck.distance) + 'm dari pusat)')">
+                                    <p class="text-sm" x-bind:class="locationInGeofence ? 'text-green-600' : 'text-red-600'"
+                                       x-text="locationInGeofence ?
+                                            @if(isset($locationSettings['display_with_coordinates']) && $locationSettings['display_with_coordinates'])
+                                            ('Lokasi Anda berada di dalam area geofence (' + Math.round(lastLocationCheck.distance) + 'm dari pusat)')
+                                            @else
+                                            'Lokasi Anda berada di dalam area geofence'
+                                            @endif
+                                            :
+                                            @if(isset($locationSettings['display_with_coordinates']) && $locationSettings['display_with_coordinates'])
+                                            ('Peringatan: Lokasi Anda di luar area geofence (' + Math.round(lastLocationCheck.distance) + 'm dari pusat)')
+                                            @else
+                                            'Peringatan: Lokasi Anda di luar area geofence'
+                                            @endif
+                                            ">
                                     </p>
+                                    @if(isset($locationSettings['display_with_coordinates']) && $locationSettings['display_with_coordinates'])
                                     <p class="text-xs text-gray-500" x-show="lastLocationCheck && !lastLocationCheck.withinStrictRadius && lastLocationCheck.withinAllowedRadius">
                                         * Diperbolehkan karena toleransi akurasi GPS (radius: <span x-text="geofenceRadius"></span>m + akurasi: <span x-text="Math.round(currentLocation?.accuracy || 0)"></span>m)
                                     </p>
+                                    @endif
                                 </div>
                             </template>
                             <template x-if="!lastLocationCheck">
-                                <p class="text-sm" x-bind:class="locationInGeofence ? 'text-green-600' : 'text-red-600'" 
+                                <p class="text-sm" x-bind:class="locationInGeofence ? 'text-green-600' : 'text-red-600'"
                                    x-text="locationInGeofence ? 'Lokasi Anda berada di dalam area geofence' : 'Peringatan: Lokasi Anda di luar area geofence'"></p>
                             </template>
                         </div>
@@ -66,6 +99,19 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Map Display -->
+                @if(isset($locationSettings['display_with_map']) && $locationSettings['display_with_map'])
+                <div class="mb-4" x-show="locationEnabled && geofenceCenter">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2">Peta Lokasi</h3>
+                    <div id="attendance-map" class="w-full bg-gray-200 rounded-md border border-gray-300"></div>
+                    <p class="mt-2 text-xs text-gray-500">
+                        <span class="inline-block w-3 h-3 bg-red-500 rounded-full mr-1"></span> Pusat Geofence
+                        <span class="inline-block w-3 h-3 bg-blue-500 rounded-full mr-1 ml-3"></span> Lokasi Anda
+                        <span class="inline-block w-3 h-3 bg-red-500 bg-opacity-30 border border-red-500 rounded-full mr-1 ml-3"></span> Area Geofence
+                    </p>
+                </div>
+                @endif
 
                 <!-- Attendance Type Selection -->
                 <div class="space-y-4">
@@ -116,24 +162,42 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
                         </svg>
                         <div>
-                            <p class="text-sm text-gray-700">Koordinat: 
+                            @if(isset($locationSettings['display_with_coordinates']) && $locationSettings['display_with_coordinates'])
+                            <p class="text-sm text-gray-700">Koordinat:
                                 <span x-text="currentLocation ? currentLocation.latitude + ', ' + currentLocation.longitude : 'Mengambil lokasi...'"></span>
                             </p>
                             <p class="text-sm text-gray-600" x-text="currentLocation ? 'Akurasi: ' + Math.round(currentLocation.accuracy) + ' meter' : 'Akurasi: -'"></p>
+                            @else
+                            <p class="text-sm text-gray-700">Status lokasi:
+                                <span x-text="currentLocation ? 'Lokasi terdeteksi' : 'Mengambil lokasi...'"></span>
+                            </p>
+                            @endif
                             <template x-if="lastLocationCheck">
                                 <div>
-                                    <p class="text-sm" x-bind:class="locationInGeofence ? 'text-green-600' : 'text-red-600'" 
-                                       x-text="locationInGeofence ? 
-                                            ('Sesuai area geofence (' + Math.round(lastLocationCheck.distance) + 'm dari pusat)') : 
-                                            ('Peringatan: Di luar area geofence (' + Math.round(lastLocationCheck.distance) + 'm dari pusat)')">
+                                    <p class="text-sm" x-bind:class="locationInGeofence ? 'text-green-600' : 'text-red-600'"
+                                       x-text="locationInGeofence ?
+                                            @if(isset($locationSettings['display_with_coordinates']) && $locationSettings['display_with_coordinates'])
+                                            ('Sesuai area geofence (' + Math.round(lastLocationCheck.distance) + 'm dari pusat)')
+                                            @else
+                                            'Sesuai area geofence'
+                                            @endif
+                                            :
+                                            @if(isset($locationSettings['display_with_coordinates']) && $locationSettings['display_with_coordinates'])
+                                            ('Peringatan: Di luar area geofence (' + Math.round(lastLocationCheck.distance) + 'm dari pusat)')
+                                            @else
+                                            'Peringatan: Di luar area geofence'
+                                            @endif
+                                            ">
                                     </p>
+                                    @if(isset($locationSettings['display_with_coordinates']) && $locationSettings['display_with_coordinates'])
                                     <p class="text-xs text-gray-500" x-show="lastLocationCheck && !lastLocationCheck.withinStrictRadius && lastLocationCheck.withinAllowedRadius">
                                         * Diperbolehkan karena toleransi akurasi GPS (radius: <span x-text="geofenceRadius"></span>m + akurasi: <span x-text="Math.round(currentLocation?.accuracy || 0)"></span>m)
                                     </p>
+                                    @endif
                                 </div>
                             </template>
                             <template x-if="!lastLocationCheck">
-                                <p class="text-sm" x-bind:class="locationInGeofence ? 'text-green-600' : 'text-red-600'" 
+                                <p class="text-sm" x-bind:class="locationInGeofence ? 'text-green-600' : 'text-red-600'"
                                    x-text="locationInGeofence ? 'Sesuai area geofence' : 'Peringatan: Di luar area geofence'"></p>
                             </template>
                         </div>
@@ -204,6 +268,13 @@
 </div>
 
 @push('scripts')
+@if(isset($locationSettings['display_with_map']) && $locationSettings['display_with_map'])
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""></script>
+@endif
+
 <script>
 function attendanceApp() {
     return {
@@ -227,6 +298,11 @@ function attendanceApp() {
         lastLocationCheck: null, // Detailed location check information
         geofenceCenter: null,
         geofenceRadius: null,
+        map: null,
+        geofenceCircle: null,
+        geofenceMarker: null,
+        userMarker: null,
+        displayWithMap: {{ isset($locationSettings['display_with_map']) && $locationSettings['display_with_map'] ? 'true' : 'false' }},
 
         init() {
             // Initialize clock and schedule
@@ -234,7 +310,7 @@ function attendanceApp() {
             this.fetchScheduleStatus();
             setInterval(() => this.updateClock(), 1000);
             setInterval(() => this.fetchScheduleStatus(), 60000);
-            
+
             // Initialize location settings
             this.fetchLocationSettings();
         },
@@ -330,6 +406,13 @@ function attendanceApp() {
                 if (this.locationRequired) {
                     this.requestLocation();
                 }
+
+                // Initialize map after settings are loaded (only if display_with_map is enabled)
+                this.$nextTick(() => {
+                    if (this.geofenceCenter && this.displayWithMap) {
+                        this.initializeMap();
+                    }
+                });
             } catch (error) {
                 console.error('Failed to fetch location settings:', error);
                 
@@ -432,12 +515,19 @@ function attendanceApp() {
                 // Check if location is within geofence
                 if (this.geofenceCenter && this.geofenceRadius && this.currentLocation) {
                     this.locationInGeofence = this.isLocationInGeofence(
-                        this.currentLocation.latitude, 
+                        this.currentLocation.latitude,
                         this.currentLocation.longitude,
                         this.currentLocation.accuracy
                     );
                 } else {
                     this.locationInGeofence = true; // If no geofence is set or location not available, consider it OK
+                }
+
+                // Update map with user location (only if map is enabled)
+                if (this.displayWithMap) {
+                    this.$nextTick(() => {
+                        this.updateUserLocationOnMap();
+                    });
                 }
             } catch (error) {
                 this.locationEnabled = false;
@@ -475,12 +565,19 @@ function attendanceApp() {
                             // Check if location is within geofence
                             if (this.geofenceCenter && this.geofenceRadius && this.currentLocation) {
                                 this.locationInGeofence = this.isLocationInGeofence(
-                                    this.currentLocation.latitude, 
+                                    this.currentLocation.latitude,
                                     this.currentLocation.longitude,
                                     this.currentLocation.accuracy
                                 );
                             } else {
                                 this.locationInGeofence = true; // If no geofence is set or location not available, consider it OK
+                            }
+
+                            // Update map with user location (only if map is enabled)
+                            if (this.displayWithMap) {
+                                this.$nextTick(() => {
+                                    this.updateUserLocationOnMap();
+                                });
                             }
                         } catch {
                             this.error = 'Waktu permintaan lokasi habis. Coba periksa koneksi internet Anda.';
@@ -561,6 +658,100 @@ function attendanceApp() {
             const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 
             return R * c; // Distance in meters
+        },
+
+        // Initialize Leaflet map
+        initializeMap() {
+            if (!this.geofenceCenter || this.map || !this.displayWithMap) return;
+
+            // Check if Leaflet is loaded
+            if (typeof L === 'undefined') {
+                console.warn('Leaflet is not loaded. Map will not be displayed.');
+                return;
+            }
+
+            try {
+                // Create map centered on geofence center
+                this.map = L.map('attendance-map').setView(
+                    [this.geofenceCenter.lat, this.geofenceCenter.lng],
+                    17
+                );
+
+                // Add OpenStreetMap tiles
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+                    maxZoom: 19
+                }).addTo(this.map);
+
+                // Add geofence center marker (red)
+                this.geofenceMarker = L.marker([this.geofenceCenter.lat, this.geofenceCenter.lng], {
+                    icon: L.icon({
+                        iconUrl: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI0VGNDQ0NCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMTIgMkM4LjEzIDIgNSA1LjEzIDUgOWMwIDUuMjUgNyAxMyA3IDEzczctNy43NSA3LTEzYzAtMy44Ny0zLjEzLTctNy03em0wIDkuNWMtMS4zOCAwLTIuNS0xLjEyLTIuNS0yLjVzMS4xMi0yLjUgMi41LTIuNSAyLjUgMS4xMiAyLjUgMi41LTEuMTIgMi41LTIuNSAyLjV6Ii8+PC9zdmc+',
+                        iconSize: [32, 32],
+                        iconAnchor: [16, 32],
+                        popupAnchor: [0, -32]
+                    })
+                }).addTo(this.map);
+                this.geofenceMarker.bindPopup(`<b>Pusat Geofence</b><br>Lat: ${this.geofenceCenter.lat.toFixed(6)}<br>Lng: ${this.geofenceCenter.lng.toFixed(6)}`);
+
+                // Add geofence circle (red transparent)
+                this.geofenceCircle = L.circle([this.geofenceCenter.lat, this.geofenceCenter.lng], {
+                    color: '#EF4444',
+                    fillColor: '#EF4444',
+                    fillOpacity: 0.2,
+                    radius: this.geofenceRadius
+                }).addTo(this.map);
+
+                console.log('Map initialized successfully');
+            } catch (error) {
+                console.error('Failed to initialize map:', error);
+            }
+        },
+
+        // Update user location marker on map
+        updateUserLocationOnMap() {
+            if (!this.map || !this.currentLocation || !this.displayWithMap) return;
+
+            // Check if Leaflet is loaded
+            if (typeof L === 'undefined') {
+                console.warn('Leaflet is not loaded. Cannot update user location on map.');
+                return;
+            }
+
+            try {
+                const userLat = this.currentLocation.latitude;
+                const userLng = this.currentLocation.longitude;
+
+                // Remove existing user marker if any
+                if (this.userMarker) {
+                    this.map.removeLayer(this.userMarker);
+                }
+
+                // Add user location marker (blue)
+                this.userMarker = L.marker([userLat, userLng], {
+                    icon: L.icon({
+                        iconUrl: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iIzM4NzRGRiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMTIgMkM4LjEzIDIgNSA1LjEzIDUgOWMwIDUuMjUgNyAxMyA3IDEzczctNy43NSA3LTEzYzAtMy44Ny0zLjEzLTctNy03em0wIDkuNWMtMS4zOCAwLTIuNS0xLjEyLTIuNS0yLjVzMS4xMi0yLjUgMi41LTIuNSAyLjUgMS4xMiAyLjUgMi41LTEuMTIgMi41LTIuNSAyLjV6Ii8+PC9zdmc+',
+                        iconSize: [32, 32],
+                        iconAnchor: [16, 32],
+                        popupAnchor: [0, -32]
+                    })
+                }).addTo(this.map);
+
+                const statusText = this.locationInGeofence ? 'Di dalam area' : 'Di luar area';
+                const statusColor = this.locationInGeofence ? 'green' : 'red';
+                this.userMarker.bindPopup(`<b style="color: ${statusColor}">Lokasi Anda</b><br>${statusText}<br>Lat: ${userLat.toFixed(6)}<br>Lng: ${userLng.toFixed(6)}<br>Akurasi: ${Math.round(this.currentLocation.accuracy)}m`);
+
+                // Pan to show both markers
+                const bounds = L.latLngBounds([
+                    [this.geofenceCenter.lat, this.geofenceCenter.lng],
+                    [userLat, userLng]
+                ]);
+                this.map.fitBounds(bounds, { padding: [50, 50] });
+
+                console.log('User location updated on map');
+            } catch (error) {
+                console.error('Failed to update user location on map:', error);
+            }
         },
 
         async startCamera() {

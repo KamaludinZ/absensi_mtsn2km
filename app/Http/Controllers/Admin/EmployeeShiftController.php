@@ -496,15 +496,6 @@ class EmployeeShiftController extends Controller
         $startDate = Carbon::create($year, $month, 1)->startOfMonth();
         $endDate = Carbon::create($year, $month, 1)->endOfMonth();
 
-        // Get all employees for this month
-        $employees = Employee::where('is_active', true)->pluck('id');
-
-        // Delete existing attendance records for this month for employees
-        Attendance::whereBetween('date', [$startDate, $endDate])
-            ->where('attendable_type', Employee::class)
-            ->whereIn('attendable_id', $employees->toArray())
-            ->delete();
-
         // Get all shifts for this month
         $shifts = EmployeeShift::whereBetween('date', [$startDate, $endDate])
             ->where('is_active', true)
@@ -512,19 +503,26 @@ class EmployeeShiftController extends Controller
             ->get();
 
         foreach ($shifts as $shift) {
-            if ($shift->schedule) { // Check if schedule exists
-                // Create attendance record only for days with assigned shifts
-                Attendance::create(
-                    [
-                        'attendable_type' => Employee::class,
-                        'attendable_id' => $shift->employee_id,
-                        'date' => $shift->date,
-                        'shift_name' => $shift->schedule->shift_name,
-                        'shift_type' => $shift->schedule->shift_type,
-                        'scheduled_start_time' => $shift->schedule->start_time,
-                        'scheduled_end_time' => $shift->schedule->end_time,
-                    ]
-                );
+            if ($shift->schedule) {
+                // Find existing attendance record for this employee and date
+                // Or create a new one if it doesn't exist
+                $attendance = Attendance::firstOrNew([
+                    'attendable_type' => Employee::class,
+                    'attendable_id' => $shift->employee_id,
+                    'date' => $shift->date,
+                ]);
+
+                // Update only schedule-related fields
+                $attendance->shift_name = $shift->schedule->shift_name;
+                $attendance->shift_type = $shift->schedule->shift_type;
+                $attendance->scheduled_start_time = $shift->schedule->start_time;
+                $attendance->scheduled_end_time = $shift->schedule->end_time;
+
+                // The clock_in and clock_out fields are intentionally not touched here.
+                // If the record is new, they will be null.
+                // If the record exists, their values will be preserved.
+
+                $attendance->save();
             }
         }
     }

@@ -6,6 +6,7 @@ use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithTitle;
+use App\Helpers\AttendanceHelper;
 use Carbon\Carbon;
 
 class AttendanceExport implements FromCollection, WithHeadings, WithMapping, WithTitle
@@ -94,44 +95,17 @@ class AttendanceExport implements FromCollection, WithHeadings, WithMapping, Wit
                 }
             }
 
-            // Calculate Selisih Masuk
-            $selisihMasuk = '-';
+            // Calculate Selisih Masuk using helper
+            $selisihMasuk = AttendanceHelper::formatCheckInDifference($attendance);
             $statusMasuk = '-';
+
             if ($attendance->clock_in && $schedule) {
-                // Ambil waktu ABSENSI MASUK dalam format H:i:s
-                $absensiMasukTime = Carbon::parse($attendance->clock_in)->format('H:i:s');
-                list($h1, $i1, $s1) = explode(':', $absensiMasukTime);
-                $absensiMasukDetik = ($h1 * 3600) + ($i1 * 60) + $s1;
+                $actualTime = Carbon::parse($attendance->clock_in)->format('H:i:s');
+                $scheduledTime = Carbon::parse($schedule->start_time)->format('H:i:s');
 
-                // Ambil waktu JAM MASUK dalam format H:i:s
-                $jamMasukTime = Carbon::parse($schedule->start_time)->format('H:i:s');
-                list($h2, $i2, $s2) = explode(':', $jamMasukTime);
-                $jamMasukDetik = ($h2 * 3600) + ($i2 * 60) + $s2;
-
-                // Hitung selisih: ABSENSI MASUK - JAM MASUK
-                $selisihDetik = $absensiMasukDetik - $jamMasukDetik;
-
-                // Convert ke format H:i:s
-                $selisihAbs = abs($selisihDetik);
-
-                $jam = floor($selisihAbs / 3600);
-                $sisaSetelahJam = $selisihAbs - ($jam * 3600);
-                $menit = floor($sisaSetelahJam / 60);
-                $detik = $sisaSetelahJam - ($menit * 60);
-
-                $formatWaktu = sprintf('%02d:%02d:%02d', $jam, $menit, $detik);
-
-                if ($selisihDetik > 0) {
-                    // Absensi masuk > jam masuk (terlambat)
-                    $selisihMasuk = '+' . $formatWaktu;
+                if ($actualTime > $scheduledTime) {
                     $statusMasuk = 'Terlambat';
-                } elseif ($selisihDetik < 0) {
-                    // Absensi masuk < jam masuk (lebih awal)
-                    $selisihMasuk = '-' . $formatWaktu;
-                    $statusMasuk = 'Tepat Waktu';
                 } else {
-                    // Tepat waktu
-                    $selisihMasuk = '00:00:00';
                     $statusMasuk = 'Tepat Waktu';
                 }
             } elseif (!$attendance->clock_in) {
@@ -140,44 +114,17 @@ class AttendanceExport implements FromCollection, WithHeadings, WithMapping, Wit
                 $statusMasuk = 'N/A';
             }
 
-            // Calculate Selisih Pulang
-            $selisihPulang = '-';
+            // Calculate Selisih Pulang using helper
+            $selisihPulang = AttendanceHelper::formatCheckOutDifference($attendance);
             $statusPulang = '-';
+
             if ($attendance->clock_out && $schedule) {
-                // Ambil waktu ABSENSI PULANG dalam format H:i:s
-                $absensiPulangTime = Carbon::parse($attendance->clock_out)->format('H:i:s');
-                list($h1, $i1, $s1) = explode(':', $absensiPulangTime);
-                $absensiPulangDetik = ($h1 * 3600) + ($i1 * 60) + $s1;
+                $actualTime = Carbon::parse($attendance->clock_out)->format('H:i:s');
+                $scheduledTime = Carbon::parse($schedule->end_time)->format('H:i:s');
 
-                // Ambil waktu JAM PULANG dalam format H:i:s
-                $jamPulangTime = Carbon::parse($schedule->end_time)->format('H:i:s');
-                list($h2, $i2, $s2) = explode(':', $jamPulangTime);
-                $jamPulangDetik = ($h2 * 3600) + ($i2 * 60) + $s2;
-
-                // Hitung selisih: ABSENSI PULANG - JAM PULANG
-                $selisihDetik = $absensiPulangDetik - $jamPulangDetik;
-
-                // Convert ke format H:i:s
-                $selisihAbs = abs($selisihDetik);
-
-                $jam = floor($selisihAbs / 3600);
-                $sisaSetelahJam = $selisihAbs - ($jam * 3600);
-                $menit = floor($sisaSetelahJam / 60);
-                $detik = $sisaSetelahJam - ($menit * 60);
-
-                $formatWaktu = sprintf('%02d:%02d:%02d', $jam, $menit, $detik);
-
-                if ($selisihDetik < 0) {
-                    // Absensi pulang < Jam pulang = Pulang Awal
-                    $selisihPulang = '-' . $formatWaktu;
+                if ($actualTime < $scheduledTime) {
                     $statusPulang = 'Pulang Awal';
-                } elseif ($selisihDetik > 0) {
-                    // Absensi pulang > Jam pulang = Pulang Lebih Lama
-                    $selisihPulang = '+' . $formatWaktu;
-                    $statusPulang = 'Tepat Waktu';
                 } else {
-                    // Tepat waktu
-                    $selisihPulang = '00:00:00';
                     $statusPulang = 'Tepat Waktu';
                 }
             } elseif (!$attendance->clock_out) {
@@ -211,36 +158,17 @@ class AttendanceExport implements FromCollection, WithHeadings, WithMapping, Wit
                 ->where('day_of_week', $dayOfWeek)
                 ->first();
 
-            // Calculate Selisih Masuk
-            $selisihMasuk = '-';
+            // Calculate Selisih Masuk using helper
+            $selisihMasuk = AttendanceHelper::formatCheckInDifference($attendance);
             $statusMasuk = '-';
+
             if ($attendance->clock_in && $schedule) {
-                $absensiMasukTime = Carbon::parse($attendance->clock_in)->format('H:i:s');
-                list($h1, $i1, $s1) = explode(':', $absensiMasukTime);
-                $absensiMasukDetik = ($h1 * 3600) + ($i1 * 60) + $s1;
+                $actualTime = Carbon::parse($attendance->clock_in)->format('H:i:s');
+                $scheduledTime = Carbon::parse($schedule->start_time)->format('H:i:s');
 
-                $jamMasukTime = Carbon::parse($schedule->start_time)->format('H:i:s');
-                list($h2, $i2, $s2) = explode(':', $jamMasukTime);
-                $jamMasukDetik = ($h2 * 3600) + ($i2 * 60) + $s2;
-
-                $selisihDetik = $absensiMasukDetik - $jamMasukDetik;
-                $selisihAbs = abs($selisihDetik);
-
-                $jam = floor($selisihAbs / 3600);
-                $sisaSetelahJam = $selisihAbs - ($jam * 3600);
-                $menit = floor($sisaSetelahJam / 60);
-                $detik = $sisaSetelahJam - ($menit * 60);
-
-                $formatWaktu = sprintf('%02d:%02d:%02d', $jam, $menit, $detik);
-
-                if ($selisihDetik > 0) {
-                    $selisihMasuk = '+' . $formatWaktu;
+                if ($actualTime > $scheduledTime) {
                     $statusMasuk = 'Terlambat';
-                } elseif ($selisihDetik < 0) {
-                    $selisihMasuk = '-' . $formatWaktu;
-                    $statusMasuk = 'Tepat Waktu';
                 } else {
-                    $selisihMasuk = '00:00:00';
                     $statusMasuk = 'Tepat Waktu';
                 }
             } elseif (!$attendance->clock_in) {
@@ -249,36 +177,17 @@ class AttendanceExport implements FromCollection, WithHeadings, WithMapping, Wit
                 $statusMasuk = 'N/A';
             }
 
-            // Calculate Selisih Pulang
-            $selisihPulang = '-';
+            // Calculate Selisih Pulang using helper
+            $selisihPulang = AttendanceHelper::formatCheckOutDifference($attendance);
             $statusPulang = '-';
+
             if ($attendance->clock_out && $schedule) {
-                $absensiPulangTime = Carbon::parse($attendance->clock_out)->format('H:i:s');
-                list($h1, $i1, $s1) = explode(':', $absensiPulangTime);
-                $absensiPulangDetik = ($h1 * 3600) + ($i1 * 60) + $s1;
+                $actualTime = Carbon::parse($attendance->clock_out)->format('H:i:s');
+                $scheduledTime = Carbon::parse($schedule->end_time)->format('H:i:s');
 
-                $jamPulangTime = Carbon::parse($schedule->end_time)->format('H:i:s');
-                list($h2, $i2, $s2) = explode(':', $jamPulangTime);
-                $jamPulangDetik = ($h2 * 3600) + ($i2 * 60) + $s2;
-
-                $selisihDetik = $absensiPulangDetik - $jamPulangDetik;
-                $selisihAbs = abs($selisihDetik);
-
-                $jam = floor($selisihAbs / 3600);
-                $sisaSetelahJam = $selisihAbs - ($jam * 3600);
-                $menit = floor($sisaSetelahJam / 60);
-                $detik = $sisaSetelahJam - ($menit * 60);
-
-                $formatWaktu = sprintf('%02d:%02d:%02d', $jam, $menit, $detik);
-
-                if ($selisihDetik < 0) {
-                    $selisihPulang = '-' . $formatWaktu;
+                if ($actualTime < $scheduledTime) {
                     $statusPulang = 'Pulang Awal';
-                } elseif ($selisihDetik > 0) {
-                    $selisihPulang = '+' . $formatWaktu;
-                    $statusPulang = 'Tepat Waktu';
                 } else {
-                    $selisihPulang = '00:00:00';
                     $statusPulang = 'Tepat Waktu';
                 }
             } elseif (!$attendance->clock_out) {

@@ -9,6 +9,8 @@ use App\Models\Student;
 use App\Models\Schedule;
 use App\Models\Rombel;
 use App\Models\Grade;
+use App\Models\LocationSetting;
+use App\Models\AttendanceSetting;
 use Carbon\Carbon;
 use Intervention\Image\Laravel\Facades\Image;
 use Illuminate\Support\Facades\Storage;
@@ -19,7 +21,27 @@ class AttendanceController extends Controller
 {
     public function index()
     {
-        return view('student.attendance');
+        // Get attendance settings
+        $requireSelfie = AttendanceSetting::where('setting_key', 'require_selfie_photo')->first();
+        $requireCheckIn = AttendanceSetting::where('setting_key', 'require_check_in')->first();
+        $requireCheckOut = AttendanceSetting::where('setting_key', 'require_check_out')->first();
+
+        $attendanceSettings = [
+            'require_selfie_photo' => $requireSelfie ? filter_var($requireSelfie->setting_value, FILTER_VALIDATE_BOOLEAN) : true,
+            'require_check_in' => $requireCheckIn ? filter_var($requireCheckIn->setting_value, FILTER_VALIDATE_BOOLEAN) : true,
+            'require_check_out' => $requireCheckOut ? filter_var($requireCheckOut->setting_value, FILTER_VALIDATE_BOOLEAN) : true,
+        ];
+
+        // Get location display settings
+        $displayWithCoordinates = LocationSetting::where('setting_key', 'display_with_coordinates')->first();
+        $displayWithMap = LocationSetting::where('setting_key', 'display_with_map')->first();
+
+        $locationSettings = [
+            'display_with_coordinates' => $displayWithCoordinates ? filter_var($displayWithCoordinates->setting_value, FILTER_VALIDATE_BOOLEAN) : true,
+            'display_with_map' => $displayWithMap ? filter_var($displayWithMap->setting_value, FILTER_VALIDATE_BOOLEAN) : true,
+        ];
+
+        return view('student.attendance', compact('attendanceSettings', 'locationSettings'));
     }
 
     public function getGrades()
@@ -124,19 +146,32 @@ class AttendanceController extends Controller
     public function clockIn(Request $request)
     {
         try {
-            $request->validate([
+            // Check attendance settings
+            $requireSelfie = AttendanceSetting::where('setting_key', 'require_selfie_photo')->first();
+            $requireSelfiePhoto = $requireSelfie ? filter_var($requireSelfie->setting_value, FILTER_VALIDATE_BOOLEAN) : true;
+
+            // Build validation rules dynamically based on settings
+            $validationRules = [
                 'student_id' => 'required|exists:students,id',
-                'selfie' => [
-                    'required',
-                    'string',
-                    'regex:/^data:image\/(?:jpeg|png|jpg);base64,[A-Za-z0-9+\/=]+$/',
-                    'max:2000000' // 2MB max file size
-                ],
                 'location' => 'array|nullable',
                 'location.latitude' => 'required_with:location|numeric|between:-90,90',
                 'location.longitude' => 'required_with:location|numeric|between:-180,180',
                 'location.accuracy' => 'required_with:location|numeric|min:0',
-            ]);
+            ];
+
+            // Add selfie validation only if required
+            if ($requireSelfiePhoto) {
+                $validationRules['selfie'] = [
+                    'required',
+                    'string',
+                    'regex:/^data:image\/(?:jpeg|png|jpg);base64,[A-Za-z0-9+\/=]+$/',
+                    'max:2000000' // 2MB max file size
+                ];
+            } else {
+                $validationRules['selfie'] = 'nullable|string|regex:/^data:image\/(?:jpeg|png|jpg);base64,[A-Za-z0-9+\/=]+$/|max:2000000';
+            }
+
+            $request->validate($validationRules);
 
             $student = Student::findOrFail($request->student_id);
 
@@ -181,8 +216,11 @@ class AttendanceController extends Controller
                 ]);
             }
 
-            // Process selfie
-            $selfiePath = $this->processSelfie($request->selfie, 'student', $student->id, 'in');
+            // Process selfie only if provided
+            $selfiePath = null;
+            if ($request->has('selfie') && !empty($request->selfie)) {
+                $selfiePath = $this->processSelfie($request->selfie, 'student', $student->id, 'in');
+            }
 
             // Get location data if provided
             $latitude = null;
@@ -280,19 +318,35 @@ class AttendanceController extends Controller
     public function clockOut(Request $request)
     {
         try {
-            $request->validate([
+            // Check attendance settings
+            $requireSelfie = AttendanceSetting::where('setting_key', 'require_selfie_photo')->first();
+            $requireSelfiePhoto = $requireSelfie ? filter_var($requireSelfie->setting_value, FILTER_VALIDATE_BOOLEAN) : true;
+
+            $requireCheckInSetting = AttendanceSetting::where('setting_key', 'require_check_in')->first();
+            $requireCheckIn = $requireCheckInSetting ? filter_var($requireCheckInSetting->setting_value, FILTER_VALIDATE_BOOLEAN) : true;
+
+            // Build validation rules dynamically based on settings
+            $validationRules = [
                 'student_id' => 'required|exists:students,id',
-                'selfie' => [
-                    'required',
-                    'string',
-                    'regex:/^data:image\/(?:jpeg|png|jpg);base64,[A-Za-z0-9+\/=]+$/',
-                    'max:2000000' // 2MB max file size
-                ],
                 'location' => 'array|nullable',
                 'location.latitude' => 'required_with:location|numeric|between:-90,90',
                 'location.longitude' => 'required_with:location|numeric|between:-180,180',
                 'location.accuracy' => 'required_with:location|numeric|min:0',
-            ]);
+            ];
+
+            // Add selfie validation only if required
+            if ($requireSelfiePhoto) {
+                $validationRules['selfie'] = [
+                    'required',
+                    'string',
+                    'regex:/^data:image\/(?:jpeg|png|jpg);base64,[A-Za-z0-9+\/=]+$/',
+                    'max:2000000' // 2MB max file size
+                ];
+            } else {
+                $validationRules['selfie'] = 'nullable|string|regex:/^data:image\/(?:jpeg|png|jpg);base64,[A-Za-z0-9+\/=]+$/|max:2000000';
+            }
+
+            $request->validate($validationRules);
 
             $student = Student::findOrFail($request->student_id);
 
@@ -330,10 +384,22 @@ class AttendanceController extends Controller
                 ->whereDate('date', $today)
                 ->first();
 
-            if (!$attendance || !$attendance->clock_in) {
+            // ENFORCEMENT OF 'require_check_in'
+            if ($requireCheckIn && (!$attendance || !$attendance->clock_in)) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Anda belum melakukan absen masuk hari ini.',
+                    'message' => 'Anda belum melakukan absen masuk hari ini. Absen masuk diwajibkan.',
+                ]);
+            }
+
+            // If clock-in is NOT required, and there's no attendance record yet, create one for clock-out
+            // This handles the case where a user only clocks out.
+            if (!$requireCheckIn && !$attendance) {
+                 $attendance = Attendance::create([
+                    'attendable_type' => Student::class,
+                    'attendable_id' => $student->id,
+                    'date' => $today,
+                    // clock_in remains null
                 ]);
             }
 
@@ -344,8 +410,11 @@ class AttendanceController extends Controller
                 ]);
             }
 
-            // Process selfie
-            $selfiePath = $this->processSelfie($request->selfie, 'student', $student->id, 'out');
+            // Process selfie only if provided
+            $selfiePath = null;
+            if ($request->has('selfie') && !empty($request->selfie)) {
+                $selfiePath = $this->processSelfie($request->selfie, 'student', $student->id, 'out');
+            }
 
             // Get location data if provided
             $latitude = null;

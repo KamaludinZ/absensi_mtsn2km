@@ -3,6 +3,54 @@
 @section('title', 'Laporan Absensi Saya')
 @section('page-title', 'Laporan Absensi Saya')
 
+@push('styles')
+<style>
+    .sortable-header {
+        cursor: pointer;
+        user-select: none;
+    }
+    .sortable-header:hover {
+        background-color: rgba(0, 0, 0, 0.02);
+    }
+</style>
+@endpush
+
+@php
+    // Helper function to generate sort URL
+    function getSortUrl($field, $currentSort, $currentDirection) {
+        $newDirection = 'asc';
+        if ($currentSort === $field && $currentDirection === 'asc') {
+            $newDirection = 'desc';
+        }
+
+        $params = array_merge(request()->query(), [
+            'sort' => $field,
+            'direction' => $newDirection
+        ]);
+
+        return request()->url() . '?' . http_build_query($params);
+    }
+
+    // Helper function to get sort icon
+    function getSortIcon($field, $currentSort, $currentDirection) {
+        if ($currentSort !== $field) {
+            return '<svg class="w-4 h-4 inline-block ml-1 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path>
+            </svg>';
+        }
+
+        if ($currentDirection === 'asc') {
+            return '<svg class="w-4 h-4 inline-block ml-1 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path>
+            </svg>';
+        }
+
+        return '<svg class="w-4 h-4 inline-block ml-1 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+        </svg>';
+    }
+@endphp
+
 @section('content')
 <div class="mb-6">
     <form method="GET" class="bg-white p-4 rounded-lg shadow">
@@ -47,18 +95,43 @@
     <table class="min-w-full divide-y divide-gray-200">
         <thead class="bg-gray-50">
             <tr>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header">
+                    <a href="{{ getSortUrl('date', $sortField, $sortDirection) }}" class="flex items-center hover:text-gray-700 transition-colors">
+                        Tanggal
+                        {!! getSortIcon('date', $sortField, $sortDirection) !!}
+                    </a>
+                </th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nama Shift</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jam Masuk</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Absensi Masuk</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header">
+                    <a href="{{ getSortUrl('clock_in', $sortField, $sortDirection) }}" class="flex items-center hover:text-gray-700 transition-colors">
+                        Absensi Masuk
+                        {!! getSortIcon('clock_in', $sortField, $sortDirection) !!}
+                    </a>
+                </th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Selisih Masuk</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status Masuk</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header">
+                    <a href="{{ getSortUrl('status_in', $sortField, $sortDirection) }}" class="flex items-center hover:text-gray-700 transition-colors">
+                        Status Masuk
+                        {!! getSortIcon('status_in', $sortField, $sortDirection) !!}
+                    </a>
+                </th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Koordinat Masuk</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Selfie Masuk</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jam Pulang</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Absensi Pulang</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header">
+                    <a href="{{ getSortUrl('clock_out', $sortField, $sortDirection) }}" class="flex items-center hover:text-gray-700 transition-colors">
+                        Absensi Pulang
+                        {!! getSortIcon('clock_out', $sortField, $sortDirection) !!}
+                    </a>
+                </th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Selisih Pulang</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status Pulang</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header">
+                    <a href="{{ getSortUrl('status_out', $sortField, $sortDirection) }}" class="flex items-center hover:text-gray-700 transition-colors">
+                        Status Pulang
+                        {!! getSortIcon('status_out', $sortField, $sortDirection) !!}
+                    </a>
+                </th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Koordinat Pulang</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Selfie Pulang</th>
             </tr>
@@ -92,77 +165,58 @@
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">{{ $schedule ? \Carbon\Carbon::parse($schedule->start_time)->format('H:i:s') : '-' }}</td>
                 <td class="px-6 py-4 whitespace-nowrap">{{ $attendance->clock_in ? $attendance->clock_in->format('H:i:s') : '-' }}</td>
-                <td class="px-6 py-4 whitespace-nowrap">
-                    @if($attendance->clock_in && $schedule)
-                        @php
-                            // Ambil waktu ABSENSI MASUK dalam format H:i:s
-                            $absensiMasukTime = \Carbon\Carbon::parse($attendance->clock_in)->format('H:i:s');
-                            list($h1, $i1, $s1) = explode(':', $absensiMasukTime);
-                            $absensiMasukDetik = ($h1 * 3600) + ($i1 * 60) + $s1;
-
-                            // Ambil waktu JAM MASUK dalam format H:i:s
-                            $jamMasukTime = \Carbon\Carbon::parse($schedule->start_time)->format('H:i:s');
-                            list($h2, $i2, $s2) = explode(':', $jamMasukTime);
-                            $jamMasukDetik = ($h2 * 3600) + ($i2 * 60) + $s2;
-
-                            // Hitung selisih: ABSENSI MASUK - JAM MASUK
-                            $selisihDetik = $absensiMasukDetik - $jamMasukDetik;
-
-                            // Convert ke format H:i:s
-                            $selisihAbs = abs($selisihDetik);
-
-                            $jam = floor($selisihAbs / 3600);
-                            $sisaSetelahJam = $selisihAbs - ($jam * 3600);
-                            $menit = floor($sisaSetelahJam / 60);
-                            $detik = $sisaSetelahJam - ($menit * 60);
-
-                            $formatWaktu = sprintf('%02d:%02d:%02d', $jam, $menit, $detik);
-
-                            if ($selisihDetik > 0) {
-                                // Absensi masuk > jam masuk (terlambat)
-                                $color = 'text-red-600 font-semibold';
-                                $label = '+' . $formatWaktu;
-                            } elseif ($selisihDetik < 0) {
-                                // Absensi masuk < jam masuk (lebih awal)
-                                $color = 'text-green-600 font-semibold';
-                                $label = '-' . $formatWaktu;
-                            } else {
-                                // Tepat waktu
-                                $color = 'text-green-600 font-semibold';
-                                $label = '00:00:00';
-                            }
-                        @endphp
-                        <span class="{{ $color }}">{{ $label }}</span>
-                    @else
-                        -
-                    @endif
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap">
-                    @if($attendance->clock_in && $schedule)
-                        @php
-                            // Ambil waktu saja untuk perbandingan
-                            $absensiMasukTime = \Carbon\Carbon::parse($attendance->clock_in)->format('H:i:s');
-                            $jamMasukTime = \Carbon\Carbon::parse($schedule->start_time)->format('H:i:s');
-
-                            // Bandingkan string waktu
-                            if ($absensiMasukTime > $jamMasukTime) {
-                                $statusText = 'Terlambat';
-                                $statusColor = 'bg-red-100 text-red-800';
-                            } else {
-                                $statusText = 'Tepat Waktu';
-                                $statusColor = 'bg-green-100 text-green-800';
-                            }
-                        @endphp
-                        <span class="px-2 py-1 rounded text-xs {{ $statusColor }}">
-                            {{ $statusText }}
-                        </span>
-                    @else
-                        <span class="px-2 py-1 rounded text-xs bg-gray-100 text-gray-800">
-                            {{ $attendance->clock_in ? 'N/A' : 'Tidak Hadir' }}
-                        </span>
-                    @endif
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap">
+                                                <td class="px-6 py-4 whitespace-nowrap">
+                                                    @if($attendance->clock_in && $schedule)
+                                                        @php
+                                                            $clockIn = \Carbon\Carbon::parse($attendance->clock_in);
+                                                            $startTime = \Carbon\Carbon::parse($schedule->start_time)->setDate($clockIn->year, $clockIn->month, $clockIn->day);
+                                                            $diffInSeconds = $clockIn->diffInSeconds($startTime, false);
+                                
+                                                            $absDiff = abs($diffInSeconds);
+                                                            $formattedValue = ($timeDiffFormat === 'minutes')
+                                                                ? ceil($absDiff / 60) . ' menit'
+                                                                : sprintf('%02d:%02d:%02d', floor($absDiff / 3600), floor(($absDiff % 3600) / 60), $absDiff % 60);
+                                
+                                                            // Based on user's observation, a late clock-in produces a negative diff.
+                                                            // So we check for < 0 to mean LATE and display '+'.
+                                                            if ($diffInSeconds > 0) { // This block now represents ON-TIME or EARLY
+                                                                $selisihColor = 'text-green-600 font-semibold';
+                                                                $selisihLabel = '-' . $formattedValue;
+                                                            } else { // This block now represents LATE or EXACTLY ON TIME
+                                                                $selisihColor = 'text-red-600 font-semibold';
+                                                                $selisihLabel = '+' . $formattedValue;
+                                                            }
+                                                        @endphp
+                                                        <span class="{{ $selisihColor }}">{{ $selisihLabel }}</span>
+                                                    @else
+                                                        -
+                                                    @endif
+                                                </td>
+                                                <td class="px-6 py-4 whitespace-nowrap">
+                                                    @if($attendance->clock_in && $schedule)
+                                                        @php
+                                                            $clockIn = \Carbon\Carbon::parse($attendance->clock_in);
+                                                            $startTime = \Carbon\Carbon::parse($schedule->start_time)->setDate($clockIn->year, $clockIn->month, $clockIn->day);
+                                                            $diffInSeconds = $clockIn->diffInSeconds($startTime, false);
+                                
+                                                            // Based on user's observation, a late clock-in produces a negative diff.
+                                                            if ($diffInSeconds > 0) { // This is ON-TIME or EARLY
+                                                                $statusText = 'Tepat Waktu';
+                                                                $statusColor = 'bg-green-100 text-green-800';
+                                                            } else { // This is LATE
+                                                                $statusText = 'Terlambat';
+                                                                $statusColor = 'bg-red-100 text-red-800';
+                                                            }
+                                                        @endphp
+                                                        <span class="px-2 py-1 rounded text-xs {{ $statusColor }}">
+                                                            {{ $statusText }}
+                                                        </span>
+                                                    @else
+                                                        <span class="px-2 py-1 rounded text-xs bg-gray-100 text-gray-800">
+                                                            {{ $attendance->clock_in ? 'N/A' : 'Tidak Hadir' }}
+                                                        </span>
+                                                    @endif
+                                                </td>                <td class="px-6 py-4 whitespace-nowrap">
                     @if($attendance->clock_in && $attendance->clock_in_latitude && $attendance->clock_in_longitude)
                         <div class="text-sm">
                             <p>{{ number_format($attendance->clock_in_latitude, 6) }}, {{ number_format($attendance->clock_in_longitude, 6) }}</p>
@@ -190,44 +244,26 @@
                 <td class="px-6 py-4 whitespace-nowrap">
                     @if($attendance->clock_out && $schedule)
                         @php
-                            // Ambil waktu ABSENSI PULANG dalam format H:i:s
-                            $absensiPulangTime = \Carbon\Carbon::parse($attendance->clock_out)->format('H:i:s');
-                            list($h1, $i1, $s1) = explode(':', $absensiPulangTime);
-                            $absensiPulangDetik = ($h1 * 3600) + ($i1 * 60) + $s1;
+                            $clockOut = \Carbon\Carbon::parse($attendance->clock_out);
+                            $endTime = \Carbon\Carbon::parse($schedule->end_time)->setDate($clockOut->year, $clockOut->month, $clockOut->day);
+                            // Calculation: Actual Time - Scheduled Time
+                            $diffInSeconds = $clockOut->diffInSeconds($endTime, false);
 
-                            // Ambil waktu JAM PULANG dalam format H:i:s
-                            $jamPulangTime = \Carbon\Carbon::parse($schedule->end_time)->format('H:i:s');
-                            list($h2, $i2, $s2) = explode(':', $jamPulangTime);
-                            $jamPulangDetik = ($h2 * 3600) + ($i2 * 60) + $s2;
+                            $absDiff = abs($diffInSeconds);
+                            $formattedValue = ($timeDiffFormat === 'minutes')
+                                ? ceil($absDiff / 60) . ' menit'
+                                : sprintf('%02d:%02d:%02d', floor($absDiff / 3600), floor(($absDiff % 3600) / 60), $absDiff % 60);
 
-                            // Hitung selisih: ABSENSI PULANG - JAM PULANG
-                            $selisihDetik = $absensiPulangDetik - $jamPulangDetik;
-
-                            // Convert ke format H:i:s
-                            $selisihAbs = abs($selisihDetik);
-
-                            $jam = floor($selisihAbs / 3600);
-                            $sisaSetelahJam = $selisihAbs - ($jam * 3600);
-                            $menit = floor($sisaSetelahJam / 60);
-                            $detik = $sisaSetelahJam - ($menit * 60);
-
-                            $formatWaktu = sprintf('%02d:%02d:%02d', $jam, $menit, $detik);
-
-                            if ($selisihDetik < 0) {
-                                // Absensi pulang < Jam pulang = Pulang Awal
-                                $color = 'text-red-600 font-semibold';
-                                $label = '-' . $formatWaktu;
-                            } elseif ($selisihDetik > 0) {
-                                // Absensi pulang > Jam pulang = Pulang Lebih Lama
-                                $color = 'text-green-600 font-semibold';
-                                $label = '+' . $formatWaktu;
-                            } else {
-                                // Tepat waktu
-                                $color = 'text-green-600 font-semibold';
-                                $label = '00:00:00';
+                            // Based on debug output, a positive diff means EARLY departure
+                            if ($diffInSeconds > 0) { // Early Departure
+                                $selisihColor = 'text-red-600 font-semibold';
+                                $selisihLabel = '-' . $formattedValue;
+                            } else { // On Time or Late Departure
+                                $selisihColor = 'text-green-600 font-semibold';
+                                $selisihLabel = '+' . $formattedValue;
                             }
                         @endphp
-                        <span class="{{ $color }}">{{ $label }}</span>
+                        <span class="{{ $selisihColor }}">{{ $selisihLabel }}</span>
                     @else
                         -
                     @endif
@@ -235,15 +271,16 @@
                 <td class="px-6 py-4 whitespace-nowrap">
                     @if($attendance->clock_out && $schedule)
                         @php
-                            // Ambil waktu saja untuk perbandingan
-                            $absensiPulangTime = \Carbon\Carbon::parse($attendance->clock_out)->format('H:i:s');
-                            $jamPulangTime = \Carbon\Carbon::parse($schedule->end_time)->format('H:i:s');
+                            $clockOut = \Carbon\Carbon::parse($attendance->clock_out);
+                            $endTime = \Carbon\Carbon::parse($schedule->end_time)->setDate($clockOut->year, $clockOut->month, $clockOut->day);
+                            // Calculation: Actual Time - Scheduled Time
+                            $diffInSeconds = $clockOut->diffInSeconds($endTime, false);
 
-                            // Bandingkan string waktu
-                            if ($absensiPulangTime < $jamPulangTime) {
+                            // Based on debug output, a positive diff means EARLY departure
+                            if ($diffInSeconds > 0) { // Early Departure
                                 $statusText = 'Pulang Awal';
-                                $statusColor = 'bg-yellow-100 text-yellow-800';
-                            } else {
+                                $statusColor = 'bg-red-100 text-red-800';
+                            } else { // On Time or Late Departure
                                 $statusText = 'Tepat Waktu';
                                 $statusColor = 'bg-green-100 text-green-800';
                             }

@@ -277,7 +277,7 @@
             </div>
 
             <!-- Pengaturan Group -->
-            <div class="nav-group" x-data="{ open: @if(request()->routeIs('admin.users.*') || request()->routeIs('admin.security.*') || request()->routeIs('admin.backup.*') || request()->routeIs('admin.update.*') || request()->routeIs('admin.academic-years.*') || request()->routeIs('admin.holidays.*') || request()->routeIs('admin.location-settings.*') || request()->routeIs('admin.profile.*')) true @else false @endif }">
+            <div class="nav-group" x-data="{ open: @if(request()->routeIs('admin.users.*') || request()->routeIs('admin.security.*') || request()->routeIs('admin.backup.*') || request()->routeIs('admin.update.*') || request()->routeIs('admin.academic-years.*') || request()->routeIs('admin.holidays.*') || request()->routeIs('admin.location-settings.*') || request()->routeIs('admin.attendance-settings.*') || request()->routeIs('admin.profile.*')) true @else false @endif }">
                 <button @click="open = !open" class="nav-group-header" :aria-expanded="open" aria-controls="pengaturan-submenu">
                     <div class="nav-group-title">
                         <div class="nav-icon">
@@ -364,6 +364,12 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                         </svg>
                         <span class="nav-text">Pengaturan Lokasi</span>
+                    </a>
+                    <a href="{{ route('admin.attendance-settings.index') }}" class="nav-sub-item {{ request()->routeIs('admin.attendance-settings.*') ? 'active' : '' }}">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                        </svg>
+                        <span class="nav-text">Pengaturan Absensi</span>
                     </a>
                     <a href="{{ route('admin.profile.change-password') }}" class="nav-sub-item {{ request()->routeIs('admin.profile.*') ? 'active' : '' }}">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

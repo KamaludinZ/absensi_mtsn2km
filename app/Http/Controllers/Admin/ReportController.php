@@ -143,10 +143,10 @@ class ReportController extends Controller
 
         $totalAttendances = $summaryQuery->count();
 
-        // Count present (on time) - both clock in and out on time
+        // Count present (has either clock_in or clock_out)
         $presentCount = (clone $summaryQuery)->where(function($q) {
-            $q->where('status_in', 'Tepat Waktu')
-              ->orWhere('status_out', 'Tepat Waktu');
+            $q->whereNotNull('clock_in')
+              ->orWhereNotNull('clock_out');
         })->count();
 
         // Count absent - records where clock_in or clock_out is null (didn't attend)
@@ -210,7 +210,11 @@ class ReportController extends Controller
             'permissions' => $permissionCount
         ];
 
-        return view('admin.reports.employees', compact('attendances', 'employees', 'months', 'years', 'summary'));
+        // Get time difference format setting
+        $timeDiffFormatSetting = \App\Models\AttendanceSetting::where('setting_key', 'time_difference_format')->first();
+        $timeDiffFormat = $timeDiffFormatSetting ? $timeDiffFormatSetting->setting_value : 'time';
+
+        return view('admin.reports.employees', compact('attendances', 'employees', 'months', 'years', 'summary', 'timeDiffFormat'));
     }
     
     public function students()
@@ -355,8 +359,12 @@ class ReportController extends Controller
                 ->keyBy('day_of_week');
         }
 
+        // Get time difference format setting
+        $timeDiffFormatSetting = \App\Models\AttendanceSetting::where('setting_key', 'time_difference_format')->first();
+        $timeDiffFormat = $timeDiffFormatSetting ? $timeDiffFormatSetting->setting_value : 'time';
+
         // Pre-compute all calculations to reduce DOMPDF rendering time
-        $processedAttendances = $this->preComputeAttendanceData($attendances, $employeeShifts, $schedules, $type);
+        $processedAttendances = $this->preComputeAttendanceData($attendances, $employeeShifts, $schedules, $type, $timeDiffFormat);
 
         $data = [
             'attendances' => $processedAttendances,
@@ -392,9 +400,9 @@ class ReportController extends Controller
      * Pre-compute all attendance data with schedule info and time calculations
      * This significantly reduces PDF rendering time
      */
-    private function preComputeAttendanceData($attendances, $employeeShifts, $schedules, $type)
+    private function preComputeAttendanceData($attendances, $employeeShifts, $schedules, $type, $timeDiffFormat = 'time')
     {
-        return $attendances->map(function($attendance) use ($employeeShifts, $schedules, $type) {
+        return $attendances->map(function($attendance) use ($employeeShifts, $schedules, $type, $timeDiffFormat) {
             $data = [
                 'attendance' => $attendance,
                 'name' => $attendance->attendable->full_name ?? '-',
@@ -436,13 +444,24 @@ class ReportController extends Controller
                 // Calculate clock in diff and status
                 if ($attendance->clock_in) {
                     $diff = $this->calculateTimeDifference(
-                        $attendance->clock_in->format('H:i:s'),
+                        $attendance->clock_in,
                         $schedule->start_time
                     );
-                    $data['clock_in_diff'] = $diff['label'];
-                    $data['clock_in_diff_color'] = $diff['color'];
-                    $data['clock_in_status'] = $diff['seconds'] > 0 ? 'Terlambat' : 'Tepat Waktu';
-                    $data['clock_in_status_color'] = $diff['seconds'] > 0 ? 'text-red' : 'text-green';
+
+                    $formattedValue = ($timeDiffFormat === 'minutes') ? $diff['formatted_minutes'] : $diff['formatted_time'];
+
+                    // Based on user's observation, a late clock-in produces a negative diff.
+                    if ($diff['seconds'] < 0) { // LATE
+                        $data['clock_in_diff'] = '+' . $formattedValue;
+                        $data['clock_in_diff_color'] = 'text-red';
+                        $data['clock_in_status'] = 'Terlambat';
+                        $data['clock_in_status_color'] = 'text-red';
+                    } else { // ON-TIME or EARLY
+                        $data['clock_in_diff'] = '-' . $formattedValue;
+                        $data['clock_in_diff_color'] = 'text-green';
+                        $data['clock_in_status'] = 'Tepat Waktu';
+                        $data['clock_in_status_color'] = 'text-green';
+                    }
                 } else {
                     $data['clock_in_diff'] = '-';
                     $data['clock_in_status'] = 'Tidak Hadir';
@@ -452,13 +471,24 @@ class ReportController extends Controller
                 // Calculate clock out diff and status
                 if ($attendance->clock_out) {
                     $diff = $this->calculateTimeDifference(
-                        $attendance->clock_out->format('H:i:s'),
+                        $attendance->clock_out,
                         $schedule->end_time
                     );
-                    $data['clock_out_diff'] = $diff['label'];
-                    $data['clock_out_diff_color'] = $diff['color'];
-                    $data['clock_out_status'] = $diff['seconds'] < 0 ? 'Pulang Awal' : 'Tepat Waktu';
-                    $data['clock_out_status_color'] = $diff['seconds'] < 0 ? 'text-yellow' : 'text-green';
+
+                    $formattedValue = ($timeDiffFormat === 'minutes') ? $diff['formatted_minutes'] : $diff['formatted_time'];
+
+                    // Based on debug output, a positive diff means EARLY departure
+                    if ($diff['seconds'] > 0) { // Early Departure
+                        $data['clock_out_diff'] = '-' . $formattedValue;
+                        $data['clock_out_diff_color'] = 'text-red';
+                        $data['clock_out_status'] = 'Pulang Awal';
+                        $data['clock_out_status_color'] = 'text-red';
+                    } else { // On time or Late Departure
+                        $data['clock_out_diff'] = '+' . $formattedValue;
+                        $data['clock_out_diff_color'] = 'text-green';
+                        $data['clock_out_status'] = 'Tepat Waktu';
+                        $data['clock_out_status_color'] = 'text-green';
+                    }
                 } else {
                     $data['clock_out_diff'] = '-';
                     $data['clock_out_status'] = 'Belum Pulang';
@@ -484,37 +514,25 @@ class ReportController extends Controller
      */
     private function calculateTimeDifference($actualTime, $scheduleTime)
     {
-        list($h1, $i1, $s1) = explode(':', $actualTime);
-        $actualSeconds = ($h1 * 3600) + ($i1 * 60) + $s1;
+        $actual = Carbon::parse($actualTime);
+        $scheduled = Carbon::parse($scheduleTime)->setDate($actual->year, $actual->month, $actual->day);
+        // Calculation: Actual Time - Scheduled Time
+        $diffSeconds = $actual->diffInSeconds($scheduled, false);
 
-        $scheduleTimeFormatted = Carbon::parse($scheduleTime)->format('H:i:s');
-        list($h2, $i2, $s2) = explode(':', $scheduleTimeFormatted);
-        $scheduleSeconds = ($h2 * 3600) + ($i2 * 60) + $s2;
-
-        $diffSeconds = $actualSeconds - $scheduleSeconds;
         $absSeconds = abs($diffSeconds);
+        $absDiffMinutes = ceil($absSeconds / 60);
 
-        $hours = floor($absSeconds / 3600);
-        $minutes = floor(($absSeconds - ($hours * 3600)) / 60);
-        $seconds = $absSeconds - ($hours * 3600) - ($minutes * 60);
-
-        $formatted = sprintf('%02d:%02d:%02d', $hours, $minutes, $seconds);
-
-        if ($diffSeconds > 0) {
-            $label = '+' . $formatted;
-            $color = 'text-red';
-        } elseif ($diffSeconds < 0) {
-            $label = '-' . $formatted;
-            $color = 'text-green';
-        } else {
-            $label = '00:00:00';
-            $color = 'text-green';
-        }
+        $formattedTime = sprintf(
+            '%02d:%02d:%02d',
+            floor($absSeconds / 3600),
+            floor(($absSeconds % 3600) / 60),
+            $absSeconds % 60
+        );
 
         return [
-            'label' => $label,
-            'color' => $color,
             'seconds' => $diffSeconds,
+            'formatted_minutes' => $absDiffMinutes . ' menit',
+            'formatted_time' => $formattedTime,
         ];
     }
 }
