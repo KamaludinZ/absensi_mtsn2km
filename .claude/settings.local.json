@@ -19,7 +19,10 @@
       "Bash(npm run dev:*)",
       "Bash(cat:*)",
       "Bash(Get-Content \"C:\\absensi_mtsn2km\\resources\\views\\employee\\dashboard.blade.php\")",
-      "Bash(Select-Object -Last 30)"
+      "Bash(Select-Object -Last 30)",
+      "Bash(Get-Content routesweb.php)",
+      "Bash(Select-String -Pattern \"backup\")",
+      "Bash(unzip:*)"
     ],
     "deny": [],
     "ask": []

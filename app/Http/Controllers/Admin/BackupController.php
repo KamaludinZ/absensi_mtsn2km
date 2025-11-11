@@ -13,14 +13,14 @@ class BackupController extends Controller
     {
         $backups = [];
 
-        if (Storage::disk('local')->exists('backups')) {
-            $files = Storage::disk('local')->files('backups');
+        if (Storage::disk('backups')->exists('backups')) {
+            $files = Storage::disk('backups')->files('backups');
 
             foreach ($files as $file) {
                 $backups[] = [
                     'name' => basename($file),
-                    'size' => Storage::disk('local')->size($file),
-                    'date' => Storage::disk('local')->lastModified($file),
+                    'size' => Storage::disk('backups')->size($file),
+                    'date' => Storage::disk('backups')->lastModified($file),
                     'path' => $file,
                 ];
             }
@@ -51,20 +51,20 @@ class BackupController extends Controller
     {
         $path = 'backups/' . $filename;
 
-        if (!Storage::disk('local')->exists($path)) {
+        if (!Storage::disk('backups')->exists($path)) {
             return redirect()->route('admin.backup.index')
                 ->with('error', 'File backup tidak ditemukan.');
         }
 
-        return Storage::disk('local')->download($path);
+        return Storage::disk('backups')->download($path);
     }
 
     public function delete($filename)
     {
         $path = 'backups/' . $filename;
 
-        if (Storage::disk('local')->exists($path)) {
-            Storage::disk('local')->delete($path);
+        if (Storage::disk('backups')->exists($path)) {
+            Storage::disk('backups')->delete($path);
 
             return redirect()->route('admin.backup.index')
                 ->with('success', 'File backup berhasil dihapus.');
@@ -77,15 +77,15 @@ class BackupController extends Controller
     public function showRestore()
     {
         $backups = [];
-        
-        if (Storage::disk('local')->exists('backups')) {
-            $files = Storage::disk('local')->files('backups');
+
+        if (Storage::disk('backups')->exists('backups')) {
+            $files = Storage::disk('backups')->files('backups');
 
             foreach ($files as $file) {
                 $backups[] = [
                     'name' => basename($file),
-                    'size' => Storage::disk('local')->size($file),
-                    'date' => Storage::disk('local')->lastModified($file),
+                    'size' => Storage::disk('backups')->size($file),
+                    'date' => Storage::disk('backups')->lastModified($file),
                     'path' => $file,
                 ];
             }
@@ -107,63 +107,93 @@ class BackupController extends Controller
         
         $filename = $request->filename;
         $backupPath = 'backups/' . $filename;
-        
-        if (!Storage::disk('local')->exists($backupPath)) {
+
+        if (!Storage::disk('backups')->exists($backupPath)) {
             return redirect()->route('admin.backup.restore')
                 ->with('error', 'File backup tidak ditemukan.');
         }
-        
+
         try {
             // Get the backup file path
-            $fullPath = storage_path('app/' . $backupPath);
-            
+            $fullPath = Storage::disk('backups')->path($backupPath);
+
             // Since the backup file is likely a zip file, we need to handle it appropriately
             $zip = new \ZipArchive();
             if ($zip->open($fullPath) === TRUE) {
                 // For security reasons, we'll create a temporary directory to extract the backup
                 $tempDir = storage_path('app/temp_restore_' . time());
                 mkdir($tempDir, 0755, true);
-                
+
                 // Extract the backup
                 $zip->extractTo($tempDir);
                 $zip->close();
-                
-                // Look for database dump files (usually .sql files)
-                $sqlFiles = glob($tempDir . '/*.sql');
-                
+
+                // Look for database dump files in db-dumps folder or root
+                $sqlFiles = array_merge(
+                    glob($tempDir . '/db-dumps/*.sql'),
+                    glob($tempDir . '/*.sql')
+                );
+
                 if (!empty($sqlFiles)) {
-                    foreach ($sqlFiles as $sqlFile) {
+                    $dbConnection = config('database.default');
+                    $sqlFile = $sqlFiles[0]; // Use the first SQL file found
+
+                    if ($dbConnection === 'pgsql') {
+                        // PostgreSQL restore using psql command
+                        $dbHost = config('database.connections.pgsql.host');
+                        $dbPort = config('database.connections.pgsql.port');
+                        $dbName = config('database.connections.pgsql.database');
+                        $dbUser = config('database.connections.pgsql.username');
+                        $dbPass = config('database.connections.pgsql.password');
+
+                        // Set PGPASSWORD environment variable for passwordless authentication
+                        putenv("PGPASSWORD=" . $dbPass);
+
+                        // Execute psql command to restore database
+                        $command = sprintf(
+                            'psql -h %s -p %s -U %s -d %s -f %s 2>&1',
+                            escapeshellarg($dbHost),
+                            escapeshellarg($dbPort),
+                            escapeshellarg($dbUser),
+                            escapeshellarg($dbName),
+                            escapeshellarg($sqlFile)
+                        );
+
+                        exec($command, $output, $returnVar);
+
+                        // Unset PGPASSWORD
+                        putenv("PGPASSWORD");
+
+                        if ($returnVar !== 0) {
+                            // Clean up
+                            $this->deleteDirectory($tempDir);
+
+                            \Log::error('PostgreSQL restore failed: ' . implode("\n", $output));
+
+                            return redirect()->route('admin.backup.restore')
+                                ->with('error', 'Gagal melakukan restore PostgreSQL. Lihat log untuk detail.');
+                        }
+                    } else {
+                        // MySQL/MariaDB restore using traditional method
                         $sqlContent = file_get_contents($sqlFile);
-                        
+
                         // Execute the SQL commands on the database
                         $db = app('db')->connection();
-                        
-                        // Split the SQL content into individual statements
-                        $statements = array_filter(
-                            array_map('trim', explode(";\n", $sqlContent)),
-                            function ($statement) {
-                                return !empty($statement);
-                            }
-                        );
-                        
-                        // Execute each statement
-                        foreach ($statements as $statement) {
-                            if (trim($statement) !== '') {
-                                $db->unprepared($statement);
-                            }
-                        }
+
+                        // Use unprepared for better compatibility with large SQL files
+                        $db->unprepared($sqlContent);
                     }
-                    
+
                     // Clean up temporary directory
                     $this->deleteDirectory($tempDir);
-                    
+
                     return redirect()->route('admin.backup.index')
                         ->with('success', 'Restore database berhasil dilakukan.');
                 } else {
                     // If no SQL files found, we might have a different backup format
                     // Clean up
                     $this->deleteDirectory($tempDir);
-                    
+
                     return redirect()->route('admin.backup.restore')
                         ->with('error', 'File backup tidak berisi data database yang dapat direstore.');
                 }
@@ -173,11 +203,15 @@ class BackupController extends Controller
             }
         } catch (\Exception $e) {
             \Log::error('Backup restore error: ' . $e->getMessage());
-            
+
             // Make sure to clean up in case of error
-            $tempDir = storage_path('app/temp_restore_*');
-            array_map('unlink', glob($tempDir));
-            
+            $tempDirPattern = storage_path('app/temp_restore_*');
+            foreach (glob($tempDirPattern) as $dir) {
+                if (is_dir($dir)) {
+                    $this->deleteDirectory($dir);
+                }
+            }
+
             return redirect()->route('admin.backup.restore')
                 ->with('error', 'Gagal melakukan restore: ' . $e->getMessage());
         }

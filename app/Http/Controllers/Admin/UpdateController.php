@@ -16,11 +16,10 @@ class UpdateController extends Controller
     private $githubToken;
     private $repoOwner;
     private $repoName;
-    private $currentVersion = '1.0.2'; // Starting version
 
     public function __construct()
     {
-        $this->githubToken = env('GITHUB_TOKEN', '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');
+        $this->githubToken = env('GITHUB_TOKEN');
         $this->repoOwner = env('GITHUB_REPO_OWNER', 'KamaludinZ');
         $this->repoName = env('GITHUB_REPO_NAME', 'absensi_mtsn2km');
     }
@@ -43,15 +42,34 @@ class UpdateController extends Controller
     public function check()
     {
         try {
+            // Validate GitHub token
+            if (empty($this->githubToken)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'GitHub token belum dikonfigurasi. Silakan tambahkan GITHUB_TOKEN di file .env'
+                ], 400);
+            }
+
             // Get latest releases from GitHub
             $response = Http::withToken($this->githubToken)
                 ->timeout(30)
                 ->get("https://api.github.com/repos/{$this->repoOwner}/{$this->repoName}/releases");
 
             if (!$response->successful()) {
+                $statusCode = $response->status();
+                $errorMessage = 'Gagal mengecek update dari GitHub.';
+
+                if ($statusCode === 401) {
+                    $errorMessage = 'Token GitHub tidak valid atau sudah expired. Silakan perbarui GITHUB_TOKEN di .env';
+                } elseif ($statusCode === 404) {
+                    $errorMessage = 'Repository tidak ditemukan. Periksa GITHUB_REPO_OWNER dan GITHUB_REPO_NAME di .env';
+                } elseif ($statusCode === 403) {
+                    $errorMessage = 'Akses ditolak. Periksa permission token GitHub atau rate limit telah tercapai.';
+                }
+
                 return response()->json([
                     'success' => false,
-                    'message' => 'Gagal mengecek update dari GitHub: ' . $response->status()
+                    'message' => $errorMessage . ' (HTTP ' . $statusCode . ')'
                 ]);
             }
 
@@ -113,19 +131,30 @@ class UpdateController extends Controller
     public function update(Request $request)
     {
         try {
+            // Validate GitHub token
+            if (empty($this->githubToken)) {
+                return back()->with('error', 'GitHub token belum dikonfigurasi. Silakan tambahkan GITHUB_TOKEN di file .env');
+            }
+
             // Create backup before update
             Log::info('Creating backup before update...');
             Artisan::call('backup:run --only-db');
 
             $currentVersion = $this->getCurrentVersion();
-            
+
             // Get latest release from GitHub
             $response = Http::withToken($this->githubToken)
                 ->timeout(30)
                 ->get("https://api.github.com/repos/{$this->repoOwner}/{$this->repoName}/releases/latest");
 
             if (!$response->successful()) {
-                return back()->with('error', 'Gagal mengambil informasi update dari GitHub.');
+                $statusCode = $response->status();
+                if ($statusCode === 401) {
+                    return back()->with('error', 'Token GitHub tidak valid atau sudah expired.');
+                } elseif ($statusCode === 404) {
+                    return back()->with('error', 'Repository tidak ditemukan atau tidak ada release.');
+                }
+                return back()->with('error', 'Gagal mengambil informasi update dari GitHub (HTTP ' . $statusCode . ').');
             }
 
             $release = $response->json();
@@ -220,19 +249,85 @@ class UpdateController extends Controller
     }
 
     /**
-     * Simulate update process (in production, be very careful with file operations)
+     * Perform actual update process
      */
     private function simulateUpdate($extractedDir)
     {
-        // In a real production environment, you would carefully copy files
-        // For now, we'll just log that the update simulation happened
-        Log::info('Simulating update from extracted directory: ' . $extractedDir);
-        
-        // This is a placeholder - in real production you would:
-        // 1. Backup current files
-        // 2. Carefully copy new files
-        // 3. Preserve environment-specific configurations
-        // 4. Handle database migrations
+        Log::info('Starting file update from: ' . $extractedDir);
+
+        // Files and directories to exclude from update
+        $excludePaths = [
+            '.env',
+            '.env.example',
+            'storage',
+            'bootstrap/cache',
+            '.git',
+            '.gitignore',
+            'node_modules',
+            'vendor',
+            'VERSION',
+            'public/storage',
+        ];
+
+        try {
+            // Copy files recursively
+            $this->copyDirectory($extractedDir, base_path(), $excludePaths);
+
+            Log::info('Files updated successfully');
+        } catch (\Exception $e) {
+            Log::error('Error updating files: ' . $e->getMessage());
+            throw $e;
+        }
+    }
+
+    /**
+     * Copy directory recursively with exclusions
+     */
+    private function copyDirectory($source, $destination, $exclude = [])
+    {
+        if (!is_dir($source)) {
+            return;
+        }
+
+        $dir = opendir($source);
+
+        while (false !== ($file = readdir($dir))) {
+            if ($file === '.' || $file === '..') {
+                continue;
+            }
+
+            $sourcePath = $source . DIRECTORY_SEPARATOR . $file;
+            $destPath = $destination . DIRECTORY_SEPARATOR . $file;
+
+            // Check if this path should be excluded
+            $shouldExclude = false;
+            foreach ($exclude as $excludePath) {
+                if ($file === $excludePath || str_starts_with($file, $excludePath)) {
+                    $shouldExclude = true;
+                    break;
+                }
+            }
+
+            if ($shouldExclude) {
+                Log::info('Skipping excluded path: ' . $file);
+                continue;
+            }
+
+            if (is_dir($sourcePath)) {
+                // Create directory if it doesn't exist
+                if (!File::exists($destPath)) {
+                    File::makeDirectory($destPath, 0755, true);
+                }
+                // Recursively copy directory
+                $this->copyDirectory($sourcePath, $destPath, $exclude);
+            } else {
+                // Copy file
+                File::copy($sourcePath, $destPath);
+                Log::info('Copied: ' . $file);
+            }
+        }
+
+        closedir($dir);
     }
 
     /**
@@ -245,9 +340,9 @@ class UpdateController extends Controller
         if (File::exists($versionFile)) {
             return trim(File::get($versionFile));
         }
-        
-        // Fallback to environment variable
-        return $this->currentVersion;
+
+        // Fallback to default if VERSION file doesn't exist
+        return '1.0.0';
     }
 
     /**
@@ -260,23 +355,55 @@ class UpdateController extends Controller
     }
 
     /**
-     * Get Git status (kept for backward compatibility)
+     * Get Git status
      */
     private function getGitStatus()
     {
         try {
+            // Check if .git directory exists
+            if (!File::exists(base_path('.git'))) {
+                return [
+                    'available' => false,
+                    'branch' => 'N/A',
+                    'lastCommit' => 'N/A',
+                    'lastCommitDate' => 'N/A',
+                    'message' => 'Git repository tidak ditemukan'
+                ];
+            }
+
+            // Try to get git branch
+            $branch = trim(shell_exec('git branch --show-current 2>&1') ?? 'unknown');
+
+            // Try to get last commit hash
+            $lastCommit = trim(shell_exec('git rev-parse --short HEAD 2>&1') ?? 'unknown');
+
+            // Try to get last commit date
+            $lastCommitDate = trim(shell_exec('git log -1 --format=%cd --date=format:"%Y-%m-%d %H:%M:%S" 2>&1') ?? 'unknown');
+
+            // Check if git command is available
+            if (str_contains($branch, 'not found') || str_contains($branch, 'not recognized')) {
+                return [
+                    'available' => false,
+                    'branch' => 'N/A',
+                    'lastCommit' => 'N/A',
+                    'lastCommitDate' => 'N/A',
+                    'message' => 'Git command tidak tersedia'
+                ];
+            }
+
             return [
                 'available' => true,
-                'branch' => 'main',
-                'lastCommit' => substr($this->getCurrentVersion(), 0, 7),
-                'lastCommitDate' => Carbon::now()->format('Y-m-d H:i:s')
+                'branch' => $branch,
+                'lastCommit' => $lastCommit,
+                'lastCommitDate' => $lastCommitDate
             ];
         } catch (\Exception $e) {
             return [
                 'available' => false,
                 'branch' => 'N/A',
                 'lastCommit' => 'N/A',
-                'lastCommitDate' => 'N/A'
+                'lastCommitDate' => 'N/A',
+                'message' => 'Error: ' . $e->getMessage()
             ];
         }
     }

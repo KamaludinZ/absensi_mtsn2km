@@ -57,7 +57,10 @@
                                 <span class="font-semibold">Update:</span> {{ $gitStatus['lastCommitDate'] }}
                             </p>
                         @else
-                            <p class="text-red-600 font-semibold">Git tidak tersedia</p>
+                            <p class="text-red-600 font-semibold mb-1">Git tidak tersedia</p>
+                            @if(isset($gitStatus['message']))
+                                <p class="text-xs text-red-500">{{ $gitStatus['message'] }}</p>
+                            @endif
                         @endif
                     </div>
                 </div>
@@ -109,6 +112,37 @@
         </div>
         @endif
 
+        <!-- GitHub Configuration Guide -->
+        <div class="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <div class="flex items-start">
+                <svg class="w-6 h-6 text-blue-600 mr-3 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <div class="w-full">
+                    <h3 class="font-semibold text-blue-900 mb-2">Konfigurasi GitHub Token</h3>
+                    <div class="text-sm text-blue-800 space-y-2">
+                        <p>Untuk menggunakan fitur update, Anda perlu mengkonfigurasi GitHub Personal Access Token:</p>
+                        <ol class="list-decimal list-inside space-y-1 ml-2">
+                            <li>Login ke GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)</li>
+                            <li>Klik "Generate new token (classic)"</li>
+                            <li>Beri nama token (misal: "Absensi Update Token")</li>
+                            <li>Set expiration sesuai kebutuhan</li>
+                            <li>Pilih scope: <code class="bg-blue-100 px-1 rounded">repo</code> (full control of private repositories)</li>
+                            <li>Klik "Generate token" dan copy token yang dihasilkan</li>
+                            <li>Buka file <code class="bg-blue-100 px-1 rounded">.env</code> di root project</li>
+                            <li>Update nilai <code class="bg-blue-100 px-1 rounded">GITHUB_TOKEN</code> dengan token baru</li>
+                            <li>Jalankan <code class="bg-blue-100 px-1 rounded">php artisan config:clear</code></li>
+                        </ol>
+                        <p class="mt-2 font-semibold">Konfigurasi saat ini:</p>
+                        <ul class="list-disc list-inside ml-2">
+                            <li>Repository: <code class="bg-blue-100 px-1 rounded">{{ env('GITHUB_REPO_OWNER') }}/{{ env('GITHUB_REPO_NAME') }}</code></li>
+                            <li>Token: <code class="bg-blue-100 px-1 rounded">{{ env('GITHUB_TOKEN') ? '✓ Terkonfigurasi' : '✗ Belum dikonfigurasi' }}</code></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Information Box -->
         <div class="mt-6 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
             <div class="flex items-start">
@@ -122,8 +156,9 @@
                         <li>Proses update akan menjalankan migration database jika ada</li>
                         <li>Semua cache akan dibersihkan setelah update</li>
                         <li>Pastikan koneksi internet stabil saat melakukan update</li>
-                        <li>Update menggunakan Git, pastikan Git sudah terinstall di server</li>
+                        <li>File .env, storage, dan vendor tidak akan ditimpa saat update</li>
                         <li>Jangan tutup browser selama proses update berlangsung</li>
+                        <li>Update hanya akan mengambil file dari GitHub Releases</li>
                     </ul>
                 </div>
             </div>
