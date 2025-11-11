@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 
 class BackupController extends Controller
 {
@@ -56,7 +57,10 @@ class BackupController extends Controller
                 ->with('error', 'File backup tidak ditemukan.');
         }
 
-        return Storage::disk('backups')->download($path);
+        // Get the full file path and download
+        $fullPath = Storage::disk('backups')->path($path);
+
+        return response()->download($fullPath, $filename);
     }
 
     public function delete($filename)
@@ -168,7 +172,7 @@ class BackupController extends Controller
                             // Clean up
                             $this->deleteDirectory($tempDir);
 
-                            \Log::error('PostgreSQL restore failed: ' . implode("\n", $output));
+                            Log::error('PostgreSQL restore failed: ' . implode("\n", $output));
 
                             return redirect()->route('admin.backup.restore')
                                 ->with('error', 'Gagal melakukan restore PostgreSQL. Lihat log untuk detail.');
@@ -202,7 +206,7 @@ class BackupController extends Controller
                     ->with('error', 'Gagal membuka file backup.');
             }
         } catch (\Exception $e) {
-            \Log::error('Backup restore error: ' . $e->getMessage());
+            Log::error('Backup restore error: ' . $e->getMessage());
 
             // Make sure to clean up in case of error
             $tempDirPattern = storage_path('app/temp_restore_*');
