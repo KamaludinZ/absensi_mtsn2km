@@ -62,11 +62,16 @@ class ReportController extends Controller
             ->get();
 
         $permissionMap = [];
+        $permissionTypesFull = [
+            'C' => 'Cuti',
+            'S' => 'Sakit',
+            'DL' => 'Dinas Luar',
+        ];
         foreach ($permissions as $permission) {
             $current = Carbon::parse($permission->start_date);
             $end = Carbon::parse($permission->end_date);
             while ($current->lte($end)) {
-                $permissionMap[$current->format('Y-m-d')] = $permission->type;
+                $permissionMap[$current->format('Y-m-d')] = $permissionTypesFull[$permission->type] ?? $permission->type;
                 $current->addDay();
             }
         }
@@ -93,9 +98,7 @@ class ReportController extends Controller
                 $currentDate = Carbon::create($selectedYear, $month, $day);
                 $dateKey = $currentDate->format('Y-m-d');
 
-                $permissionTypeRaw = $permissionMap[$dateKey] ?? null;
-                $permissionType = $permissionTypeRaw ? ($permissionTypesFull[$permissionTypeRaw] ?? $permissionTypeRaw) : null;
-                
+                $permissionType = $permissionMap[$dateKey] ?? null;
                 $shift = $shifts->get($dateKey);
                 $attendance = $attendances->get($dateKey);
 
