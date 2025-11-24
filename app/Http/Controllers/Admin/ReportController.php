@@ -535,4 +535,402 @@ class ReportController extends Controller
             'formatted_time' => $formattedTime,
         ];
     }
+
+    public function mealAllowance(Request $request)
+    {
+        $query = Attendance::with('attendable')
+            ->where('attendable_type', Employee::class);
+
+        // Filter by date range if provided
+        if ($request->filled('start_date') && $request->filled('end_date')) {
+            $query->whereBetween('date', [$request->start_date, $request->end_date]);
+        } elseif ($request->filled('start_date')) {
+            $query->where('date', '>=', $request->start_date);
+        } elseif ($request->filled('end_date')) {
+            $query->where('date', '<=', $request->end_date);
+        }
+
+        // Filter by month and year if provided
+        if ($request->filled('month') && $request->filled('year')) {
+            $query->whereMonth('date', $request->month)
+                  ->whereYear('date', $request->year);
+        }
+
+        // Filter by specific employee if provided
+        if ($request->filled('employee_id')) {
+            $query->where('attendable_id', $request->employee_id);
+        }
+
+        // Apply ordering
+        $attendances = $query->orderBy('date', 'desc')
+            ->orderBy('attendable_id', 'asc')
+            ->get();
+
+        // Group by employee and calculate meal allowance
+        $mealAllowanceData = [];
+        foreach ($attendances as $attendance) {
+            $employeeId = $attendance->attendable_id;
+
+            if (!isset($mealAllowanceData[$employeeId])) {
+                $mealAllowanceData[$employeeId] = [
+                    'employee' => $attendance->attendable,
+                    'present_days' => 0,
+                    'late_days' => 0,
+                    'days' => []
+                ];
+            }
+
+            $dateKey = $attendance->date->format('Y-m-d');
+            if (!isset($mealAllowanceData[$employeeId]['days'][$dateKey])) {
+                $isPresent = $attendance->clock_in !== null || $attendance->clock_out !== null;
+                $isLate = $attendance->status_in === 'Terlambat';
+
+                if ($isPresent) {
+                    $mealAllowanceData[$employeeId]['present_days']++;
+                }
+
+                if ($isLate) {
+                    $mealAllowanceData[$employeeId]['late_days']++;
+                }
+
+                $mealAllowanceData[$employeeId]['days'][$dateKey] = [
+                    'date' => $attendance->date->format('d/m/Y'),
+                    'present' => $isPresent,
+                    'late' => $isLate,
+                    'clock_in' => $attendance->clock_in ? $attendance->clock_in->format('H:i') : null,
+                    'clock_out' => $attendance->clock_out ? $attendance->clock_out->format('H:i') : null
+                ];
+            }
+        }
+
+        // Get all employees for dropdown
+        $employees = Employee::orderBy('full_name')->get();
+
+        // Get available months/years for dropdown
+        $months = [
+            1 => 'Januari',
+            2 => 'Februari',
+            3 => 'Maret',
+            4 => 'April',
+            5 => 'Mei',
+            6 => 'Juni',
+            7 => 'Juli',
+            8 => 'Agustus',
+            9 => 'September',
+            10 => 'Oktober',
+            11 => 'November',
+            12 => 'Desember'
+        ];
+
+        $years = Attendance::where('attendable_type', Employee::class)
+            ->selectRaw('EXTRACT(YEAR FROM date) as year')
+            ->distinct()
+            ->orderBy('year', 'desc')
+            ->pluck('year');
+
+        return view('admin.reports.meal-allowance', compact('mealAllowanceData', 'employees', 'months', 'years'));
+    }
+
+    public function performanceAllowance(Request $request)
+    {
+        $query = Attendance::with('attendable')
+            ->where('attendable_type', Employee::class);
+
+        // Filter by date range if provided
+        if ($request->filled('start_date') && $request->filled('end_date')) {
+            $query->whereBetween('date', [$request->start_date, $request->end_date]);
+        } elseif ($request->filled('start_date')) {
+            $query->where('date', '>=', $request->start_date);
+        } elseif ($request->filled('end_date')) {
+            $query->where('date', '<=', $request->end_date);
+        }
+
+        // Filter by month and year if provided
+        if ($request->filled('month') && $request->filled('year')) {
+            $query->whereMonth('date', $request->month)
+                  ->whereYear('date', $request->year);
+        }
+
+        // Filter by specific employee if provided
+        if ($request->filled('employee_id')) {
+            $query->where('attendable_id', $request->employee_id);
+        }
+
+        // Apply ordering
+        $attendances = $query->orderBy('date', 'desc')
+            ->orderBy('attendable_id', 'asc')
+            ->get();
+
+        // Group by employee and calculate performance metrics
+        $performanceData = [];
+        foreach ($attendances as $attendance) {
+            $employeeId = $attendance->attendable_id;
+
+            if (!isset($performanceData[$employeeId])) {
+                $performanceData[$employeeId] = [
+                    'employee' => $attendance->attendable,
+                    'total_days' => 0,
+                    'present_days' => 0,
+                    'late_days' => 0,
+                    'early_departure_days' => 0,
+                    'perfect_attendance_days' => 0,
+                    'days' => []
+                ];
+            }
+
+            $isPresent = $attendance->clock_in !== null || $attendance->clock_out !== null;
+            $isLate = $attendance->status_in === 'Terlambat';
+            $isEarlyDeparture = $attendance->status_out === 'Pulang Awal';
+            $isPerfect = !$isLate && !$isEarlyDeparture && $isPresent;
+
+            $performanceData[$employeeId]['total_days']++;
+
+            if ($isPresent) {
+                $performanceData[$employeeId]['present_days']++;
+            }
+
+            if ($isLate) {
+                $performanceData[$employeeId]['late_days']++;
+            }
+
+            if ($isEarlyDeparture) {
+                $performanceData[$employeeId]['early_departure_days']++;
+            }
+
+            if ($isPerfect) {
+                $performanceData[$employeeId]['perfect_attendance_days']++;
+            }
+
+            $dateKey = $attendance->date->format('Y-m-d');
+            $performanceData[$employeeId]['days'][$dateKey] = [
+                'date' => $attendance->date->format('d/m/Y'),
+                'present' => $isPresent,
+                'late' => $isLate,
+                'early_departure' => $isEarlyDeparture,
+                'perfect' => $isPerfect,
+                'clock_in' => $attendance->clock_in ? $attendance->clock_in->format('H:i') : null,
+                'clock_out' => $attendance->clock_out ? $attendance->clock_out->format('H:i') : null
+            ];
+        }
+
+        // Calculate scores
+        foreach ($performanceData as &$data) {
+            $presentRate = $data['total_days'] > 0 ? ($data['present_days'] / $data['total_days']) * 100 : 0;
+            $lateRate = $data['present_days'] > 0 ? ($data['late_days'] / $data['present_days']) * 100 : 0;
+            $earlyDepartureRate = $data['present_days'] > 0 ? ($data['early_departure_days'] / $data['present_days']) * 100 : 0;
+            $perfectRate = $data['total_days'] > 0 ? ($data['perfect_attendance_days'] / $data['total_days']) * 100 : 0;
+
+            $data['present_rate'] = round($presentRate, 2);
+            $data['late_rate'] = round($lateRate, 2);
+            $data['early_departure_rate'] = round($earlyDepartureRate, 2);
+            $data['perfect_rate'] = round($perfectRate, 2);
+
+            // Calculate performance score (custom formula)
+            $score = 100;
+            $score -= ($data['late_rate'] * 0.5); // Deduct 0.5 points per 1% late
+            $score -= ($data['early_departure_rate'] * 0.3); // Deduct 0.3 points per 1% early departure
+            $score += ($data['perfect_rate'] * 0.1); // Add 0.1 points per 1% perfect attendance
+
+            // Ensure score is between 0-100
+            $data['performance_score'] = max(0, min(100, round($score, 2)));
+        }
+
+        // Get all employees for dropdown
+        $employees = Employee::orderBy('full_name')->get();
+
+        // Get available months/years for dropdown
+        $months = [
+            1 => 'Januari',
+            2 => 'Februari',
+            3 => 'Maret',
+            4 => 'April',
+            5 => 'Mei',
+            6 => 'Juni',
+            7 => 'Juli',
+            8 => 'Agustus',
+            9 => 'September',
+            10 => 'Oktober',
+            11 => 'November',
+            12 => 'Desember'
+        ];
+
+        $years = Attendance::where('attendable_type', Employee::class)
+            ->selectRaw('EXTRACT(YEAR FROM date) as year')
+            ->distinct()
+            ->orderBy('year', 'desc')
+            ->pluck('year');
+
+        return view('admin.reports.performance-allowance', compact('performanceData', 'employees', 'months', 'years'));
+    }
+
+    public function salaryReport(Request $request)
+    {
+        $selectedMonth = $request->input('month', Carbon::now()->month);
+        $selectedYear = $request->input('year', Carbon::now()->year);
+
+        $employeeQuery = Employee::with('salary')->where('is_active', true);
+
+        // Filter by specific employee if provided
+        if ($request->filled('employee_id')) {
+            $employeeQuery->where('id', $request->employee_id);
+        }
+
+        $employees = $employeeQuery->orderBy('full_name')->get();
+        $employeeIds = $employees->pluck('id');
+
+        // Prepare attendance query
+        $attendanceQuery = Attendance::where('attendable_type', Employee::class)
+            ->whereIn('attendable_id', $employeeIds);
+
+        // Filter by month/year
+        $attendanceQuery->whereMonth('date', $selectedMonth)
+                      ->whereYear('date', $selectedYear);
+
+        $attendances = $attendanceQuery->orderBy('date', 'asc')->get()->groupBy('attendable_id');
+
+        $salaryData = [];
+
+        foreach ($employees as $employee) {
+            $employeeId = $employee->id;
+            $salary = $employee->salary;
+
+            // Skip employees without salary settings
+            if (!$salary) {
+                continue;
+            }
+
+            $employeeAttendances = $attendances->get($employeeId, collect());
+
+            $present_days = 0;
+            $perfect_days = 0;
+
+            foreach ($employeeAttendances as $attendance) {
+                $isPresent = $attendance->clock_in !== null || $attendance->clock_out !== null;
+                if ($isPresent) {
+                    $present_days++;
+                }
+
+                // A day is perfect if the employee was present, not late, and did not leave early
+                $isPerfect = $isPresent && $attendance->status_in !== 'Terlambat' && $attendance->status_out !== 'Pulang Awal';
+                if ($isPerfect) {
+                    $perfect_days++;
+                }
+            }
+
+            // Calculate salary components
+            $totalMealAllowance = $salary->meal_allowance * $present_days;
+            $totalTransportAllowance = $salary->transport_allowance * $present_days;
+            $totalPerformanceAllowance = $salary->performance_allowance * $perfect_days;
+
+            // Calculate total salary
+            $totalSalary = $salary->base_salary + $totalMealAllowance + $totalTransportAllowance + $totalPerformanceAllowance;
+
+            $salaryData[$employeeId] = [
+                'employee' => $employee,
+                'base_salary' => $salary->base_salary,
+                'present_days' => $present_days,
+                'total_meal_allowance' => $totalMealAllowance,
+                'total_transport_allowance' => $totalTransportAllowance,
+                'perfect_days' => $perfect_days,
+                'total_performance_allowance' => $totalPerformanceAllowance,
+                'total_salary' => $totalSalary,
+            ];
+        }
+
+        // Data for filters
+        $allEmployees = Employee::orderBy('full_name')->get();
+        $months = [
+            1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April', 5 => 'Mei', 6 => 'Juni',
+            7 => 'Juli', 8 => 'Agustus', 9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember'
+        ];
+        $years = Attendance::where('attendable_type', Employee::class)
+            ->selectRaw('EXTRACT(YEAR FROM date) as year')
+            ->distinct()
+            ->orderBy('year', 'desc')
+            ->pluck('year');
+
+        return view('admin.reports.salary', [
+            'salaryData' => $salaryData,
+            'employees' => $allEmployees,
+            'months' => $months,
+            'years' => $years,
+            'selectedMonth' => $selectedMonth,
+            'selectedYear' => $selectedYear,
+        ]);
+    }
+
+    public function salaryReportDetail(Request $request, Employee $employee, $year, $month)
+    {
+        $employee->load('salary');
+        $salary = $employee->salary;
+
+        if (!$salary) {
+            // Or handle this case more gracefully
+            abort(404, 'Pengaturan gaji untuk pegawai ini tidak ditemukan.');
+        }
+
+        $startDate = Carbon::create($year, $month, 1)->startOfMonth();
+        $endDate = $startDate->copy()->endOfMonth();
+        $daysInMonth = $startDate->daysInMonth;
+
+        $attendances = Attendance::where('attendable_type', Employee::class)
+            ->where('attendable_id', $employee->id)
+            ->whereBetween('date', [$startDate, $endDate])
+            ->get()
+            ->keyBy(function ($item) {
+                return $item->date->format('Y-m-d');
+            });
+
+        $detailData = [];
+        $totalMealAllowance = 0;
+        $totalTransportAllowance = 0;
+        $totalPerformanceAllowance = 0;
+
+        for ($day = 1; $day <= $daysInMonth; $day++) {
+            $currentDate = Carbon::create($year, $month, $day);
+            $dateKey = $currentDate->format('Y-m-d');
+            $attendance = $attendances->get($dateKey);
+
+            $dailyMealAllowance = 0;
+            $dailyTransportAllowance = 0;
+            $dailyPerformanceAllowance = 0;
+
+            if ($attendance) {
+                $isPresent = $attendance->clock_in !== null || $attendance->clock_out !== null;
+                $isPerfect = $isPresent && $attendance->status_in !== 'Terlambat' && $attendance->status_out !== 'Pulang Awal';
+
+                if ($isPresent) {
+                    $dailyMealAllowance = $salary->meal_allowance;
+                    $dailyTransportAllowance = $salary->transport_allowance;
+                    $totalMealAllowance += $dailyMealAllowance;
+                    $totalTransportAllowance += $dailyTransportAllowance;
+                }
+
+                if ($isPerfect) {
+                    $dailyPerformanceAllowance = $salary->performance_allowance;
+                    $totalPerformanceAllowance += $dailyPerformanceAllowance;
+                }
+            }
+
+            $detailData[] = [
+                'date' => $currentDate,
+                'attendance' => $attendance,
+                'daily_meal_allowance' => $dailyMealAllowance,
+                'daily_transport_allowance' => $dailyTransportAllowance,
+                'daily_performance_allowance' => $dailyPerformanceAllowance,
+            ];
+        }
+
+        $totalSalary = $salary->base_salary + $totalMealAllowance + $totalTransportAllowance + $totalPerformanceAllowance;
+
+        $summary = [
+            'base_salary' => $salary->base_salary,
+            'total_meal_allowance' => $totalMealAllowance,
+            'total_transport_allowance' => $totalTransportAllowance,
+            'total_performance_allowance' => $totalPerformanceAllowance,
+            'total_salary' => $totalSalary,
+        ];
+
+        return view('admin.reports.salary-detail', compact('employee', 'year', 'month', 'detailData', 'summary'));
+    }
 }

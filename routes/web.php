@@ -80,6 +80,16 @@ Route::middleware(['auth', CheckRole::class . ':pegawai'])->prefix('employee')->
         Route::post('/', [EmployeePermissionController::class, 'store'])->name('store');
     });
 
+    Route::prefix('attendance-corrections')->name('attendance-corrections.')->group(function () {
+        Route::get('/', [App\Http\Controllers\Employee\AttendanceCorrectionController::class, 'index'])->name('index');
+        Route::get('/create', [App\Http\Controllers\Employee\AttendanceCorrectionController::class, 'create'])->name('create');
+        Route::post('/', [App\Http\Controllers\Employee\AttendanceCorrectionController::class, 'store'])->name('store');
+        Route::post('/get-attendance-data', [App\Http\Controllers\Employee\AttendanceCorrectionController::class, 'getAttendanceData'])->name('get-attendance-data');
+        Route::get('/{attendance_correction}', [App\Http\Controllers\Employee\AttendanceCorrectionController::class, 'show'])->name('show');
+        Route::get('/{attendance_correction}/edit', [App\Http\Controllers\Employee\AttendanceCorrectionController::class, 'edit'])->name('edit');
+        Route::put('/{attendance_correction}', [App\Http\Controllers\Employee\AttendanceCorrectionController::class, 'update'])->name('update');
+    });
+
     Route::prefix('profile')->name('profile.')->group(function () {
         Route::get('/change-password', [App\Http\Controllers\Employee\ProfileController::class, 'showChangePasswordForm'])->name('change-password');
         Route::put('/change-password', [App\Http\Controllers\Employee\ProfileController::class, 'updatePassword'])->name('update-password');
@@ -116,6 +126,8 @@ Route::middleware(['auth', CheckRole::class . ':admin'])->prefix('admin')->name(
     Route::get('employees/import', [EmployeeController::class, 'importForm'])->name('employees.import-form');
     Route::post('employees/import', [EmployeeController::class, 'import'])->name('employees.import');
     Route::get('employees/download-template', [EmployeeController::class, 'downloadTemplate'])->name('employees.download-template');
+    Route::get('/employees/salary-settings', [App\Http\Controllers\Admin\EmployeeController::class, 'salarySettings'])->name('employees.salary-settings');
+    Route::post('/employees/salary-settings', [App\Http\Controllers\Admin\EmployeeController::class, 'updateSalarySettings'])->name('employees.update-salary-settings');
     Route::resource('employees', EmployeeController::class);
 
     // Students
@@ -148,6 +160,12 @@ Route::middleware(['auth', CheckRole::class . ':admin'])->prefix('admin')->name(
         Route::get('/', [ReportController::class, 'index'])->name('index');
         Route::get('/students', [ReportController::class, 'studentReports'])->name('students');
         Route::post('/generate', [ReportController::class, 'generate'])->name('generate');
+
+        // Meal Allowance and Performance Allowance Reports
+        Route::get('/meal-allowance', [ReportController::class, 'mealAllowance'])->name('meal-allowance');
+        Route::get('/performance-allowance', [ReportController::class, 'performanceAllowance'])->name('performance-allowance');
+        Route::get('/salary', [ReportController::class, 'salaryReport'])->name('salary');
+        Route::get('/salary/{employee}/{year}/{month}', [ReportController::class, 'salaryReportDetail'])->name('salary.detail');
     });
 
     // Attendances
@@ -178,6 +196,19 @@ Route::middleware(['auth', CheckRole::class . ':admin'])->prefix('admin')->name(
         Route::get('/employees/{permission}/edit', [App\Http\Controllers\Admin\PermissionController::class, 'editEmployee'])->name('employees.edit');
         Route::put('/employees/{permission}', [App\Http\Controllers\Admin\PermissionController::class, 'updateEmployee'])->name('employees.update');
         Route::delete('/employees/{permission}', [App\Http\Controllers\Admin\PermissionController::class, 'destroyEmployee'])->name('employees.destroy');
+    });
+    
+    // Attendance Corrections
+    Route::prefix('attendance-corrections')->name('attendance-corrections.')->group(function () {
+        Route::get('/', [App\Http\Controllers\Admin\AttendanceCorrectionController::class, 'index'])->name('index');
+        Route::get('/create', [App\Http\Controllers\Admin\AttendanceCorrectionController::class, 'create'])->name('create');
+        Route::post('/', [App\Http\Controllers\Admin\AttendanceCorrectionController::class, 'store'])->name('store');
+        Route::get('/{attendance_correction}/edit', [App\Http\Controllers\Admin\AttendanceCorrectionController::class, 'edit'])->name('edit');
+        Route::put('/{attendance_correction}', [App\Http\Controllers\Admin\AttendanceCorrectionController::class, 'update'])->name('update');
+        Route::delete('/{attendance_correction}', [App\Http\Controllers\Admin\AttendanceCorrectionController::class, 'destroy'])->name('destroy');
+        Route::post('/{attendance_correction}/approve', [App\Http\Controllers\Admin\AttendanceCorrectionController::class, 'approve'])->name('approve');
+        Route::post('/{attendance_correction}/reject', [App\Http\Controllers\Admin\AttendanceCorrectionController::class, 'reject'])->name('reject');
+        Route::post('/get-attendance-data', [App\Http\Controllers\Admin\AttendanceCorrectionController::class, 'getAttendanceData'])->name('get-attendance-data');
     });
     
     // Permissions routes for admin

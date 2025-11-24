@@ -180,17 +180,47 @@
                         </svg>
                         <span class="nav-text">Kelola Data Pegawai</span>
                     </a>
+                    <a href="{{ route('admin.employees.salary-settings') }}" class="nav-sub-item {{ request()->routeIs('admin.employees.salary-settings') ? 'active' : '' }}">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span class="nav-text">Pengaturan Gaji</span>
+                    </a>
                     <a href="{{ route('admin.reports.index') }}" class="nav-sub-item {{ request()->routeIs('admin.reports.*') && !request()->routeIs('admin.reports.students') ? 'active' : '' }}">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
                         <span class="nav-text">Report Absensi</span>
                     </a>
+                    <a href="{{ route('admin.reports.meal-allowance') }}" class="nav-sub-item {{ request()->routeIs('admin.reports.meal-allowance') ? 'active' : '' }}">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
+                        </svg>
+                        <span class="nav-text">Laporan Uang Makan</span>
+                    </a>
+                    <a href="{{ route('admin.reports.performance-allowance') }}" class="nav-sub-item {{ request()->routeIs('admin.reports.performance-allowance') ? 'active' : '' }}">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                        </svg>
+                        <span class="nav-text">Laporan Tunjangan Kinerja</span>
+                    </a>
+                    <a href="{{ route('admin.reports.salary') }}" class="nav-sub-item {{ request()->routeIs('admin.reports.salary') ? 'active' : '' }}">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H4a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                        </svg>
+                        <span class="nav-text">Laporan Gaji</span>
+                    </a>
                     <a href="{{ route('admin.permissions.index') }}" class="nav-sub-item {{ request()->routeIs('admin.permissions.*') ? 'active' : '' }}">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                         </svg>
                         <span class="nav-text">Perizinan</span>
+                    </a>
+                    <a href="{{ route('admin.attendance-corrections.index') }}" class="nav-sub-item {{ request()->routeIs('admin.attendance-corrections.*') ? 'active' : '' }}">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                        <span class="nav-text">Perbaikan Absensi</span>
                     </a>
                     <a href="{{ route('admin.exports.employees') }}" class="nav-sub-item {{ request()->routeIs('admin.exports.employees') ? 'active' : '' }}">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -423,6 +453,16 @@
                 </div>
                 <span class="nav-text">Perizinan</span>
             </a>
+            <a href="{{ route('employee.attendance-corrections.index') }}"
+               class="nav-item {{ request()->routeIs('employee.attendance-corrections.*') ? 'active' : '' }}"
+               :class="{'pl-8': collapsed}">
+                <div class="nav-icon">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                </div>
+                <span class="nav-text">Perbaikan Absensi</span>
+            </a>
 
             <a href="{{ route('employee.profile.change-password') }}"
                class="nav-item {{ request()->routeIs('employee.profile.*') ? 'active' : '' }}"
@@ -499,9 +539,23 @@
                         </svg>
                         <span class="nav-text">Perizinan Siswa</span>
                     </a>
+
+                    <!-- Monitoring Reports -->
+                    <a href="{{ route('admin.reports.meal-allowance') }}" class="nav-sub-item {{ request()->routeIs('admin.reports.meal-allowance') ? 'active' : '' }}">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
+                        </svg>
+                        <span class="nav-text">Laporan Uang Makan</span>
+                    </a>
+                    <a href="{{ route('admin.reports.performance-allowance') }}" class="nav-sub-item {{ request()->routeIs('admin.reports.performance-allowance') ? 'active' : '' }}">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                        </svg>
+                        <span class="nav-text">Laporan Tunjangan Kinerja</span>
+                    </a>
                 </div>
             </div>
-            
+
             <a href="{{ route('monitoring.profile.change-password') }}" class="nav-item {{ request()->routeIs('monitoring.profile.*') ? 'active' : '' }}">
                 <div class="nav-icon">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
