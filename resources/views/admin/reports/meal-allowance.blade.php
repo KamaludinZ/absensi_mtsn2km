@@ -152,23 +152,3 @@
     </div>
 </div>
 @endsection
-
-        @if(count($mealAllowanceData) > 0)
-        <div class="p-4 bg-gray-50 border-t">
-            <div class="flex justify-between items-center">
-                <div>
-                    <p class="text-sm text-gray-700">
-                        Total Pegawai: {{ count($mealAllowanceData) }}
-                    </p>
-                </div>
-                <div>
-                    <p class="text-sm text-gray-700">
-                        Total Pembayaran Uang Makan: Rp {{ number_format(collect($mealAllowanceData)->sum('present_days') * 20000, 0, ',', '.') }}
-                    </p>
-                </div>
-            </div>
-        </div>
-        @endif
-    </div>
-</div>
-@endsection
