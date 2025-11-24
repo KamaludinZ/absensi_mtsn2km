@@ -8,36 +8,36 @@
         }
         body {
             font-family: Arial, sans-serif;
-            font-size: 8pt; /* Reduced font size */
-            line-height: 1.2;
+            font-size: 7pt; /* Reduced font size */
+            line-height: 1.1;
         }
         h1 {
-            font-size: 14pt;
+            font-size: 12pt;
             text-align: center;
             margin: 0 0 5px 0;
         }
         .header-info {
             width: 100%;
-            margin-bottom: 10px;
-            font-size: 8pt;
+            margin-bottom: 5px;
+            font-size: 7pt;
             border-collapse: collapse;
         }
         .header-info td {
-            padding: 1px 2px;
+            padding: 1px;
             border: none;
         }
         .header-info .label {
-            width: 100px;
+            width: 80px;
             font-weight: bold;
         }
         .main-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 10px;
+            margin-bottom: 5px;
         }
         .main-table th, .main-table td {
             border: 1px solid #999;
-            padding: 3px;
+            padding: 2px;
             text-align: left;
         }
         .main-table th {
@@ -45,24 +45,25 @@
             text-align: center;
         }
         .summary-section {
-            width: 45%;
+            width: 50%;
             margin-left: auto;
-            margin-top: 10px;
+            margin-top: 5px;
         }
         .summary-table {
             width: 100%;
             border-collapse: collapse;
+            font-size: 7pt;
         }
         .summary-table td {
             border: 1px solid #999;
-            padding: 3px;
+            padding: 2px;
         }
         .text-center { text-align: center; }
         .text-right { text-align: right; }
         .font-bold { font-weight: bold; }
         .signature-table {
             width: 100%;
-            margin-top: 15px;
+            margin-top: 10px;
             border-collapse: collapse;
         }
         .signature-table td {
@@ -72,12 +73,11 @@
             padding: 0;
         }
         .signature-space {
-            height: 50px;
+            height: 40px;
         }
         .signature-name {
             display: inline-block;
-            border-top: 1px solid black;
-            padding: 2px 10px 0 10px;
+            padding-top: 2px;
         }
     </style>
 </head>
@@ -102,15 +102,15 @@
     <table class="main-table">
         <thead>
             <tr>
-                <th style="width: 8%;">Hari</th>
-                <th style="width: 12%;">Tanggal</th>
-                <th style="width: 8%;">Jam Masuk</th>
-                <th style="width: 15%;">Absensi Masuk</th>
-                <th style="width: 8%;">Jam Pulang</th>
-                <th style="width: 15%;">Absensi Pulang</th>
-                <th style="width: 10%;">Uang Makan</th>
-                <th style="width: 10%;">Uang Transport</th>
-                <th style="width: 10%;">Tunj. Kinerja</th>
+                <th>Hari</th>
+                <th>Tanggal</th>
+                <th>Jam Masuk</th>
+                <th>Absensi Masuk</th>
+                <th>Jam Pulang</th>
+                <th>Absensi Pulang</th>
+                <th>U. Makan</th>
+                <th>U. Trans</th>
+                <th>T. Kinerja</th>
             </tr>
         </thead>
         <tbody>
@@ -122,7 +122,7 @@
                     <td class="text-center">{{ $data['schedule'] ? \Carbon\Carbon::parse($data['schedule']->start_time)->format('H:i') : '-' }}</td>
                     <td>
                         @if($permissionType)
-                            {{ $permissionType }}
+                            <span class="font-bold">{{ $permissionType }}</span>
                         @else
                             {{ $data['attendance'] && $data['attendance']->clock_in ? \Carbon\Carbon::parse($data['attendance']->clock_in)->format('H:i') : '-' }}
                             ({{ $data['status_in'] }})
@@ -131,9 +131,9 @@
                     <td class="text-center">{{ $data['schedule'] ? \Carbon\Carbon::parse($data['schedule']->end_time)->format('H:i') : '-' }}</td>
                     <td>
                         @if($permissionType)
-                            {{ $permissionType }}
+                            <span class="font-bold">{{ $permissionType }}</span>
                         @else
-                            {{ $data['attendance'] && $data['attendance']->clock_out ? \Carbon\Carbon::parse($data['attendance']->clock_out)->format('H:i:s') : '-' }}
+                            {{ $data['attendance'] && $data['attendance']->clock_out ? \Carbon\Carbon::parse($data['attendance']->clock_out)->format('H:i') : '-' }}
                             ({{ $data['status_out'] }})
                         @endif
                     </td>

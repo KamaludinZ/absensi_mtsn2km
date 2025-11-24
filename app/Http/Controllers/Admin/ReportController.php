@@ -839,7 +839,7 @@ class ReportController extends Controller
     {
         $data = $this->getSalaryDetailData($employee, $year, $month);
         $pdf = Pdf::loadView('admin.reports.salary-detail-pdf', $data)
-            ->setPaper('a4', 'landscape');
+            ->setPaper('a4', 'portrait');
 
         $filename = 'laporan_gaji_' . str_replace(' ', '_', $employee->full_name) . '_' . Carbon::create($year, $month)->isoFormat('MMMM_YYYY') . '.pdf';
         return $pdf->download($filename);
@@ -876,10 +876,10 @@ class ReportController extends Controller
                 return $item->date->format('Y-m-d');
             });
             
-        // Get all permissions for the employee that overlap with the month
+        // Get all approved permissions for the employee that overlap with the month
         $permissions = \App\Models\Permission::where('permissible_id', $employee->id)
             ->where('permissible_type', Employee::class)
-            ->where('status', 'approved') // Only consider approved permissions
+            ->where('status', 'approved')
             ->where(function ($query) use ($startDate, $endDate) {
                 $query->whereBetween('start_date', [$startDate, $endDate])
                     ->orWhereBetween('end_date', [$startDate, $endDate])
@@ -892,11 +892,16 @@ class ReportController extends Controller
 
         // Create a date-keyed map of permissions for quick lookup
         $permissionMap = [];
+        $permissionTypesFull = [
+            'C' => 'Cuti',
+            'S' => 'Sakit',
+            'DL' => 'Dinas Luar',
+        ];
         foreach ($permissions as $permission) {
             $current = Carbon::parse($permission->start_date)->max($startDate);
             $end = Carbon::parse($permission->end_date)->min($endDate);
             while ($current->lte($end)) {
-                $permissionMap[$current->format('Y-m-d')] = $permission->type;
+                $permissionMap[$current->format('Y-m-d')] = $permissionTypesFull[$permission->type] ?? $permission->type;
                 $current->addDay();
             }
         }
@@ -929,8 +934,13 @@ class ReportController extends Controller
             } elseif ($schedule) {
                 // Handle scheduled workday
                 if ($attendance) {
-                    $diffIn = $this->calculateTimeDifference($attendance->clock_in, $schedule->start_time);
-                    $statusIn = ($diffIn['seconds'] < 0) ? 'Terlambat' : 'Tepat Waktu';
+                    // There is an attendance record on a scheduled day
+                    if ($attendance->clock_in) {
+                        $diffIn = $this->calculateTimeDifference($attendance->clock_in, $schedule->start_time);
+                        $statusIn = ($diffIn['seconds'] < 0) ? 'Terlambat' : 'Tepat Waktu';
+                    } else {
+                        $statusIn = 'Tidak Hadir';
+                    }
 
                     if ($attendance->clock_out) {
                         $diffOut = $this->calculateTimeDifference($attendance->clock_out, $schedule->end_time);
@@ -939,18 +949,20 @@ class ReportController extends Controller
                         $statusOut = 'Belum Pulang';
                     }
 
-                    $isPresent = true;
-                    $isPerfect = $statusIn === 'Tepat Waktu' && ($statusOut === 'Tepat Waktu' || $statusOut === 'Belum Pulang');
-
-                    // Grant allowances because the employee was present on a scheduled day
-                    $dailyMealAllowance = $salary->meal_allowance;
-                    $dailyTransportAllowance = $salary->transport_allowance;
-                    $totalMealAllowance += $dailyMealAllowance;
-                    $totalTransportAllowance += $dailyTransportAllowance;
-
-                    if ($isPerfect) {
-                        $dailyPerformanceAllowance = $salary->performance_allowance;
-                        $totalPerformanceAllowance += $dailyPerformanceAllowance;
+                    // Grant allowances only if employee is present
+                    $isPresent = $attendance->clock_in !== null;
+                    if ($isPresent) {
+                        $dailyMealAllowance = $salary->meal_allowance;
+                        $dailyTransportAllowance = $salary->transport_allowance;
+                        $totalMealAllowance += $dailyMealAllowance;
+                        $totalTransportAllowance += $dailyTransportAllowance;
+                        
+                        // Performance allowance only if perfect
+                        $isPerfect = $statusIn === 'Tepat Waktu' && $statusOut === 'Tepat Waktu';
+                        if ($isPerfect) {
+                            $dailyPerformanceAllowance = $salary->performance_allowance;
+                            $totalPerformanceAllowance += $dailyPerformanceAllowance;
+                        }
                     }
 
                 } else {
