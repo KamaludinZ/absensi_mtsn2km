@@ -867,6 +867,7 @@ class ReportController extends Controller
                 return $shift->date->format('Y-m-d');
             });
 
+        // Get all attendances for the employee for the month
         $attendances = Attendance::where('attendable_type', Employee::class)
             ->where('attendable_id', $employee->id)
             ->whereBetween('date', [$startDate, $endDate])
@@ -874,6 +875,31 @@ class ReportController extends Controller
             ->keyBy(function ($item) {
                 return $item->date->format('Y-m-d');
             });
+            
+        // Get all permissions for the employee that overlap with the month
+        $permissions = \App\Models\Permission::where('permissible_id', $employee->id)
+            ->where('permissible_type', Employee::class)
+            ->where('status', 'approved') // Only consider approved permissions
+            ->where(function ($query) use ($startDate, $endDate) {
+                $query->whereBetween('start_date', [$startDate, $endDate])
+                    ->orWhereBetween('end_date', [$startDate, $endDate])
+                    ->orWhere(function($q) use ($startDate, $endDate) {
+                        $q->where('start_date', '<=', $startDate)
+                          ->where('end_date', '>=', $endDate);
+                    });
+            })
+            ->get();
+
+        // Create a date-keyed map of permissions for quick lookup
+        $permissionMap = [];
+        foreach ($permissions as $permission) {
+            $current = Carbon::parse($permission->start_date)->max($startDate);
+            $end = Carbon::parse($permission->end_date)->min($endDate);
+            while ($current->lte($end)) {
+                $permissionMap[$current->format('Y-m-d')] = $permission->type;
+                $current->addDay();
+            }
+        }
 
         $detailData = [];
         $totalMealAllowance = 0;
@@ -887,6 +913,7 @@ class ReportController extends Controller
             $attendance = $attendances->get($dateKey);
             $employeeShift = $employeeShifts->get($dateKey);
             $schedule = $employeeShift ? $employeeShift->schedule : null;
+            $permissionType = $permissionMap[$dateKey] ?? null;
 
             $dailyMealAllowance = 0;
             $dailyTransportAllowance = 0;
@@ -895,10 +922,13 @@ class ReportController extends Controller
             $statusIn = '-';
             $statusOut = '-';
 
-            // Only proceed if there is a schedule for this day
-            if ($schedule) {
+            if ($permissionType) {
+                // Handle permission day first
+                $statusIn = $permissionType;
+                $statusOut = $permissionType;
+            } elseif ($schedule) {
+                // Handle scheduled workday
                 if ($attendance) {
-                    // There is an attendance record on a scheduled day
                     $diffIn = $this->calculateTimeDifference($attendance->clock_in, $schedule->start_time);
                     $statusIn = ($diffIn['seconds'] < 0) ? 'Terlambat' : 'Tepat Waktu';
 
@@ -929,7 +959,7 @@ class ReportController extends Controller
                     $statusOut = 'Tidak Hadir';
                 }
             } else {
-                // No schedule assigned for this day, so it's an off day
+                // No schedule and no permission -> off day
                 $statusIn = 'Hari Libur';
                 $statusOut = 'Hari Libur';
             }
