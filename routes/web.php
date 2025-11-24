@@ -170,6 +170,8 @@ Route::middleware(['auth', CheckRole::class . ':admin'])->prefix('admin')->name(
 
         // Meal Allowance and Performance Allowance Reports
         Route::get('/meal-allowance', [ReportController::class, 'mealAllowance'])->name('meal-allowance');
+        Route::get('/meal-allowance/{employee}/{year}/{month}', [ReportController::class, 'mealAllowanceDetail'])->name('meal-allowance.detail');
+        Route::get('/meal-allowance/{employee}/{year}/{month}/pdf', [ReportController::class, 'generateMealAllowancePdf'])->name('meal-allowance.pdf');
         Route::get('/performance-allowance', [ReportController::class, 'performanceAllowance'])->name('performance-allowance');
         Route::get('/salary', [ReportController::class, 'salaryReport'])->name('salary');
         Route::get('/salary/{employee}/{year}/{month}', [ReportController::class, 'salaryReportDetail'])->name('salary.detail');
@@ -326,6 +328,11 @@ Route::middleware(['auth', CheckRole::class . ':admin'])->prefix('admin')->name(
     Route::prefix('attendance-settings')->name('attendance-settings.')->group(function () {
         Route::get('/', [App\Http\Controllers\Admin\AttendanceSettingController::class, 'index'])->name('index');
         Route::post('/', [App\Http\Controllers\Admin\AttendanceSettingController::class, 'store'])->name('store');
+    });
+
+    // System Monitoring
+    Route::prefix('system-monitoring')->name('system-monitoring.')->group(function () {
+        Route::get('/', [App\Http\Controllers\Admin\SystemMonitorController::class, 'index'])->name('index');
     });
 });
 

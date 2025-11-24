@@ -47,7 +47,7 @@
                     <label class="block text-sm font-medium text-gray-700 mb-1">Pegawai</label>
                     <select name="employee_id" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                         <option value="">Semua Pegawai</option>
-                        @foreach($employees as $employee)
+                        @foreach($allEmployees as $employee) {{-- Changed from $employees to $allEmployees --}}
                             <option value="{{ $employee->id }}" {{ request('employee_id') == $employee->id ? 'selected' : '' }}>
                                 {{ $employee->full_name }}
                             </option>
@@ -76,8 +76,13 @@
                     <tr>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nama Pegawai</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jabatan</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jumlah Hari Hadir</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jumlah Hari Terlambat</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hari Aktif (Shift)</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hari Hadir</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tidak Hadir</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sakit</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cuti</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dinas Luar</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Terlambat</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Uang Makan</th>
                     </tr>
                 </thead>
@@ -85,24 +90,41 @@
                     @forelse($mealAllowanceData as $data)
                         <tr>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                {{ $data['employee']->full_name ?? 'N/A' }}
+                                <a href="{{ route('admin.reports.meal-allowance.detail', ['employee' => $data['employee']->id, 'year' => $selectedYear, 'month' => $selectedMonth]) }}" class="text-blue-600 hover:underline">
+                                    {{ $data['employee']->full_name ?? 'N/A' }}
+                                </a>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 {{ $data['employee']->position ?? 'N/A' }}
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
+                            <td class="px-6 py-4 whitespace-nowrap text-center">
+                                {{ $data['active_days'] }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-center">
                                 {{ $data['present_days'] }}
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
+                            <td class="px-6 py-4 whitespace-nowrap text-center">
+                                {{ $data['absent_days'] }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-center">
+                                {{ $data['sick_days'] }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-center">
+                                {{ $data['leave_days'] }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-center">
+                                {{ $data['official_duty_days'] }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-center">
                                 {{ $data['late_days'] }}
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                Rp {{ number_format($data['present_days'] * 20000, 0, ',', '.') }} <!-- Assuming 20,000 per day -->
+                                Rp {{ number_format($data['total_meal_allowance'], 0, ',', '.') }}
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="px-6 py-4 text-center text-gray-500">
+                            <td colspan="11" class="px-6 py-4 text-center text-gray-500">
                                 Tidak ada data pelaporan uang makan.
                             </td>
                         </tr>
@@ -110,6 +132,26 @@
                 </tbody>
             </table>
         </div>
+
+        @if(count($mealAllowanceData) > 0)
+        <div class="p-4 bg-gray-50 border-t">
+            <div class="flex justify-between items-center">
+                <div>
+                    <p class="text-sm text-gray-700">
+                        Total Pegawai: {{ count($mealAllowanceData) }}
+                    </p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-700">
+                        Total Pembayaran Uang Makan: Rp {{ number_format(collect($mealAllowanceData)->sum('total_meal_allowance'), 0, ',', '.') }}
+                    </p>
+                </div>
+            </div>
+        </div>
+        @endif
+    </div>
+</div>
+@endsection
 
         @if(count($mealAllowanceData) > 0)
         <div class="p-4 bg-gray-50 border-t">
