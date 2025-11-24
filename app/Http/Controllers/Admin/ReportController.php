@@ -813,11 +813,35 @@ class ReportController extends Controller
             1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April', 5 => 'Mei', 6 => 'Juni',
             7 => 'Juli', 8 => 'Agustus', 9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember'
         ];
-        $years = Attendance::where('attendable_type', Employee::class)
+        
+        // *** NEW LOGIC ***
+        // Get unique years from attendance records
+        $yearsFromAttendance = Attendance::where('attendable_type', Employee::class)
             ->selectRaw('EXTRACT(YEAR FROM date) as year')
             ->distinct()
-            ->orderBy('year', 'desc')
-            ->pluck('year');
+            ->pluck('year')
+            ->map(fn($year) => (int)$year);
+
+        // Determine min and max year for the dropdown
+        $currentYear = (int)Carbon::now()->year;
+        $minYear = $yearsFromAttendance->min();
+
+        if ($minYear === null || $minYear > $currentYear) {
+            // If no attendance years or all attendance years are in the future
+            $minYear = $currentYear - 2; // Show current year and 2 past years
+        } else {
+            $minYear = min($minYear, $currentYear - 2); // Show at least 2 past years
+        }
+
+        // Generate the final list of years for the dropdown
+        $years = collect(range($currentYear, $minYear))->sortDesc()->values();
+        // Add one future year to ensure the current period is always selectable.
+        $years->prepend($currentYear + 1);
+        $years = $years->unique()->sortDesc()->values();
+
+        if ($years->isEmpty()) {
+            $years = collect([$currentYear]);
+        }
 
         return view('admin.reports.salary', [
             'salaryData' => $salaryData,

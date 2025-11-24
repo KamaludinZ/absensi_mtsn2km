@@ -25,14 +25,41 @@ class ReportController extends Controller
 
         $selectedYear = $request->input('year', Carbon::now()->year);
 
-        $years = EmployeeShift::where('employee_id', $employee->id)
+        // Get unique years from employee shifts
+        $yearsFromShifts = EmployeeShift::where('employee_id', $employee->id)
             ->selectRaw('EXTRACT(YEAR FROM date) as year')
             ->distinct()
-            ->orderBy('year', 'desc')
-            ->pluck('year');
+            ->pluck('year')
+            ->map(fn($year) => (int)$year);
+
+        // Get unique years from attendance records
+        $yearsFromAttendance = Attendance::where('attendable_type', Employee::class)
+            ->where('attendable_id', $employee->id)
+            ->selectRaw('EXTRACT(YEAR FROM date) as year')
+            ->distinct()
+            ->pluck('year')
+            ->map(fn($year) => (int)$year);
+
+        // Combine and sort unique years
+        $allYears = $yearsFromShifts->merge($yearsFromAttendance)->unique()->sortDesc()->values();
+
+        $currentYear = (int)Carbon::now()->year;
         
+        // Ensure current year and a few past years are always present
+        $maxShownYear = $currentYear;
+        $minShownYear = $currentYear - 2; // Show at least current year and 2 past years
+
+        // Adjust min/max based on actual data
+        if ($allYears->isNotEmpty()) {
+            $minShownYear = min($minShownYear, $allYears->min());
+            $maxShownYear = max($maxShownYear, $allYears->max());
+        }
+
+        // Generate the final list of years for the dropdown
+        $years = collect(range($maxShownYear, $minShownYear))->sortDesc()->values();
+
         if ($years->isEmpty()) {
-            $years = collect([Carbon::now()->year]);
+            $years = collect([$currentYear]);
         }
 
         // Fetch all necessary data for the entire year
