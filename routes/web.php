@@ -166,6 +166,7 @@ Route::middleware(['auth', CheckRole::class . ':admin'])->prefix('admin')->name(
         Route::get('/performance-allowance', [ReportController::class, 'performanceAllowance'])->name('performance-allowance');
         Route::get('/salary', [ReportController::class, 'salaryReport'])->name('salary');
         Route::get('/salary/{employee}/{year}/{month}', [ReportController::class, 'salaryReportDetail'])->name('salary.detail');
+        Route::get('/salary/{employee}/{year}/{month}/pdf', [ReportController::class, 'generateSalaryPdf'])->name('salary.pdf');
     });
 
     // Attendances
