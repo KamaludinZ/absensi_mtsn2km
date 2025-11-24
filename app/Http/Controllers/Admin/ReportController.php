@@ -868,7 +868,8 @@ class ReportController extends Controller
     public function generateSalaryPdf(Request $request, Employee $employee, $year, $month)
     {
         $data = $this->getSalaryDetailData($employee, $year, $month);
-        $pdf = Pdf::loadView('admin.reports.salary-detail-pdf', $data);
+        $pdf = Pdf::loadView('admin.reports.salary-detail-pdf', $data)
+            ->setPaper('a4', 'landscape');
 
         $filename = 'laporan_gaji_' . str_replace(' ', '_', $employee->full_name) . '_' . Carbon::create($year, $month)->isoFormat('MMMM_YYYY') . '.pdf';
         return $pdf->download($filename);

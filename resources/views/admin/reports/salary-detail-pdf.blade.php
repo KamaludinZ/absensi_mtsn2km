@@ -3,85 +3,86 @@
 <head>
     <title>Laporan Gaji - {{ $employee->full_name }} ({{ \Carbon\Carbon::create($year, $month)->isoFormat('MMMM YYYY') }})</title>
     <style>
+        @page {
+            margin: 20px;
+        }
         body {
             font-family: Arial, sans-serif;
-            margin: 0.5in;
-            font-size: 10pt;
+            font-size: 8pt; /* Reduced font size */
+            line-height: 1.2;
         }
-        h1, h2, h3 {
+        h1 {
+            font-size: 14pt;
             text-align: center;
-            margin-bottom: 10px;
+            margin: 0 0 5px 0;
         }
         .header-info {
             width: 100%;
-            margin-bottom: 20px;
+            margin-bottom: 10px;
+            font-size: 8pt;
+            border-collapse: collapse;
         }
         .header-info td {
-            padding: 2px 0;
+            padding: 1px 2px;
+            border: none;
         }
         .header-info .label {
-            width: 150px;
+            width: 100px;
             font-weight: bold;
         }
-        table {
+        .main-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 20px;
+            margin-bottom: 10px;
         }
-        th, td {
-            border: 1px solid #ddd;
-            padding: 8px;
+        .main-table th, .main-table td {
+            border: 1px solid #999;
+            padding: 3px;
             text-align: left;
         }
-        th {
+        .main-table th {
             background-color: #f2f2f2;
+            text-align: center;
         }
         .summary-section {
-            width: 50%;
+            width: 45%;
             margin-left: auto;
-            margin-top: 30px;
-            border: 1px solid #ddd;
-            padding: 10px;
+            margin-top: 10px;
         }
-        .summary-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 3px 0;
+        .summary-table {
+            width: 100%;
+            border-collapse: collapse;
         }
-        .summary-total {
-            font-weight: bold;
-            border-top: 1px solid #ddd;
-            padding-top: 5px;
-            margin-top: 5px;
+        .summary-table td {
+            border: 1px solid #999;
+            padding: 3px;
         }
         .text-center { text-align: center; }
         .text-right { text-align: right; }
         .font-bold { font-weight: bold; }
         .signature-table {
             width: 100%;
-            margin-top: 70px;
+            margin-top: 15px;
             border-collapse: collapse;
         }
         .signature-table td {
             border: none;
             width: 50%;
             text-align: center;
-            padding: 10px;
-            vertical-align: top;
+            padding: 0;
         }
         .signature-space {
-            height: 80px;
+            height: 50px;
         }
         .signature-name {
             display: inline-block;
             border-top: 1px solid black;
-            padding: 5px 20px 0 20px;
+            padding: 2px 10px 0 10px;
         }
     </style>
 </head>
 <body>
     <h1>LAPORAN GAJI PEGAWAI</h1>
-    <h2>MTsN 2 Kota Malang</h2>
 
     <table class="header-info">
         <tr>
@@ -98,72 +99,70 @@
         </tr>
     </table>
 
-    <h3>Rincian Kehadiran Harian</h3>
-    <table>
+    <table class="main-table">
         <thead>
             <tr>
-                <th style="width: 10%;">Hari</th>
-                <th style="width: 15%;">Tanggal</th>
-                <th style="width: 10%;">Jam Masuk</th>
+                <th style="width: 8%;">Hari</th>
+                <th style="width: 12%;">Tanggal</th>
+                <th style="width: 8%;">Jam Masuk</th>
                 <th style="width: 15%;">Absensi Masuk</th>
-                <th style="width: 10%;">Jam Pulang</th>
+                <th style="width: 8%;">Jam Pulang</th>
                 <th style="width: 15%;">Absensi Pulang</th>
-                <th style="width: 8%;">Uang Makan</th>
-                <th style="width: 8%;">Uang Transport</th>
-                <th style="width: 9%;">Tunj. Kinerja</th>
+                <th style="width: 10%;">Uang Makan</th>
+                <th style="width: 10%;">Uang Transport</th>
+                <th style="width: 10%;">Tunj. Kinerja</th>
             </tr>
         </thead>
         <tbody>
             @forelse($detailData as $data)
                 <tr>
                     <td>{{ $data['date']->isoFormat('dddd') }}</td>
-                    <td>{{ $data['date']->isoFormat('D MMMM YYYY') }}</td>
-                    <td>{{ $data['schedule'] ? \Carbon\Carbon::parse($data['schedule']->start_time)->format('H:i:s') : '-' }}</td>
+                    <td>{{ $data['date']->isoFormat('D MMM YYYY') }}</td>
+                    <td class="text-center">{{ $data['schedule'] ? \Carbon\Carbon::parse($data['schedule']->start_time)->format('H:i') : '-' }}</td>
                     <td>
-                        {{ $data['attendance'] && $data['attendance']->clock_in ? \Carbon\Carbon::parse($data['attendance']->clock_in)->format('H:i:s') : '-' }}
+                        {{ $data['attendance'] && $data['attendance']->clock_in ? \Carbon\Carbon::parse($data['attendance']->clock_in)->format('H:i') : '-' }}
                         ({{ $data['status_in'] }})
                     </td>
-                    <td>{{ $data['schedule'] ? \Carbon\Carbon::parse($data['schedule']->end_time)->format('H:i:s') : '-' }}</td>
+                    <td class="text-center">{{ $data['schedule'] ? \Carbon\Carbon::parse($data['schedule']->end_time)->format('H:i') : '-' }}</td>
                     <td>
                         {{ $data['attendance'] && $data['attendance']->clock_out ? \Carbon\Carbon::parse($data['attendance']->clock_out)->format('H:i:s') : '-' }}
                         ({{ $data['status_out'] }})
                     </td>
-                    <td class="text-right">Rp {{ number_format($data['daily_meal_allowance'], 0, ',', '.') }}</td>
-                    <td class="text-right">Rp {{ number_format($data['daily_transport_allowance'], 0, ',', '.') }}</td>
-                    <td class="text-right">Rp {{ number_format($data['daily_performance_allowance'], 0, ',', '.') }}</td>
+                    <td class="text-right">Rp{{ number_format($data['daily_meal_allowance'], 0, ',', '.') }}</td>
+                    <td class="text-right">Rp{{ number_format($data['daily_transport_allowance'], 0, ',', '.') }}</td>
+                    <td class="text-right">Rp{{ number_format($data['daily_performance_allowance'], 0, ',', '.') }}</td>
                 </tr>
             @empty
                 <tr>
-                    <td colspan="9" class="text-center">
-                        Tidak ada data kehadiran untuk periode ini.
-                    </td>
+                    <td colspan="9" class="text-center">Tidak ada data kehadiran untuk periode ini.</td>
                 </tr>
             @endforelse
         </tbody>
     </table>
 
     <div class="summary-section">
-        <h3>Ringkasan Gaji</h3>
-        <div class="summary-item">
-            <span>Gaji Pokok</span>
-            <span>Rp {{ number_format($summary['base_salary'], 0, ',', '.') }}</span>
-        </div>
-        <div class="summary-item">
-            <span>Total Uang Makan</span>
-            <span>Rp {{ number_format($summary['total_meal_allowance'], 0, ',', '.') }}</span>
-        </div>
-        <div class="summary-item">
-            <span>Total Uang Transport</span>
-            <span>Rp {{ number_format($summary['total_transport_allowance'], 0, ',', '.') }}</span>
-        </div>
-        <div class="summary-item">
-            <span>Total Tunjangan Kinerja</span>
-            <span>Rp {{ number_format($summary['total_performance_allowance'], 0, ',', '.') }}</span>
-        </div>
-        <div class="summary-item summary-total">
-            <span>Total Gaji</span>
-            <span>Rp {{ number_format($summary['total_salary'], 0, ',', '.') }}</span>
-        </div>
+        <table class="summary-table">
+            <tr>
+                <td>Gaji Pokok</td>
+                <td class="text-right">Rp {{ number_format($summary['base_salary'], 0, ',', '.') }}</td>
+            </tr>
+            <tr>
+                <td>Total Uang Makan</td>
+                <td class="text-right">Rp {{ number_format($summary['total_meal_allowance'], 0, ',', '.') }}</td>
+            </tr>
+            <tr>
+                <td>Total Uang Transport</td>
+                <td class="text-right">Rp {{ number_format($summary['total_transport_allowance'], 0, ',', '.') }}</td>
+            </tr>
+            <tr>
+                <td>Total Tunjangan Kinerja</td>
+                <td class="text-right">Rp {{ number_format($summary['total_performance_allowance'], 0, ',', '.') }}</td>
+            </tr>
+            <tr>
+                <td class="font-bold">Total Gaji</td>
+                <td class="text-right font-bold">Rp {{ number_format($summary['total_salary'], 0, ',', '.') }}</td>
+            </tr>
+        </table>
     </div>
 
     <table class="signature-table">
