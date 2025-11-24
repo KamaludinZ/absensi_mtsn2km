@@ -65,26 +65,35 @@
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
                     @forelse($detailData as $data)
-                        <tr class="{{ $data['attendance'] ? 'hover:bg-gray-50' : 'bg-gray-100' }}">
+                        @php $permissionType = $permissionMap[$data['date']->format('Y-m-d')] ?? null; @endphp
+                        <tr class="{{ $permissionType ? 'bg-blue-50' : ($data['attendance'] ? 'hover:bg-gray-50' : 'bg-gray-100') }}">
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $data['date']->isoFormat('dddd') }}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $data['date']->isoFormat('D MMMM YYYY') }}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                 {{ $data['schedule'] ? \Carbon\Carbon::parse($data['schedule']->start_time)->format('H:i:s') : '-' }}
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                <div>{{ $data['attendance'] && $data['attendance']->clock_in ? \Carbon\Carbon::parse($data['attendance']->clock_in)->format('H:i:s') : '-' }}</div>
-                                <div class="text-xs text-gray-500">{{ $data['status_in'] }}</div>
+                                @if($permissionType)
+                                    <span class="font-semibold text-blue-600">{{ $permissionType }}</span>
+                                @else
+                                    <div>{{ $data['attendance'] && $data['attendance']->clock_in ? \Carbon\Carbon::parse($data['attendance']->clock_in)->format('H:i:s') : '-' }}</div>
+                                    <div class="text-xs text-gray-500">{{ $data['status_in'] }}</div>
+                                @endif
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                 {{ $data['schedule'] ? \Carbon\Carbon::parse($data['schedule']->end_time)->format('H:i:s') : '-' }}
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                <div>{{ $data['attendance'] && $data['attendance']->clock_out ? \Carbon\Carbon::parse($data['attendance']->clock_out)->format('H:i:s') : '-' }}</div>
-                                <div class="text-xs text-gray-500">{{ $data['status_out'] }}</div>
+                                @if($permissionType)
+                                    <span class="font-semibold text-blue-600">{{ $permissionType }}</span>
+                                @else
+                                    <div>{{ $data['attendance'] && $data['attendance']->clock_out ? \Carbon\Carbon::parse($data['attendance']->clock_out)->format('H:i:s') : '-' }}</div>
+                                    <div class="text-xs text-gray-500">{{ $data['status_out'] }}</div>
+                                @endif
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Rp {{ number_format($data['daily_meal_allowance'], 0, ',', '.') }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Rp {{ number_format($data['daily_transport_allowance'], 0, ',', '.') }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Rp {{ number_format($data['daily_performance_allowance'], 0, ',', '.') }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-700">Rp {{ number_format($data['daily_meal_allowance'], 0, ',', '.') }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-700">Rp {{ number_format($data['daily_transport_allowance'], 0, ',', '.') }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-700">Rp {{ number_format($data['daily_performance_allowance'], 0, ',', '.') }}</td>
                         </tr>
                     @empty
                         <tr>

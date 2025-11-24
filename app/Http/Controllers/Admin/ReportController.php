@@ -986,6 +986,6 @@ class ReportController extends Controller
             'total_salary' => $totalSalary,
         ];
 
-        return compact('employee', 'year', 'month', 'detailData', 'summary');
+        return compact('employee', 'year', 'month', 'detailData', 'summary', 'permissionMap');
     }
 }
