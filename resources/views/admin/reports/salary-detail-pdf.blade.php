@@ -115,20 +115,16 @@
                 <tr>
                     <td>{{ $data['date']->isoFormat('dddd') }}</td>
                     <td>{{ $data['date']->isoFormat('D MMMM YYYY') }}</td>
+                    <td>{{ $data['schedule'] ? \Carbon\Carbon::parse($data['schedule']->start_time)->format('H:i:s') : '-' }}</td>
                     <td>
-                        @if($data['schedule'])
-                            Jadwal: {{ \Carbon\Carbon::parse($data['schedule']->start_time)->format('H:i:s') }}<br>
-                        @endif
-                        Aktual: {{ $data['attendance'] && $data['attendance']->clock_in ? \Carbon\Carbon::parse($data['attendance']->clock_in)->format('H:i:s') : '-' }}
+                        {{ $data['attendance'] && $data['attendance']->clock_in ? \Carbon\Carbon::parse($data['attendance']->clock_in)->format('H:i:s') : '-' }}
+                        ({{ $data['status_in'] }})
                     </td>
-                    <td>{{ $data['status_in'] }}</td>
+                    <td>{{ $data['schedule'] ? \Carbon\Carbon::parse($data['schedule']->end_time)->format('H:i:s') : '-' }}</td>
                     <td>
-                        @if($data['schedule'])
-                            Jadwal: {{ \Carbon\Carbon::parse($data['schedule']->end_time)->format('H:i:s') }}<br>
-                        @endif
-                        Aktual: {{ $data['attendance'] && $data['attendance']->clock_out ? \Carbon\Carbon::parse($data['attendance']->clock_out)->format('H:i:s') : '-' }}
+                        {{ $data['attendance'] && $data['attendance']->clock_out ? \Carbon\Carbon::parse($data['attendance']->clock_out)->format('H:i:s') : '-' }}
+                        ({{ $data['status_out'] }})
                     </td>
-                    <td>{{ $data['status_out'] }}</td>
                     <td class="text-right">Rp {{ number_format($data['daily_meal_allowance'], 0, ',', '.') }}</td>
                     <td class="text-right">Rp {{ number_format($data['daily_transport_allowance'], 0, ',', '.') }}</td>
                     <td class="text-right">Rp {{ number_format($data['daily_performance_allowance'], 0, ',', '.') }}</td>
