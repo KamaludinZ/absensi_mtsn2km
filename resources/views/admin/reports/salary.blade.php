@@ -69,6 +69,9 @@
 
         <div class="p-4 border-b">
             <h2 class="text-lg font-semibold">Laporan Gaji Pegawai</h2>
+            <p class="text-sm text-gray-600 mt-1">
+                <span class="font-medium">Tips:</span> Klik nama pegawai pada tabel di bawah untuk melihat rincian gaji harian.
+            </p>
         </div>
 
         <div class="overflow-x-auto">
