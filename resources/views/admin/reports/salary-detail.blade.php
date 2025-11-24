@@ -69,9 +69,9 @@
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $data['date']->isoFormat('dddd') }}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $data['date']->isoFormat('D MMMM YYYY') }}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $data['attendance'] ? ($data['attendance']->clock_in ? $data['attendance']->clock_in->format('H:i:s') : '-') : 'Libur/Tidak Ada Jadwal' }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $data['attendance'] ? $data['attendance']->status_in ?? 'Tepat Waktu' : '-' }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $data['status_in'] }}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $data['attendance'] ? ($data['attendance']->clock_out ? $data['attendance']->clock_out->format('H:i:s') : '-') : '-' }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $data['attendance'] ? $data['attendance']->status_out ?? 'Tepat Waktu' : '-' }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $data['status_out'] }}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Rp {{ number_format($data['daily_meal_allowance'], 0, ',', '.') }}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Rp {{ number_format($data['daily_transport_allowance'], 0, ',', '.') }}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Rp {{ number_format($data['daily_performance_allowance'], 0, ',', '.') }}</td>

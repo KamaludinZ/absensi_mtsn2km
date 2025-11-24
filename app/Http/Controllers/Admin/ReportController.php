@@ -861,80 +861,20 @@ class ReportController extends Controller
 
     public function salaryReportDetail(Request $request, Employee $employee, $year, $month)
     {
-        $employee->load('salary');
-        $salary = $employee->salary;
-
-        if (!$salary) {
-            // Or handle this case more gracefully
-            abort(404, 'Pengaturan gaji untuk pegawai ini tidak ditemukan.');
-        }
-
-        $startDate = Carbon::create($year, $month, 1)->startOfMonth();
-        $endDate = $startDate->copy()->endOfMonth();
-        $daysInMonth = $startDate->daysInMonth;
-
-        $attendances = Attendance::where('attendable_type', Employee::class)
-            ->where('attendable_id', $employee->id)
-            ->whereBetween('date', [$startDate, $endDate])
-            ->get()
-            ->keyBy(function ($item) {
-                return $item->date->format('Y-m-d');
-            });
-
-        $detailData = [];
-        $totalMealAllowance = 0;
-        $totalTransportAllowance = 0;
-        $totalPerformanceAllowance = 0;
-
-        for ($day = 1; $day <= $daysInMonth; $day++) {
-            $currentDate = Carbon::create($year, $month, $day);
-            $dateKey = $currentDate->format('Y-m-d');
-            $attendance = $attendances->get($dateKey);
-
-            $dailyMealAllowance = 0;
-            $dailyTransportAllowance = 0;
-            $dailyPerformanceAllowance = 0;
-
-            if ($attendance) {
-                $isPresent = $attendance->clock_in !== null || $attendance->clock_out !== null;
-                $isPerfect = $isPresent && $attendance->status_in !== 'Terlambat' && $attendance->status_out !== 'Pulang Awal';
-
-                if ($isPresent) {
-                    $dailyMealAllowance = $salary->meal_allowance;
-                    $dailyTransportAllowance = $salary->transport_allowance;
-                    $totalMealAllowance += $dailyMealAllowance;
-                    $totalTransportAllowance += $dailyTransportAllowance;
-                }
-
-                if ($isPerfect) {
-                    $dailyPerformanceAllowance = $salary->performance_allowance;
-                    $totalPerformanceAllowance += $dailyPerformanceAllowance;
-                }
-            }
-
-            $detailData[] = [
-                'date' => $currentDate,
-                'attendance' => $attendance,
-                'daily_meal_allowance' => $dailyMealAllowance,
-                'daily_transport_allowance' => $dailyTransportAllowance,
-                'daily_performance_allowance' => $dailyPerformanceAllowance,
-            ];
-        }
-
-        $totalSalary = $salary->base_salary + $totalMealAllowance + $totalTransportAllowance + $totalPerformanceAllowance;
-
-        $summary = [
-            'base_salary' => $salary->base_salary,
-            'total_meal_allowance' => $totalMealAllowance,
-            'total_transport_allowance' => $totalTransportAllowance,
-            'total_performance_allowance' => $totalPerformanceAllowance,
-            'total_salary' => $totalSalary,
-        ];
-
-        return view('admin.reports.salary-detail', compact('employee', 'year', 'month', 'detailData', 'summary'));
+        $data = $this->getSalaryDetailData($employee, $year, $month);
+        return view('admin.reports.salary-detail', $data);
     }
 
     public function generateSalaryPdf(Request $request, Employee $employee, $year, $month)
+    {
+        $data = $this->getSalaryDetailData($employee, $year, $month);
+        $pdf = Pdf::loadView('admin.reports.salary-detail-pdf', $data);
+
+        $filename = 'laporan_gaji_' . str_replace(' ', '_', $employee->full_name) . '_' . Carbon::create($year, $month)->isoFormat('MMMM_YYYY') . '.pdf';
+        return $pdf->download($filename);
+    }
+
+    private function getSalaryDetailData(Employee $employee, $year, $month)
     {
         $employee->load('salary');
         $salary = $employee->salary;
@@ -947,6 +887,19 @@ class ReportController extends Controller
         $endDate = $startDate->copy()->endOfMonth();
         $daysInMonth = $startDate->daysInMonth;
 
+        // Eager load schedules
+        $employeeShifts = \App\Models\EmployeeShift::where('employee_id', $employee->id)
+            ->whereBetween('date', [$startDate, $endDate])
+            ->with('schedule')
+            ->get()
+            ->keyBy(function ($shift) {
+                return $shift->date->format('Y-m-d');
+            });
+
+        $defaultSchedules = \App\Models\Schedule::where('type', 'pegawai')
+            ->get()
+            ->keyBy('day_of_week');
+
         $attendances = Attendance::where('attendable_type', Employee::class)
             ->where('attendable_id', $employee->id)
             ->whereBetween('date', [$startDate, $endDate])
@@ -968,10 +921,36 @@ class ReportController extends Controller
             $dailyMealAllowance = 0;
             $dailyTransportAllowance = 0;
             $dailyPerformanceAllowance = 0;
+            
+            $statusIn = '-';
+            $statusOut = '-';
 
             if ($attendance) {
+                // Determine the schedule for the day
+                $employeeShift = $employeeShifts->get($dateKey);
+                $schedule = null;
+                if ($employeeShift && $employeeShift->schedule) {
+                    $schedule = $employeeShift->schedule;
+                } else {
+                    $schedule = $defaultSchedules->get($currentDate->dayOfWeek);
+                }
+
+                if ($schedule) {
+                    // Calculate clock in status
+                    if ($attendance->clock_in) {
+                        $diffIn = $this->calculateTimeDifference($attendance->clock_in, $schedule->start_time);
+                        $statusIn = ($diffIn['seconds'] < 0) ? 'Terlambat' : 'Tepat Waktu';
+                    }
+
+                    // Calculate clock out status
+                    if ($attendance->clock_out) {
+                        $diffOut = $this->calculateTimeDifference($attendance->clock_out, $schedule->end_time);
+                        $statusOut = ($diffOut['seconds'] > 0) ? 'Pulang Awal' : 'Tepat Waktu';
+                    }
+                }
+                
                 $isPresent = $attendance->clock_in !== null || $attendance->clock_out !== null;
-                $isPerfect = $isPresent && $attendance->status_in !== 'Terlambat' && $attendance->status_out !== 'Pulang Awal';
+                $isPerfect = $isPresent && $statusIn === 'Tepat Waktu' && $statusOut === 'Tepat Waktu';
 
                 if ($isPresent) {
                     $dailyMealAllowance = $salary->meal_allowance;
@@ -989,6 +968,8 @@ class ReportController extends Controller
             $detailData[] = [
                 'date' => $currentDate,
                 'attendance' => $attendance,
+                'status_in' => $statusIn,
+                'status_out' => $statusOut,
                 'daily_meal_allowance' => $dailyMealAllowance,
                 'daily_transport_allowance' => $dailyTransportAllowance,
                 'daily_performance_allowance' => $dailyPerformanceAllowance,
@@ -1005,18 +986,6 @@ class ReportController extends Controller
             'total_salary' => $totalSalary,
         ];
 
-        // Prepare data for PDF view
-        $data = [
-            'employee' => $employee,
-            'year' => $year,
-            'month' => $month,
-            'detailData' => $detailData,
-            'summary' => $summary,
-        ];
-
-        $pdf = Pdf::loadView('admin.reports.salary-detail-pdf', $data);
-
-        $filename = 'laporan_gaji_' . $employee->full_name . '_' . Carbon::create($year, $month)->isoFormat('MMMM_YYYY') . '.pdf';
-        return $pdf->download($filename);
+        return compact('employee', 'year', 'month', 'detailData', 'summary');
     }
 }
