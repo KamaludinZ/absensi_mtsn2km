@@ -24,7 +24,7 @@
     </form>
 
     <!-- Monthly Summaries -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div class="space-y-4">
         @foreach($summaries as $summary)
             <div class="bg-white rounded-lg shadow p-5">
                 <h3 class="text-lg font-bold mb-4">
