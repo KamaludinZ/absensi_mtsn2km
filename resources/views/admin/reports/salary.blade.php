@@ -94,12 +94,10 @@
                         <tr>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <a href="{{ route('admin.reports.salary.detail', ['employee' => $data['employee']->id, 'year' => $selectedYear, 'month' => $selectedMonth]) }}"
-                                   target="_blank"
-                                   class="hover:text-blue-600">
-                                    <div class="text-sm font-medium text-gray-900">{{ $data['employee']->full_name }}</div>
+                                   target="_blank">
+                                    <div class="text-sm font-medium text-gray-900 hover:text-blue-600">{{ $data['employee']->full_name }}</div>
                                     <div class="text-sm text-gray-500">{{ $data['employee']->nip ?? '' }}</div>
-                                </a>
-                            </td>
+                                </a>                            </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                 {{ $data['employee']->position ?? 'N/A' }}
                             </td>
