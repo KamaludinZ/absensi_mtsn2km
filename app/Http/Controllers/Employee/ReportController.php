@@ -86,6 +86,7 @@ class ReportController extends Controller
                 'sick_days' => 0,
                 'leave_days' => 0,
                 'official_duty_days' => 0,
+                'absent_days' => 0,
             ];
 
             for ($day = 1; $day <= $monthStartDate->daysInMonth; $day++) {
@@ -97,9 +98,9 @@ class ReportController extends Controller
                 $attendance = $attendances->get($dateKey);
 
                 if ($permissionType) {
-                    if ($permissionType === 'S') $summary['sick_days']++;
-                    if ($permissionType === 'C') $summary['leave_days']++;
-                    if ($permissionType === 'DL') $summary['official_duty_days']++;
+                    if ($permissionType === 'Sakit') $summary['sick_days']++;
+                    if ($permissionType === 'Cuti') $summary['leave_days']++;
+                    if ($permissionType === 'Dinas Luar') $summary['official_duty_days']++;
                 }
 
                 if ($shift) {
@@ -129,6 +130,9 @@ class ReportController extends Controller
                             if ($statusOut === 'Pulang Awal') $summary['early_leave_days']++;
                             if ($statusIn === 'Tepat Waktu' && $statusOut === 'Tepat Waktu') $summary['on_time_days']++;
                         }
+                    } elseif (!$attendance && !$permissionType) {
+                        // This is an absence without permission on a scheduled day
+                        $summary['absent_days']++;
                     }
                 }
             }
