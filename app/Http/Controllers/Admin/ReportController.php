@@ -508,23 +508,15 @@ class ReportController extends Controller
 
     public function mealAllowance(Request $request)
     {
+        $selectedMonth = $request->input('month', Carbon::now()->month);
+        $selectedYear = $request->input('year', Carbon::now()->year);
+
         $query = Attendance::with('attendable')
             ->where('attendable_type', Employee::class);
 
-        // Filter by date range if provided
-        if ($request->filled('start_date') && $request->filled('end_date')) {
-            $query->whereBetween('date', [$request->start_date, $request->end_date]);
-        } elseif ($request->filled('start_date')) {
-            $query->where('date', '>=', $request->start_date);
-        } elseif ($request->filled('end_date')) {
-            $query->where('date', '<=', $request->end_date);
-        }
-
-        // Filter by month and year if provided
-        if ($request->filled('month') && $request->filled('year')) {
-            $query->whereMonth('date', $request->month)
-                  ->whereYear('date', $request->year);
-        }
+        // Filter by month and year only
+        $query->whereMonth('date', $selectedMonth)
+              ->whereYear('date', $selectedYear);
 
         // Filter by specific employee if provided
         if ($request->filled('employee_id')) {
@@ -592,34 +584,51 @@ class ReportController extends Controller
             12 => 'Desember'
         ];
 
-        $years = Attendance::where('attendable_type', Employee::class)
+        // *** NEW LOGIC for years ***
+        // Get unique years from attendance records
+        $yearsFromAttendance = Attendance::where('attendable_type', Employee::class)
             ->selectRaw('EXTRACT(YEAR FROM date) as year')
             ->distinct()
-            ->orderBy('year', 'desc')
-            ->pluck('year');
+            ->pluck('year')
+            ->map(fn($year) => (int)$year);
 
-        return view('admin.reports.meal-allowance', compact('mealAllowanceData', 'employees', 'months', 'years'));
+        // Determine min and max year for the dropdown
+        $currentYear = (int)Carbon::now()->year;
+        $minYear = $yearsFromAttendance->min();
+
+        if ($minYear === null || $minYear > $currentYear) {
+            // If no attendance years or all attendance years are in the future
+            $minYear = $currentYear - 2; // Show current year and 2 past years
+        } else {
+            $minYear = min($minYear, $currentYear - 2); // Show at least 2 past years
+        }
+
+        // Generate the final list of years for the dropdown
+        $years = collect(range($currentYear, $minYear))->sortDesc()->values();
+        // Add one future year to ensure the current period is always selectable.
+        $years->prepend($currentYear + 1);
+        $years = $years->unique()->sortDesc()->values();
+
+        if ($years->isEmpty()) {
+            $years = collect([$currentYear]);
+        }
+        // *** END NEW LOGIC for years ***
+
+
+        return view('admin.reports.meal-allowance', compact('mealAllowanceData', 'employees', 'months', 'years', 'selectedMonth', 'selectedYear'));
     }
 
     public function performanceAllowance(Request $request)
     {
+        $selectedMonth = $request->input('month', Carbon::now()->month);
+        $selectedYear = $request->input('year', Carbon::now()->year);
+
         $query = Attendance::with('attendable')
             ->where('attendable_type', Employee::class);
 
-        // Filter by date range if provided
-        if ($request->filled('start_date') && $request->filled('end_date')) {
-            $query->whereBetween('date', [$request->start_date, $request->end_date]);
-        } elseif ($request->filled('start_date')) {
-            $query->where('date', '>=', $request->start_date);
-        } elseif ($request->filled('end_date')) {
-            $query->where('date', '<=', $request->end_date);
-        }
-
-        // Filter by month and year if provided
-        if ($request->filled('month') && $request->filled('year')) {
-            $query->whereMonth('date', $request->month)
-                  ->whereYear('date', $request->year);
-        }
+        // Filter by month and year only
+        $query->whereMonth('date', $selectedMonth)
+              ->whereYear('date', $selectedYear);
 
         // Filter by specific employee if provided
         if ($request->filled('employee_id')) {
@@ -724,13 +733,38 @@ class ReportController extends Controller
             12 => 'Desember'
         ];
 
-        $years = Attendance::where('attendable_type', Employee::class)
+        // *** NEW LOGIC for years ***
+        // Get unique years from attendance records
+        $yearsFromAttendance = Attendance::where('attendable_type', Employee::class)
             ->selectRaw('EXTRACT(YEAR FROM date) as year')
             ->distinct()
-            ->orderBy('year', 'desc')
-            ->pluck('year');
+            ->pluck('year')
+            ->map(fn($year) => (int)$year);
 
-        return view('admin.reports.performance-allowance', compact('performanceData', 'employees', 'months', 'years'));
+        // Determine min and max year for the dropdown
+        $currentYear = (int)Carbon::now()->year;
+        $minYear = $yearsFromAttendance->min();
+
+        if ($minYear === null || $minYear > $currentYear) {
+            // If no attendance years or all attendance years are in the future
+            $minYear = $currentYear - 2; // Show current year and 2 past years
+        } else {
+            $minYear = min($minYear, $currentYear - 2); // Show at least 2 past years
+        }
+
+        // Generate the final list of years for the dropdown
+        $years = collect(range($currentYear, $minYear))->sortDesc()->values();
+        // Add one future year to ensure the current period is always selectable.
+        $years->prepend($currentYear + 1);
+        $years = $years->unique()->sortDesc()->values();
+
+        if ($years->isEmpty()) {
+            $years = collect([$currentYear]);
+        }
+        // *** END NEW LOGIC for years ***
+
+
+        return view('admin.reports.performance-allowance', compact('performanceData', 'employees', 'months', 'years', 'selectedMonth', 'selectedYear'));
     }
 
     public function salaryReport(Request $request)
