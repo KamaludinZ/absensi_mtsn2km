@@ -82,7 +82,6 @@
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sakit</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cuti</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dinas Luar</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Terlambat</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Uang Makan</th>
                     </tr>
                 </thead>
@@ -115,16 +114,13 @@
                             <td class="px-6 py-4 whitespace-nowrap text-center">
                                 {{ $data['official_duty_days'] }}
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-center">
-                                {{ $data['late_days'] }}
-                            </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 Rp {{ number_format($data['total_meal_allowance'], 0, ',', '.') }}
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="11" class="px-6 py-4 text-center text-gray-500">
+                            <td colspan="9" class="px-6 py-4 text-center text-gray-500"> {{-- colspan changed from 11 to 9 --}}
                                 Tidak ada data pelaporan uang makan.
                             </td>
                         </tr>
