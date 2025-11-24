@@ -24,50 +24,45 @@
     </form>
 
     <!-- Monthly Summaries -->
-    <div class="space-y-4">
-        @foreach($summaries as $summary)
-            <div class="bg-white rounded-lg shadow p-5">
-                <h3 class="text-lg font-bold mb-4">
-                    <a href="{{ route('employee.salary.report.detail', ['year' => $selectedYear, 'month' => $summary['month_number']]) }}" class="text-blue-600 hover:text-blue-800 hover:underline">
-                        {{ $summary['month_name'] }} {{ $selectedYear }}
-                    </a>
-                </h3>
-                <div class="space-y-2 text-sm">
-                    <div class="flex justify-between">
-                        <span class="text-gray-600">Hari Aktif (Shift):</span>
-                        <span class="font-semibold">{{ $summary['active_days'] }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-600">Hari Hadir:</span>
-                        <span class="font-semibold text-green-600">{{ $summary['present_days'] }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-600">Tepat Waktu:</span>
-                        <span class="font-semibold">{{ $summary['on_time_days'] }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-600">Terlambat Datang:</span>
-                        <span class="font-semibold text-red-600">{{ $summary['late_days'] }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-600">Pulang Awal:</span>
-                        <span class="font-semibold text-yellow-600">{{ $summary['early_leave_days'] }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-600">Sakit:</span>
-                        <span class="font-semibold text-purple-600">{{ $summary['sick_days'] }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-600">Cuti:</span>
-                        <span class="font-semibold text-purple-600">{{ $summary['leave_days'] }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-600">Dinas Luar:</span>
-                        <span class="font-semibold text-purple-600">{{ $summary['official_duty_days'] }}</span>
-                    </div>
-                </div>
-            </div>
-        @endforeach
+    <div class="bg-white rounded-lg shadow overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bulan</th>
+                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hari Aktif (Shift)</th>
+                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hari Hadir</th>
+                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tepat Waktu</th>
+                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Terlambat Datang</th>
+                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pulang Awal</th>
+                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sakit</th>
+                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cuti</th>
+                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dinas Luar</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                @forelse($summaries as $summary)
+                    <tr>
+                        <td class="px-3 py-2 whitespace-nowrap text-sm font-medium">
+                            <a href="{{ route('employee.salary.report.detail', ['year' => $selectedYear, 'month' => $summary['month_number']]) }}" class="text-blue-600 hover:text-blue-800 hover:underline">
+                                {{ $summary['month_name'] }}
+                            </a>
+                        </td>
+                        <td class="px-3 py-2 whitespace-nowrap text-sm text-center text-gray-700">{{ $summary['active_days'] }}</td>
+                        <td class="px-3 py-2 whitespace-nowrap text-sm text-center text-green-600 font-semibold">{{ $summary['present_days'] }}</td>
+                        <td class="px-3 py-2 whitespace-nowrap text-sm text-center text-gray-700">{{ $summary['on_time_days'] }}</td>
+                        <td class="px-3 py-2 whitespace-nowrap text-sm text-center text-red-600 font-semibold">{{ $summary['late_days'] }}</td>
+                        <td class="px-3 py-2 whitespace-nowrap text-sm text-center text-yellow-600 font-semibold">{{ $summary['early_leave_days'] }}</td>
+                        <td class="px-3 py-2 whitespace-nowrap text-sm text-center text-purple-600 font-semibold">{{ $summary['sick_days'] }}</td>
+                        <td class="px-3 py-2 whitespace-nowrap text-sm text-center text-purple-600 font-semibold">{{ $summary['leave_days'] }}</td>
+                        <td class="px-3 py-2 whitespace-nowrap text-sm text-center text-purple-600 font-semibold">{{ $summary['official_duty_days'] }}</td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td colspan="9" class="px-3 py-2 text-center text-gray-500">Tidak ada data arsip gaji untuk tahun ini.</td>
+                    </tr>
+                @endforelse
+            </tbody>
+        </table>
     </div>
 </div>
 @endsection
