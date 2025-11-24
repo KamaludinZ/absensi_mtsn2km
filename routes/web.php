@@ -7,6 +7,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Student\AttendanceController as StudentAttendanceController;
 use App\Http\Controllers\Employee\AttendanceController as EmployeeAttendanceController;
 use App\Http\Controllers\Employee\PermissionController as EmployeePermissionController;
+use App\Http\Controllers\Employee\ReportController as EmployeeReportController;
 use App\Http\Controllers\Admin\EmployeeController;
 use App\Http\Controllers\Admin\StudentController;
 use App\Http\Controllers\Admin\RombelController;
@@ -93,6 +94,11 @@ Route::middleware(['auth', CheckRole::class . ':pegawai'])->prefix('employee')->
     Route::prefix('profile')->name('profile.')->group(function () {
         Route::get('/change-password', [App\Http\Controllers\Employee\ProfileController::class, 'showChangePasswordForm'])->name('change-password');
         Route::put('/change-password', [App\Http\Controllers\Employee\ProfileController::class, 'updatePassword'])->name('update-password');
+    });
+
+    Route::prefix('salary-report')->name('salary.')->group(function () {
+        Route::get('/', [EmployeeReportController::class, 'salaryReport'])->name('report');
+        Route::get('/{year}/{month}', [EmployeeReportController::class, 'salaryReportDetail'])->name('report.detail');
     });
 });
 

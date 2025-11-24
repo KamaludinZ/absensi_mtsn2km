@@ -443,6 +443,16 @@
                 </div>
                 <span class="nav-text">Report Absensi</span>
             </a>
+            <a href="{{ route('employee.salary.report') }}" 
+               class="nav-item {{ request()->routeIs('employee.salary.report') ? 'active' : '' }}"
+               :class="{'pl-8': collapsed}">
+                <div class="nav-icon">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H4a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                    </svg>
+                </div>
+                <span class="nav-text">Laporan Gaji</span>
+            </a>
             <a href="{{ route('employee.permission.index') }}"
                class="nav-item {{ request()->routeIs('employee.permission.*') ? 'active' : '' }}"
                :class="{'pl-8': collapsed}">
