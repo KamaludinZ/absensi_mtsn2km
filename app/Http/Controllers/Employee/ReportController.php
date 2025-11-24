@@ -93,22 +93,32 @@ class ReportController extends Controller
                 $currentDate = Carbon::create($selectedYear, $month, $day);
                 $dateKey = $currentDate->format('Y-m-d');
 
-                $permissionType = $permissionMap[$dateKey] ?? null;
+                $permissionTypeRaw = $permissionMap[$dateKey] ?? null;
+                $permissionType = $permissionTypeRaw ? ($permissionTypesFull[$permissionTypeRaw] ?? $permissionTypeRaw) : null;
+                
                 $shift = $shifts->get($dateKey);
                 $attendance = $attendances->get($dateKey);
 
+                $isWorkDay = ($shift && !$permissionType);
+                $isPresent = ($attendance && ($attendance->clock_in || $attendance->clock_out) && !$permissionType);
+
+                // Count permission days
                 if ($permissionType) {
                     if ($permissionType === 'Sakit') $summary['sick_days']++;
                     if ($permissionType === 'Cuti') $summary['leave_days']++;
                     if ($permissionType === 'Dinas Luar') $summary['official_duty_days']++;
                 }
 
+                // Count active (shift) days
                 if ($shift) {
                     $summary['active_days']++;
-
-                    if ($attendance && !$permissionType) {
+                }
+                
+                // Count present, absent, and statuses only on work days
+                if ($isWorkDay) {
+                    if ($isPresent) {
                         $summary['present_days']++;
-
+                        
                         $schedule = $shift->schedule;
                         if ($schedule) {
                             $statusIn = 'Tidak Hadir';
@@ -130,8 +140,8 @@ class ReportController extends Controller
                             if ($statusOut === 'Pulang Awal') $summary['early_leave_days']++;
                             if ($statusIn === 'Tepat Waktu' && $statusOut === 'Tepat Waktu') $summary['on_time_days']++;
                         }
-                    } elseif (!$attendance && !$permissionType) {
-                        // This is an absence without permission on a scheduled day
+                    } else {
+                        // It's a workday, but the user was not present and had no permission
                         $summary['absent_days']++;
                     }
                 }
