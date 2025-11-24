@@ -36,9 +36,6 @@ class ReportController extends Controller
         }
 
         // Fetch all necessary data for the entire year
-        $startDate = Carbon::create($selectedYear, 1, 1)->startOfYear();
-        $endDate = Carbon::create($selectedYear, 1, 1)->endOfYear();
-
         $shifts = EmployeeShift::where('employee_id', $employee->id)
             ->whereYear('date', $selectedYear)
             ->with('schedule')
@@ -58,8 +55,10 @@ class ReportController extends Controller
         $permissions = Permission::where('permissible_id', $employee->id)
             ->where('permissible_type', Employee::class)
             ->where('status', 'approved')
-            ->whereYear('start_date', $selectedYear)
-            ->orWhereYear('end_date', $selectedYear)
+            ->where(function ($query) use ($selectedYear) {
+                $query->whereYear('start_date', $selectedYear)
+                      ->orWhereYear('end_date', $selectedYear);
+            })
             ->get();
 
         $permissionMap = [];
@@ -72,16 +71,9 @@ class ReportController extends Controller
             }
         }
         
-        $permissionTypesFull = [
-            'C' => 'Cuti',
-            'S' => 'Sakit',
-            'DL' => 'Dinas Luar',
-        ];
-
         $summaries = [];
         for ($month = 1; $month <= 12; $month++) {
             $monthStartDate = Carbon::create($selectedYear, $month, 1);
-            $monthEndDate = $monthStartDate->copy()->endOfMonth();
 
             $summary = [
                 'month_number' => $month,
@@ -113,14 +105,19 @@ class ReportController extends Controller
                 if ($shift) {
                     $summary['active_days']++;
 
-                    if ($attendance) {
+                    if ($attendance && !$permissionType) {
                         $summary['present_days']++;
 
                         $schedule = $shift->schedule;
                         if ($schedule) {
-                            $diffIn = $this->calculateTimeDifference($attendance->clock_in, $schedule->start_time);
-                            $statusIn = ($diffIn['seconds'] < 0) ? 'Terlambat' : 'Tepat Waktu';
+                            $statusIn = 'Tidak Hadir';
+                            $statusOut = 'Tidak Hadir';
 
+                            if ($attendance->clock_in) {
+                                $diffIn = $this->calculateTimeDifference($attendance->clock_in, $schedule->start_time);
+                                $statusIn = ($diffIn['seconds'] < 0) ? 'Terlambat' : 'Tepat Waktu';
+                            }
+                            
                             if ($attendance->clock_out) {
                                 $diffOut = $this->calculateTimeDifference($attendance->clock_out, $schedule->end_time);
                                 $statusOut = ($diffOut['seconds'] > 0) ? 'Pulang Awal' : 'Tepat Waktu';
@@ -128,9 +125,9 @@ class ReportController extends Controller
                                 $statusOut = 'Belum Pulang';
                             }
 
-                            if ($statusIn === 'Tepat Waktu') $summary['on_time_days']++;
                             if ($statusIn === 'Terlambat') $summary['late_days']++;
                             if ($statusOut === 'Pulang Awal') $summary['early_leave_days']++;
+                            if ($statusIn === 'Tepat Waktu' && $statusOut === 'Tepat Waktu') $summary['on_time_days']++;
                         }
                     }
                 }
