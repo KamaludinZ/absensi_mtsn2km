@@ -888,7 +888,7 @@ class ReportController extends Controller
         $endDate = $startDate->copy()->endOfMonth();
         $daysInMonth = $startDate->daysInMonth;
 
-        // Eager load schedules
+        // Get all assigned shifts for the employee for the entire month
         $employeeShifts = \App\Models\EmployeeShift::where('employee_id', $employee->id)
             ->whereBetween('date', [$startDate, $endDate])
             ->with('schedule')
@@ -896,10 +896,6 @@ class ReportController extends Controller
             ->keyBy(function ($shift) {
                 return $shift->date->format('Y-m-d');
             });
-
-        $defaultSchedules = \App\Models\Schedule::where('type', 'pegawai')
-            ->get()
-            ->keyBy('day_of_week');
 
         $attendances = Attendance::where('attendable_type', Employee::class)
             ->where('attendable_id', $employee->id)
@@ -917,7 +913,10 @@ class ReportController extends Controller
         for ($day = 1; $day <= $daysInMonth; $day++) {
             $currentDate = Carbon::create($year, $month, $day);
             $dateKey = $currentDate->format('Y-m-d');
+            
             $attendance = $attendances->get($dateKey);
+            $employeeShift = $employeeShifts->get($dateKey);
+            $schedule = $employeeShift ? $employeeShift->schedule : null;
 
             $dailyMealAllowance = 0;
             $dailyTransportAllowance = 0;
@@ -926,44 +925,43 @@ class ReportController extends Controller
             $statusIn = '-';
             $statusOut = '-';
 
-            if ($attendance) {
-                // Determine the schedule for the day
-                $employeeShift = $employeeShifts->get($dateKey);
-                $schedule = null;
-                if ($employeeShift && $employeeShift->schedule) {
-                    $schedule = $employeeShift->schedule;
-                } else {
-                    $schedule = $defaultSchedules->get($currentDate->dayOfWeek);
-                }
+            // Only proceed if there is a schedule for this day
+            if ($schedule) {
+                if ($attendance) {
+                    // There is an attendance record on a scheduled day
+                    $diffIn = $this->calculateTimeDifference($attendance->clock_in, $schedule->start_time);
+                    $statusIn = ($diffIn['seconds'] < 0) ? 'Terlambat' : 'Tepat Waktu';
 
-                if ($schedule) {
-                    // Calculate clock in status
-                    if ($attendance->clock_in) {
-                        $diffIn = $this->calculateTimeDifference($attendance->clock_in, $schedule->start_time);
-                        $statusIn = ($diffIn['seconds'] < 0) ? 'Terlambat' : 'Tepat Waktu';
-                    }
-
-                    // Calculate clock out status
                     if ($attendance->clock_out) {
                         $diffOut = $this->calculateTimeDifference($attendance->clock_out, $schedule->end_time);
                         $statusOut = ($diffOut['seconds'] > 0) ? 'Pulang Awal' : 'Tepat Waktu';
+                    } else {
+                        $statusOut = 'Belum Pulang';
                     }
-                }
-                
-                $isPresent = $attendance->clock_in !== null || $attendance->clock_out !== null;
-                $isPerfect = $isPresent && $statusIn === 'Tepat Waktu' && $statusOut === 'Tepat Waktu';
 
-                if ($isPresent) {
+                    $isPresent = true;
+                    $isPerfect = $statusIn === 'Tepat Waktu' && ($statusOut === 'Tepat Waktu' || $statusOut === 'Belum Pulang');
+
+                    // Grant allowances because the employee was present on a scheduled day
                     $dailyMealAllowance = $salary->meal_allowance;
                     $dailyTransportAllowance = $salary->transport_allowance;
                     $totalMealAllowance += $dailyMealAllowance;
                     $totalTransportAllowance += $dailyTransportAllowance;
-                }
 
-                if ($isPerfect) {
-                    $dailyPerformanceAllowance = $salary->performance_allowance;
-                    $totalPerformanceAllowance += $dailyPerformanceAllowance;
+                    if ($isPerfect) {
+                        $dailyPerformanceAllowance = $salary->performance_allowance;
+                        $totalPerformanceAllowance += $dailyPerformanceAllowance;
+                    }
+
+                } else {
+                    // Scheduled day, but no attendance record
+                    $statusIn = 'Tidak Hadir';
+                    $statusOut = 'Tidak Hadir';
                 }
+            } else {
+                // No schedule assigned for this day, so it's an off day
+                $statusIn = 'Hari Libur';
+                $statusOut = 'Hari Libur';
             }
 
             $detailData[] = [
