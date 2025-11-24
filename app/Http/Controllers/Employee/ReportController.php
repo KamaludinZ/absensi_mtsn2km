@@ -167,9 +167,13 @@ class ReportController extends Controller
 
         $monthName = Carbon::create($year, $month)->isoFormat('MMMM');
 
-        $salaryData = $this->getSalaryDetailData($employee, $year, $month);
+        $data = $this->getSalaryDetailData($employee, $year, $month);
 
-        return view('employee.salary.show', array_merge($salaryData, ['year' => $year, 'monthName' => $monthName]));
+        return view('employee.salary.show', array_merge($data, [
+            'year' => $year,
+            'month' => $month, // Pass month number as well
+            'monthName' => $monthName
+        ]));
     }
 
     private function getSalaryDetailData(Employee $employee, $year, $month)
@@ -179,14 +183,17 @@ class ReportController extends Controller
 
         if (!$salary) {
             return [
-                'salaryData' => null,
+                'employee' => $employee,
+                'summary' => null,
+                'detailData' => [],
                 'permissionMap' => [],
             ];
         }
 
         $startDate = Carbon::create($year, $month, 1)->startOfMonth();
         $endDate = $startDate->copy()->endOfMonth();
-        
+        $daysInMonth = $startDate->daysInMonth;
+
         $employeeShifts = \App\Models\EmployeeShift::where('employee_id', $employee->id)
             ->whereBetween('date', [$startDate, $endDate])
             ->with('schedule')
@@ -202,7 +209,7 @@ class ReportController extends Controller
             ->keyBy(function ($item) {
                 return $item->date->format('Y-m-d');
             });
-            
+
         $permissions = \App\Models\Permission::where('permissible_id', $employee->id)
             ->where('permissible_type', Employee::class)
             ->where('status', 'approved')
@@ -227,13 +234,12 @@ class ReportController extends Controller
             }
         }
 
-        $present_days = 0;
-        $perfect_days = 0;
+        $detailData = [];
         $totalMealAllowance = 0;
         $totalTransportAllowance = 0;
         $totalPerformanceAllowance = 0;
 
-        for ($day = 1; $day <= $endDate->day; $day++) {
+        for ($day = 1; $day <= $daysInMonth; $day++) {
             $currentDate = Carbon::create($year, $month, $day);
             $dateKey = $currentDate->format('Y-m-d');
             
@@ -241,52 +247,78 @@ class ReportController extends Controller
             $employeeShift = $employeeShifts->get($dateKey);
             $schedule = $employeeShift ? $employeeShift->schedule : null;
             $permissionType = $permissionMap[$dateKey] ?? null;
+
+            $dailyMealAllowance = 0;
+            $dailyTransportAllowance = 0;
+            $dailyPerformanceAllowance = 0;
             
             $statusIn = '-';
             $statusOut = '-';
 
-            if (!$permissionType && $schedule && $attendance) {
-                if ($attendance->clock_in) {
-                    $diffIn = $this->calculateTimeDifference($attendance->clock_in, $schedule->start_time);
-                    $statusIn = ($diffIn['seconds'] < 0) ? 'Terlambat' : 'Tepat Waktu';
+            if ($permissionType) {
+                $statusIn = $permissionType;
+                $statusOut = $permissionType;
+            } elseif ($schedule) {
+                if ($attendance) {
+                    if ($attendance->clock_in) {
+                        $diffIn = $this->calculateTimeDifference($attendance->clock_in, $schedule->start_time);
+                        $statusIn = ($diffIn['seconds'] < 0) ? 'Terlambat' : 'Tepat Waktu';
+                    } else {
+                        $statusIn = 'Tidak Hadir';
+                    }
+
+                    if ($attendance->clock_out) {
+                        $diffOut = $this->calculateTimeDifference($attendance->clock_out, $schedule->end_time);
+                        $statusOut = ($diffOut['seconds'] > 0) ? 'Pulang Awal' : 'Tepat Waktu';
+                    } else {
+                        $statusOut = 'Belum Pulang';
+                    }
+                    
+                    $isPresent = $attendance->clock_in !== null || $attendance->clock_out !== null;
+                    if ($isPresent) {
+                        $dailyMealAllowance = $salary->meal_allowance;
+                        $dailyTransportAllowance = $salary->transport_allowance;
+                        $totalMealAllowance += $dailyMealAllowance;
+                        $totalTransportAllowance += $dailyTransportAllowance;
+                        
+                        $isPerfect = $statusIn === 'Tepat Waktu' && $statusOut === 'Tepat Waktu';
+                        if ($isPerfect) {
+                            $dailyPerformanceAllowance = $salary->performance_allowance;
+                            $totalPerformanceAllowance += $dailyPerformanceAllowance;
+                        }
+                    }
                 } else {
                     $statusIn = 'Tidak Hadir';
+                    $statusOut = 'Tidak Hadir';
                 }
-
-                if ($attendance->clock_out) {
-                    $diffOut = $this->calculateTimeDifference($attendance->clock_out, $schedule->end_time);
-                    $statusOut = ($diffOut['seconds'] > 0) ? 'Pulang Awal' : 'Tepat Waktu';
-                } else {
-                    $statusOut = 'Belum Pulang';
-                }
-                
-                $isPresent = true;
-                $isPerfect = $statusIn === 'Tepat Waktu' && ($statusOut === 'Tepat Waktu' || $statusOut === 'Belum Pulang');
-
-                $present_days++;
-                $totalMealAllowance += $salary->meal_allowance;
-                $totalTransportAllowance += $salary->transport_allowance;
-
-                if ($isPerfect) {
-                    $perfect_days++;
-                    $totalPerformanceAllowance += $salary->performance_allowance;
-                }
+            } else {
+                $statusIn = 'Hari Libur';
+                $statusOut = 'Hari Libur';
             }
+
+            $detailData[] = [
+                'date' => $currentDate,
+                'attendance' => $attendance,
+                'schedule' => $schedule,
+                'status_in' => $statusIn,
+                'status_out' => $statusOut,
+                'daily_meal_allowance' => $dailyMealAllowance,
+                'daily_transport_allowance' => $dailyTransportAllowance,
+                'daily_performance_allowance' => $dailyPerformanceAllowance,
+            ];
         }
 
         $totalSalary = $salary->base_salary + $totalMealAllowance + $totalTransportAllowance + $totalPerformanceAllowance;
 
-        $salaryData = [
+        $summary = [
             'base_salary' => $salary->base_salary,
-            'present_days' => $present_days,
             'total_meal_allowance' => $totalMealAllowance,
             'total_transport_allowance' => $totalTransportAllowance,
-            'perfect_days' => $perfect_days,
             'total_performance_allowance' => $totalPerformanceAllowance,
             'total_salary' => $totalSalary,
         ];
 
-        return compact('salaryData', 'permissionMap');
+        return compact('employee', 'detailData', 'summary', 'permissionMap');
     }
 
     private function calculateTimeDifference($actualTime, $scheduleTime)
