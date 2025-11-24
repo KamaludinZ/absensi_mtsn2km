@@ -457,8 +457,8 @@ class AttendanceController extends Controller
         }
 
         // Additionally filter by month if provided
-        $month = $request->filled('month') ? $request->month : now()->month;
-        $query->whereMonth('date', $month);
+        $selectedMonth = $request->filled('month') ? $request->month : now()->month;
+        $query->whereMonth('date', $selectedMonth);
 
         // Handle sorting
         $sortField = $request->get('sort', 'date'); // Default sort by date
@@ -479,7 +479,7 @@ class AttendanceController extends Controller
             ->appends([
                 'sort' => $sortField,
                 'direction' => $sortDirection,
-                'month' => $month,
+                'month' => $selectedMonth,
                 'academic_year_id' => $selectedAcademicYearId
             ]);
 
@@ -519,7 +519,7 @@ class AttendanceController extends Controller
         $timeDiffFormatSetting = \App\Models\AttendanceSetting::where('setting_key', 'time_difference_format')->first();
         $timeDiffFormat = $timeDiffFormatSetting ? $timeDiffFormatSetting->setting_value : 'time';
 
-        return view('employee.report', compact('attendances', 'months', 'academicYears', 'selectedAcademicYearId', 'employeeShifts', 'schedules', 'sortField', 'sortDirection', 'timeDiffFormat'));
+        return view('employee.report', compact('attendances', 'months', 'academicYears', 'selectedAcademicYearId', 'employeeShifts', 'schedules', 'sortField', 'sortDirection', 'timeDiffFormat', 'selectedMonth'));
     }
 
     public function export(Request $request)

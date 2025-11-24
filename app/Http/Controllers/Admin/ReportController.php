@@ -23,19 +23,13 @@ class ReportController extends Controller
         $query = Attendance::with('attendable')
             ->where('attendable_type', Employee::class);
 
-        // Filter by date range if provided
-        if ($request->filled('start_date') && $request->filled('end_date')) {
-            $query->whereBetween('date', [$request->start_date, $request->end_date]);
-        } elseif ($request->filled('start_date')) {
-            $query->where('date', '>=', $request->start_date);
-        } elseif ($request->filled('end_date')) {
-            $query->where('date', '<=', $request->end_date);
-        }
+        $selectedMonth = $request->input('month', Carbon::now()->month);
+        $selectedYear = $request->input('year', Carbon::now()->year);
 
-        // Filter by month and year if provided
-        if ($request->filled('month') && $request->filled('year')) {
-            $query->whereMonth('date', $request->month)
-                  ->whereYear('date', $request->year);
+        // Filter by month and year. Default to current month if not provided.
+        if ($selectedMonth && $selectedYear) {
+            $query->whereMonth('date', $selectedMonth)
+                  ->whereYear('date', $selectedYear);
         }
 
         // Filter by specific employee if provided
@@ -124,17 +118,9 @@ class ReportController extends Controller
 
         // Calculate summary statistics
         $summaryQuery = Attendance::where('attendable_type', Employee::class);
-        if ($request->filled('start_date') && $request->filled('end_date')) {
-            $summaryQuery->whereBetween('date', [$request->start_date, $request->end_date]);
-        } elseif ($request->filled('start_date')) {
-            $summaryQuery->where('date', '>=', $request->start_date);
-        } elseif ($request->filled('end_date')) {
-            $summaryQuery->where('date', '<=', $request->end_date);
-        }
-        
-        if ($request->filled('month') && $request->filled('year')) {
-            $summaryQuery->whereMonth('date', $request->month)
-                         ->whereYear('date', $request->year);
+        if ($selectedMonth && $selectedYear) {
+            $summaryQuery->whereMonth('date', $selectedMonth)
+                         ->whereYear('date', $selectedYear);
         }
 
         if ($request->filled('employee_id')) {
@@ -163,34 +149,18 @@ class ReportController extends Controller
 
         // Get permission statistics for the same date range
         $permissionQuery = \App\Models\Permission::where('permissible_type', Employee::class);
-        if ($request->filled('start_date') && $request->filled('end_date')) {
-            // Filter by date range considering the permission date range
-            $permissionQuery->where(function($q) use ($request) {
-                $q->whereBetween('start_date', [$request->start_date, $request->end_date])
-                  ->orWhereBetween('end_date', [$request->start_date, $request->end_date])
-                  ->orWhere(function($subQ) use ($request) {
-                      $subQ->where('start_date', '<=', $request->start_date)
-                           ->where('end_date', '>=', $request->end_date);
-                  });
-            });
-        } elseif ($request->filled('start_date')) {
-            $permissionQuery->where('start_date', '>=', $request->start_date);
-        } elseif ($request->filled('end_date')) {
-            $permissionQuery->where('end_date', '<=', $request->end_date);
-        }
-        
-        if ($request->filled('month') && $request->filled('year')) {
+        if ($selectedMonth && $selectedYear) {
             // Filter by month and year
-            $permissionQuery->where(function($q) use ($request) {
-                $q->whereMonth('start_date', $request->month)
-                  ->whereYear('start_date', $request->year)
-                  ->orWhere(function($subQ) use ($request) {
-                      $subQ->whereMonth('end_date', $request->month)
-                           ->whereYear('end_date', $request->year);
+            $permissionQuery->where(function($q) use ($selectedMonth, $selectedYear) {
+                $q->whereMonth('start_date', $selectedMonth)
+                  ->whereYear('start_date', $selectedYear)
+                  ->orWhere(function($subQ) use ($selectedMonth, $selectedYear) {
+                      $subQ->whereMonth('end_date', $selectedMonth)
+                           ->whereYear('end_date', $selectedYear);
                   })
-                  ->orWhere(function($subQ) use ($request) {
-                      $subQ->where('start_date', '<=', Carbon::create($request->year, $request->month, 1)->endOfMonth())
-                           ->where('end_date', '>=', Carbon::create($request->year, $request->month, 1)->startOfMonth());
+                  ->orWhere(function($subQ) use ($selectedMonth, $selectedYear) {
+                      $subQ->where('start_date', '<=', Carbon::create($selectedYear, $selectedMonth, 1)->endOfMonth())
+                           ->where('end_date', '>=', Carbon::create($selectedYear, $selectedMonth, 1)->startOfMonth());
                   });
             });
         }
@@ -214,7 +184,7 @@ class ReportController extends Controller
         $timeDiffFormatSetting = \App\Models\AttendanceSetting::where('setting_key', 'time_difference_format')->first();
         $timeDiffFormat = $timeDiffFormatSetting ? $timeDiffFormatSetting->setting_value : 'time';
 
-        return view('admin.reports.employees', compact('attendances', 'employees', 'months', 'years', 'summary', 'timeDiffFormat'));
+        return view('admin.reports.employees', compact('attendances', 'employees', 'months', 'years', 'summary', 'timeDiffFormat', 'selectedMonth', 'selectedYear'));
     }
     
     public function students()

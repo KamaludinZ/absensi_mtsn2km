@@ -34,25 +34,14 @@
     <div class="bg-white rounded-lg shadow p-6">
         <!-- Filter Section -->
         <div class="mb-6 p-4 bg-gray-50 rounded-lg">
-            <form method="GET" class="grid grid-cols-1 md:grid-cols-6 gap-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Tanggal Mulai</label>
-                    <input type="date" name="start_date" value="{{ request('start_date') }}"
-                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Tanggal Selesai</label>
-                    <input type="date" name="end_date" value="{{ request('end_date') }}"
-                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
+            <form method="GET" class="grid grid-cols-1 md:grid-cols-4 gap-4">
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Bulan</label>
                     <select name="month" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                         <option value="">Semua Bulan</option>
                         @foreach($months as $value => $name)
-                            <option value="{{ $value }}" {{ request('month') == $value ? 'selected' : '' }}>
+                            <option value="{{ $value }}" {{ (isset($selectedMonth) && $selectedMonth == $value) ? 'selected' : '' }}>
                                 {{ $name }}
                             </option>
                         @endforeach
@@ -64,7 +53,7 @@
                     <select name="year" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                         <option value="">Semua Tahun</option>
                         @foreach($years as $year)
-                            <option value="{{ $year }}" {{ request('year') == $year ? 'selected' : '' }}>
+                            <option value="{{ $year }}" {{ (isset($selectedYear) && $selectedYear == $year) ? 'selected' : '' }}>
                                 {{ $year }}
                             </option>
                         @endforeach
@@ -215,13 +204,22 @@
                             @endif
                         </td>
                         <td class="py-3 px-4 border-b whitespace-nowrap">
-                            @if($attendance->clock_in && $schedule)
+                            @if(in_array($attendance->status_in, ['C', 'S', 'DL']))
+                                <span class="px-2 py-1 rounded text-xs bg-blue-100 text-blue-800">
+                                    @if($attendance->status_in == 'C')
+                                        Cuti
+                                    @elseif($attendance->status_in == 'S')
+                                        Sakit
+                                    @else
+                                        Dinas Luar
+                                    @endif
+                                </span>
+                            @elseif($attendance->clock_in && $schedule)
                                 @php
                                     $clockIn = \Carbon\Carbon::parse($attendance->clock_in);
                                     $startTime = \Carbon\Carbon::parse($schedule->start_time)->setDate($clockIn->year, $clockIn->month, $clockIn->day);
                                     $diffInSeconds = $clockIn->diffInSeconds($startTime, false);
 
-                                    // Based on user's observation, a late clock-in produces a negative diff.
                                     if ($diffInSeconds > 0) { // This is ON-TIME or EARLY
                                         $statusText = 'Tepat Waktu';
                                         $statusColor = 'bg-green-100 text-green-800';
@@ -296,7 +294,17 @@
                             @endif
                         </td>
                         <td class="py-3 px-4 border-b whitespace-nowrap">
-                            @if($attendance->clock_out && $schedule)
+                            @if(in_array($attendance->status_out, ['C', 'S', 'DL']))
+                                <span class="px-2 py-1 rounded text-xs bg-blue-100 text-blue-800">
+                                    @if($attendance->status_out == 'C')
+                                        Cuti
+                                    @elseif($attendance->status_out == 'S')
+                                        Sakit
+                                    @else
+                                        Dinas Luar
+                                    @endif
+                                </span>
+                            @elseif($attendance->clock_out && $schedule)
                                 @php
                                     $clockOut = \Carbon\Carbon::parse($attendance->clock_out);
                                     $endTime = \Carbon\Carbon::parse($schedule->end_time)->setDate($clockOut->year, $clockOut->month, $clockOut->day);

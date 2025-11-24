@@ -54,17 +54,27 @@
 
         <!-- Filter Section -->
         <div class="mb-6 p-4 bg-gray-50 rounded-lg">
-            <form method="GET" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <form method="GET" class="grid grid-cols-1 md:grid-cols-5 gap-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Tanggal Mulai</label>
-                    <input type="date" name="start_date" value="{{ request('start_date') }}"
-                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Bulan</label>
+                    <select name="month" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        @foreach($months as $value => $name)
+                            <option value="{{ $value }}" {{ (isset($selectedMonth) && $selectedMonth == $value) ? 'selected' : '' }}>
+                                {{ $name }}
+                            </option>
+                        @endforeach
+                    </select>
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Tanggal Selesai</label>
-                    <input type="date" name="end_date" value="{{ request('end_date') }}"
-                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Tahun</label>
+                    <select name="year" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        @foreach($years as $year)
+                            <option value="{{ $year }}" {{ (isset($selectedYear) && $selectedYear == $year) ? 'selected' : '' }}>
+                                {{ $year }}
+                            </option>
+                        @endforeach
+                    </select>
                 </div>
 
                 <div>
@@ -86,11 +96,11 @@
                            placeholder="Cari nama siswa...">
                 </div>
 
-                <div class="md:col-span-4 flex justify-end">
-                    <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 mr-2">
+                <div class="flex items-end">
+                    <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 mr-2 w-full">
                         Filter
                     </button>
-                    <a href="{{ route('monitoring.students') }}" class="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700">
+                    <a href="{{ route('monitoring.students') }}" class="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 w-full text-center">
                         Reset
                     </a>
                 </div>
@@ -185,7 +195,17 @@
                             @endif
                         </td>
                         <td class="py-3 px-4 border-b whitespace-nowrap">
-                            @if($attendance->clock_in && $schedule)
+                            @if(in_array($attendance->status_in, ['C', 'S', 'DL']))
+                                <span class="px-2 py-1 rounded text-xs bg-blue-100 text-blue-800">
+                                    @if($attendance->status_in == 'C')
+                                        Cuti
+                                    @elseif($attendance->status_in == 'S')
+                                        Sakit
+                                    @else
+                                        Dinas Luar
+                                    @endif
+                                </span>
+                            @elseif($attendance->clock_in && $schedule)
                                 @php
                                     $absensiMasukTime = \Carbon\Carbon::parse($attendance->clock_in)->format('H:i:s');
                                     $jamMasukTime = \Carbon\Carbon::parse($schedule->start_time)->format('H:i:s');
@@ -274,7 +294,17 @@
                             @endif
                         </td>
                         <td class="py-3 px-4 border-b whitespace-nowrap">
-                            @if($attendance->clock_out && $schedule)
+                            @if(in_array($attendance->status_out, ['C', 'S', 'DL']))
+                                <span class="px-2 py-1 rounded text-xs bg-blue-100 text-blue-800">
+                                    @if($attendance->status_out == 'C')
+                                        Cuti
+                                    @elseif($attendance->status_out == 'S')
+                                        Sakit
+                                    @else
+                                        Dinas Luar
+                                    @endif
+                                </span>
+                            @elseif($attendance->clock_out && $schedule)
                                 @php
                                     $absensiPulangTime = \Carbon\Carbon::parse($attendance->clock_out)->format('H:i:s');
                                     $jamPulangTime = \Carbon\Carbon::parse($schedule->end_time)->format('H:i:s');

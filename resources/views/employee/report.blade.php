@@ -59,13 +59,8 @@
                 <label for="month" class="block text-sm font-medium text-gray-700 mb-1">Bulan</label>
                 <select name="month" id="month" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                     <option value="">Semua Bulan</option>
-                    @php
-                        // Always default to current month if no month is specified in request
-                        $currentMonth = now()->month;
-                        $selectedMonth = request('month') ? request('month') : $currentMonth;
-                    @endphp
                     @foreach($months as $value => $name)
-                        <option value="{{ $value }}" {{ $selectedMonth == $value ? 'selected' : '' }}>
+                        <option value="{{ $value }}" {{ (isset($selectedMonth) && $selectedMonth == $value) ? 'selected' : '' }}>
                             {{ $name }}
                         </option>
                     @endforeach
@@ -193,7 +188,17 @@
                                                     @endif
                                                 </td>
                                                 <td class="px-6 py-4 whitespace-nowrap">
-                                                    @if($attendance->clock_in && $schedule)
+                                                    @if (in_array($attendance->status_in, ['C', 'S', 'DL']))
+                                                        <span class="px-2 py-1 rounded text-xs bg-blue-100 text-blue-800">
+                                                            @if ($attendance->status_in == 'C')
+                                                                Cuti
+                                                            @elseif ($attendance->status_in == 'S')
+                                                                Sakit
+                                                            @else
+                                                                Dinas Luar
+                                                            @endif
+                                                        </span>
+                                                    @elseif($attendance->clock_in && $schedule)
                                                         @php
                                                             $clockIn = \Carbon\Carbon::parse($attendance->clock_in);
                                                             $startTime = \Carbon\Carbon::parse($schedule->start_time)->setDate($clockIn->year, $clockIn->month, $clockIn->day);
@@ -269,7 +274,17 @@
                     @endif
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">
-                    @if($attendance->clock_out && $schedule)
+                    @if (in_array($attendance->status_out, ['C', 'S', 'DL']))
+                        <span class="px-2 py-1 rounded text-xs bg-blue-100 text-blue-800">
+                            @if ($attendance->status_out == 'C')
+                                Cuti
+                            @elseif ($attendance->status_out == 'S')
+                                Sakit
+                            @else
+                                Dinas Luar
+                            @endif
+                        </span>
+                    @elseif($attendance->clock_out && $schedule)
                         @php
                             $clockOut = \Carbon\Carbon::parse($attendance->clock_out);
                             $endTime = \Carbon\Carbon::parse($schedule->end_time)->setDate($clockOut->year, $clockOut->month, $clockOut->day);
