@@ -57,22 +57,25 @@
         .text-center { text-align: center; }
         .text-right { text-align: right; }
         .font-bold { font-weight: bold; }
-        .signature-section {
-            margin-top: 50px;
-            display: flex;
-            justify-content: space-around;
-            text-align: center;
+        .signature-table {
             width: 100%;
+            margin-top: 70px;
+            border-collapse: collapse;
         }
-        .signature-box {
-            width: 30%;
-            display: inline-block;
-            margin-top: 50px; /* Space for signature */
+        .signature-table td {
+            border: none;
+            width: 50%;
+            text-align: center;
+            padding: 10px;
+            vertical-align: top;
+        }
+        .signature-space {
+            height: 80px;
         }
         .signature-name {
-            margin-top: 5px;
+            display: inline-block;
             border-top: 1px solid black;
-            padding-top: 5px;
+            padding: 5px 20px 0 20px;
         }
     </style>
 </head>
@@ -163,15 +166,19 @@
         </div>
     </div>
 
-    <div class="signature-section">
-        <div class="signature-box">
-            <p>Pegawai Yang Bersangkutan,</p>
-            <div class="signature-name">({{ $employee->full_name }})</div>
-        </div>
-        <div class="signature-box">
-            <p>Mengetahui,</p>
-            <div class="signature-name">(........................................)</div>
-        </div>
-    </div>
+    <table class="signature-table">
+        <tr>
+            <td>
+                <p>Pegawai Yang Bersangkutan,</p>
+                <div class="signature-space"></div>
+                <p class="signature-name">({{ $employee->full_name }})</p>
+            </td>
+            <td>
+                <p>Mengetahui,</p>
+                <div class="signature-space"></div>
+                <p class="signature-name">(........................................)</p>
+            </td>
+        </tr>
+    </table>
 </body>
 </html>
