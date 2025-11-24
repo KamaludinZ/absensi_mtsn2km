@@ -968,6 +968,7 @@ class ReportController extends Controller
             $detailData[] = [
                 'date' => $currentDate,
                 'attendance' => $attendance,
+                'schedule' => $schedule,
                 'status_in' => $statusIn,
                 'status_out' => $statusOut,
                 'daily_meal_allowance' => $dailyMealAllowance,

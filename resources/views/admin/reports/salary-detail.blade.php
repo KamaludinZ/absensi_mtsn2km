@@ -68,9 +68,19 @@
                         <tr class="{{ $data['attendance'] ? 'hover:bg-gray-50' : 'bg-gray-100' }}">
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $data['date']->isoFormat('dddd') }}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $data['date']->isoFormat('D MMMM YYYY') }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $data['attendance'] ? ($data['attendance']->clock_in ? $data['attendance']->clock_in->format('H:i:s') : '-') : 'Libur/Tidak Ada Jadwal' }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                @if($data['schedule'])
+                                    <div><span class="font-semibold">Jadwal:</span> {{ \Carbon\Carbon::parse($data['schedule']->start_time)->format('H:i:s') }}</div>
+                                @endif
+                                <div><span class="font-semibold">Aktual:</span> {{ $data['attendance'] && $data['attendance']->clock_in ? \Carbon\Carbon::parse($data['attendance']->clock_in)->format('H:i:s') : '-' }}</div>
+                            </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $data['status_in'] }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $data['attendance'] ? ($data['attendance']->clock_out ? $data['attendance']->clock_out->format('H:i:s') : '-') : '-' }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                @if($data['schedule'])
+                                    <div><span class="font-semibold">Jadwal:</span> {{ \Carbon\Carbon::parse($data['schedule']->end_time)->format('H:i:s') }}</div>
+                                @endif
+                                <div><span class="font-semibold">Aktual:</span> {{ $data['attendance'] && $data['attendance']->clock_out ? \Carbon\Carbon::parse($data['attendance']->clock_out)->format('H:i:s') : '-' }}</div>
+                            </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $data['status_out'] }}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Rp {{ number_format($data['daily_meal_allowance'], 0, ',', '.') }}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Rp {{ number_format($data['daily_transport_allowance'], 0, ',', '.') }}</td>
