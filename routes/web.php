@@ -99,6 +99,7 @@ Route::middleware(['auth', CheckRole::class . ':pegawai'])->prefix('employee')->
     Route::prefix('salary-report')->name('salary.')->group(function () {
         Route::get('/', [EmployeeReportController::class, 'salaryReport'])->name('report');
         Route::get('/{year}/{month}', [EmployeeReportController::class, 'salaryReportDetail'])->name('report.detail');
+        Route::get('/{year}/{month}/pdf', [EmployeeReportController::class, 'generateSalaryPdf'])->name('report.pdf');
     });
 });
 
