@@ -7,17 +7,94 @@
         table { width: 100%; border-collapse: collapse; }
         th, td { border: 1px solid #000; padding: 2px; font-size: 7px; }
         th { background-color: #ddd; font-weight: bold; text-align: center; }
-        .header { text-align: center; margin-bottom: 10px; }
-        .header h2 { margin: 3px 0; font-size: 12px; }
-        .header h3 { margin: 3px 0; font-size: 10px; }
-        .header p { margin: 2px 0; font-size: 8px; }
+        .header {
+            text-align: center;
+            margin-bottom: 10px;
+            border-bottom: 3px solid #000;
+            padding-bottom: 5px;
+        }
+        .header-content {
+            display: table;
+            width: 100%;
+        }
+        .logo-left, .logo-right {
+            display: table-cell;
+            width: 50px;
+            vertical-align: middle;
+        }
+        .logo-left img, .logo-right img {
+            max-width: 40px;
+            max-height: 40px;
+        }
+        .header-text {
+            display: table-cell;
+            vertical-align: middle;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 11px;
+            text-transform: uppercase;
+        }
+        .header h2 {
+            margin: 2px 0;
+            font-size: 10px;
+            font-weight: normal;
+        }
+        .header h3 {
+            margin: 3px 0;
+            font-size: 10px;
+        }
+        .header p {
+            margin: 1px 0;
+            font-size: 7px;
+        }
+        .report-title {
+            text-align: center;
+            margin: 8px 0;
+        }
+        .report-title h3 {
+            margin: 2px 0;
+            font-size: 9px;
+            text-transform: uppercase;
+            text-decoration: underline;
+        }
         .tc { text-align: center; }
     </style>
 </head>
 <body>
     <div class="header">
-        <h2>{{ $schoolName }}</h2>
-        <p>{{ $schoolAddress }}</p>
+        <div class="header-content">
+            <div class="logo-left">
+                @if(!empty($headerSettings['left_logo']))
+                    <img src="{{ $headerSettings['left_logo'] }}" alt="Logo Kiri">
+                @endif
+            </div>
+            <div class="header-text">
+                <h1>{{ $headerSettings['school_name'] ?? $schoolName }}</h1>
+                <h2>{{ $headerSettings['school_full_name'] ?? 'MADRASAH TSANAWIYAH NEGERI 2 KOTA MALANG' }}</h2>
+                <p>{{ $headerSettings['school_address'] ?? $schoolAddress }}</p>
+                <p>
+                    @if(!empty($headerSettings['school_phone']))
+                        Telp: {{ $headerSettings['school_phone'] }}
+                    @endif
+                    @if(!empty($headerSettings['school_phone']) && !empty($headerSettings['school_email']))
+                        |
+                    @endif
+                    @if(!empty($headerSettings['school_email']))
+                        Email: {{ $headerSettings['school_email'] }}
+                    @endif
+                </p>
+            </div>
+            <div class="logo-right">
+                @if(!empty($headerSettings['right_logo']))
+                    <img src="{{ $headerSettings['right_logo'] }}" alt="Logo Kanan">
+                @endif
+            </div>
+        </div>
+    </div>
+
+    <div class="report-title">
         <h3>Laporan Absensi {{ $type === 'employee' ? 'Pegawai' : 'Siswa' }}</h3>
         <p>Periode: {{ $startDate }} - {{ $endDate }}</p>
     </div>

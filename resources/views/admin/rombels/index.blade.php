@@ -29,9 +29,11 @@
 
 @section('title', 'Rombel')
 @section('page-title', 'Rombel')
+@section('container-class', '')
 
 @section('content')
-<div class="bg-white rounded-lg shadow">
+<div class="w-full py-6">
+    <div class="bg-white rounded-lg shadow">
     <div class="px-6 py-4 border-b flex justify-between items-center">
         <h2 class="text-lg font-semibold text-gray-800">Daftar Rombel</h2>
         <div class="flex space-x-3">
@@ -188,4 +190,6 @@
         }
     });
 </script>
+    </div>
+</div>
 @endsection

@@ -29,9 +29,11 @@
 
 @section('title', 'Tingkat Kelas')
 @section('page-title', 'Tingkat Kelas')
+@section('container-class', '')
 
 @section('content')
-<div class="bg-white rounded-lg shadow">
+<div class="w-full py-6">
+    <div class="bg-white rounded-lg shadow">
     <div class="px-6 py-4 border-b flex justify-between items-center">
         <h2 class="text-lg font-semibold text-gray-800">Daftar Tingkat Kelas</h2>
         <a href="{{ route('admin.grades.create') }}" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
@@ -95,6 +97,7 @@
                 </tbody>
             </table>
         </div>
+    </div>
     </div>
 </div>
 @endsection

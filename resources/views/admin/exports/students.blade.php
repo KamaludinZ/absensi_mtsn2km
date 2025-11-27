@@ -73,20 +73,46 @@
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">
-                        Tanggal Awal <span class="text-red-600">*</span>
+                        Bulan <span class="text-red-600">*</span>
                     </label>
-                    <input type="date" name="start_date" value="{{ old('start_date') }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 @error('start_date') border-red-500 @enderror" required>
-                    @error('start_date')
+                    <select name="month" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 @error('month') border-red-500 @enderror" required>
+                        <option value="">-- Pilih Bulan --</option>
+                        <option value="1" {{ old('month') == '1' ? 'selected' : '' }}>Januari</option>
+                        <option value="2" {{ old('month') == '2' ? 'selected' : '' }}>Februari</option>
+                        <option value="3" {{ old('month') == '3' ? 'selected' : '' }}>Maret</option>
+                        <option value="4" {{ old('month') == '4' ? 'selected' : '' }}>April</option>
+                        <option value="5" {{ old('month') == '5' ? 'selected' : '' }}>Mei</option>
+                        <option value="6" {{ old('month') == '6' ? 'selected' : '' }}>Juni</option>
+                        <option value="7" {{ old('month') == '7' ? 'selected' : '' }}>Juli</option>
+                        <option value="8" {{ old('month') == '8' ? 'selected' : '' }}>Agustus</option>
+                        <option value="9" {{ old('month') == '9' ? 'selected' : '' }}>September</option>
+                        <option value="10" {{ old('month') == '10' ? 'selected' : '' }}>Oktober</option>
+                        <option value="11" {{ old('month') == '11' ? 'selected' : '' }}>November</option>
+                        <option value="12" {{ old('month') == '12' ? 'selected' : '' }}>Desember</option>
+                    </select>
+                    @error('month')
                         <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
                     @enderror
                 </div>
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">
-                        Tanggal Akhir <span class="text-red-600">*</span>
+                        Tahun <span class="text-red-600">*</span>
                     </label>
-                    <input type="date" name="end_date" value="{{ old('end_date') }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 @error('end_date') border-red-500 @enderror" required>
-                    @error('end_date')
+                    <select name="year" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 @error('year') border-red-500 @enderror" required>
+                        <option value="">-- Pilih Tahun --</option>
+                        @php
+                            $currentYear = date('Y');
+                            $startYear = $currentYear - 5; // Show 5 years before current year
+                            $endYear = $currentYear + 1;   // Show 1 year after current year
+                        @endphp
+                        @for($year = $endYear; $year >= $startYear; $year--)
+                            <option value="{{ $year }}" {{ old('year') == $year ? 'selected' : '' }}>
+                                {{ $year }}
+                            </option>
+                        @endfor
+                    </select>
+                    @error('year')
                         <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
                     @enderror
                 </div>
@@ -118,7 +144,7 @@
                         <li><strong>Format PDF:</strong> Menghasilkan file .pdf siap cetak dengan layout profesional dan kop sekolah</li>
                         <li><strong>Urutan Data:</strong> Diurutkan berdasarkan nama siswa (A-Z) kemudian tanggal (kronologis)</li>
                         <li><strong>Filter Rombel:</strong> Pilih rombel tertentu atau kosongkan untuk export semua rombel</li>
-                        <li><strong>Periode:</strong> Maksimal 1 tahun untuk performa optimal</li>
+                        <li><strong>Periode:</strong> Pilih bulan dan tahun untuk laporan</li>
                         <li><strong>Preview:</strong> Klik "Lihat Laporan" untuk preview data sebelum export</li>
                     </ul>
                 </div>
@@ -132,7 +158,8 @@
                 </svg>
                 <div>
                     <h3 class="font-semibold text-yellow-900 mb-1">Catatan Penting</h3>
-                    <p class="text-sm text-yellow-800">File export akan langsung terdownload ke komputer Anda. Pastikan tanggal awal tidak lebih besar dari tanggal akhir.</p>
+                    <p class="text-sm text-yellow-800">File export akan langsung terdownload ke komputer Anda. Hasil export akan mencakup seluruh tanggal dalam bulan dan tahun yang dipilih.</p>
+                </div>
                 </div>
             </div>
         </div>

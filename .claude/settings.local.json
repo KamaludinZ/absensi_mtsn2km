@@ -22,7 +22,13 @@
       "Bash(Select-Object -Last 30)",
       "Bash(Get-Content routesweb.php)",
       "Bash(Select-String -Pattern \"backup\")",
-      "Bash(unzip:*)"
+      "Bash(unzip:*)",
+      "Bash(git stash pop:*)",
+      "Bash(Select-String -Pattern \"pegawai\" -Context 2,10)",
+      "Bash(del test_performance_calculation.php check_attendance_without_shift.php check_all_employees.php check_employee_27.php)",
+      "Bash(powershell -Command:*)",
+      "Bash(del tailwind.config.js)",
+      "Bash(rm:*)"
     ],
     "deny": [],
     "ask": []

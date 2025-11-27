@@ -10,6 +10,7 @@ use App\Models\Employee;
 use App\Models\Attendance;
 use App\Models\Permission;
 use App\Models\EmployeeShift;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class ReportController extends Controller
 {
@@ -156,12 +157,14 @@ class ReportController extends Controller
 
                             if ($attendance->clock_in) {
                                 $diffIn = $this->calculateTimeDifference($attendance->clock_in, $schedule->start_time);
-                                $statusIn = ($diffIn['seconds'] < 0) ? 'Terlambat' : 'Tepat Waktu';
+                                // Fixed: If actual > scheduled (positive seconds), then late
+                                $statusIn = ($diffIn['seconds'] > 0) ? 'Terlambat' : 'Tepat Waktu';
                             }
-                            
+
                             if ($attendance->clock_out) {
                                 $diffOut = $this->calculateTimeDifference($attendance->clock_out, $schedule->end_time);
-                                $statusOut = ($diffOut['seconds'] > 0) ? 'Pulang Awal' : 'Tepat Waktu';
+                                // If actual < scheduled (negative seconds), then early departure
+                                $statusOut = ($diffOut['seconds'] < 0) ? 'Pulang Awal' : 'Tepat Waktu';
                             } else {
                                 $statusOut = 'Belum Pulang';
                             }
@@ -205,7 +208,9 @@ class ReportController extends Controller
 
     private function getSalaryDetailData(Employee $employee, $year, $month)
     {
-        $employee->load('salary');
+        $employee->load(['salary' => function($query) use ($month, $year) {
+            $query->where('month', $month)->where('year', $year);
+        }]);
         $salary = $employee->salary;
 
         if (!$salary) {
@@ -289,14 +294,16 @@ class ReportController extends Controller
                 if ($attendance) {
                     if ($attendance->clock_in) {
                         $diffIn = $this->calculateTimeDifference($attendance->clock_in, $schedule->start_time);
-                        $statusIn = ($diffIn['seconds'] < 0) ? 'Terlambat' : 'Tepat Waktu';
+                        // Fixed: If actual > scheduled (positive seconds), then late
+                        $statusIn = ($diffIn['seconds'] > 0) ? 'Terlambat' : 'Tepat Waktu';
                     } else {
                         $statusIn = 'Tidak Hadir';
                     }
 
                     if ($attendance->clock_out) {
                         $diffOut = $this->calculateTimeDifference($attendance->clock_out, $schedule->end_time);
-                        $statusOut = ($diffOut['seconds'] > 0) ? 'Pulang Awal' : 'Tepat Waktu';
+                        // If actual < scheduled (negative seconds), then early departure
+                        $statusOut = ($diffOut['seconds'] < 0) ? 'Pulang Awal' : 'Tepat Waktu';
                     } else {
                         $statusOut = 'Belum Pulang';
                     }
@@ -348,11 +355,83 @@ class ReportController extends Controller
         return compact('employee', 'detailData', 'summary', 'permissionMap');
     }
 
+    public function generateSalaryPdf(Request $request, $year, $month)
+    {
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+        $employee = $user->employee;
+
+        if (!$employee) {
+            return redirect()->route('employee.dashboard')->with('error', 'Data pegawai tidak ditemukan.');
+        }
+
+        // Get header settings from database
+        $schoolName = \App\Models\AttendanceSetting::where('setting_key', 'school_name')->first();
+        $schoolFullName = \App\Models\AttendanceSetting::where('setting_key', 'school_full_name')->first();
+        $schoolAddress = \App\Models\AttendanceSetting::where('setting_key', 'school_address')->first();
+        $schoolPhone = \App\Models\AttendanceSetting::where('setting_key', 'school_phone')->first();
+        $schoolEmail = \App\Models\AttendanceSetting::where('setting_key', 'school_email')->first();
+        $leftLogoPath = \App\Models\AttendanceSetting::where('setting_key', 'left_logo_path')->first();
+        $rightLogoPath = \App\Models\AttendanceSetting::where('setting_key', 'right_logo_path')->first();
+        $headmasterName = \App\Models\AttendanceSetting::where('setting_key', 'headmaster_name')->first();
+        $headmasterNip = \App\Models\AttendanceSetting::where('setting_key', 'headmaster_nip')->first();
+
+        // Convert logos to base64 for PDF
+        $leftLogoBase64 = '';
+        $rightLogoBase64 = '';
+
+        if ($leftLogoPath && $leftLogoPath->setting_value) {
+            $fullPath = public_path($leftLogoPath->setting_value);
+            if (file_exists($fullPath)) {
+                $imageData = base64_encode(file_get_contents($fullPath));
+                $imageType = pathinfo($fullPath, PATHINFO_EXTENSION);
+                $leftLogoBase64 = 'data:image/' . $imageType . ';base64,' . $imageData;
+            }
+        }
+
+        if ($rightLogoPath && $rightLogoPath->setting_value) {
+            $fullPath = public_path($rightLogoPath->setting_value);
+            if (file_exists($fullPath)) {
+                $imageData = base64_encode(file_get_contents($fullPath));
+                $imageType = pathinfo($fullPath, PATHINFO_EXTENSION);
+                $rightLogoBase64 = 'data:image/' . $imageType . ';base64,' . $imageData;
+            }
+        }
+
+        $headerSettings = [
+            'school_name' => $schoolName ? $schoolName->setting_value : 'MTsN 2 KOTA MALANG',
+            'school_full_name' => $schoolFullName ? $schoolFullName->setting_value : 'MADRASAH TSANAWIYAH NEGERI 2 KOTA MALANG',
+            'school_address' => $schoolAddress ? $schoolAddress->setting_value : 'Jl. KH. Hasyim Asy\'ari No. 1, Kota Malang, Jawa Timur 65144',
+            'school_phone' => $schoolPhone ? $schoolPhone->setting_value : '(0341) 123456',
+            'school_email' => $schoolEmail ? $schoolEmail->setting_value : 'info@mtsn2kotamalang.sch.id',
+            'left_logo' => $leftLogoBase64,
+            'right_logo' => $rightLogoBase64,
+            'headmaster_name' => $headmasterName ? $headmasterName->setting_value : '',
+            'headmaster_nip' => $headmasterNip ? $headmasterNip->setting_value : '',
+        ];
+
+        $data = $this->getSalaryDetailData($employee, $year, $month);
+        $monthName = Carbon::create($year, $month)->isoFormat('MMMM');
+
+        $pdf = Pdf::loadView('employee.salary.pdf', array_merge($data, [
+            'year' => $year,
+            'month' => $month,
+            'monthName' => $monthName,
+            'headerSettings' => $headerSettings,
+        ]))
+            ->setPaper('a4', 'portrait');
+
+        $filename = 'laporan_gaji_' . str_replace(' ', '_', $employee->full_name) . '_' . $monthName . '_' . $year . '.pdf';
+        return $pdf->download($filename);
+    }
+
     private function calculateTimeDifference($actualTime, $scheduleTime)
     {
         $actual = Carbon::parse($actualTime);
         $scheduled = Carbon::parse($scheduleTime)->setDate($actual->year, $actual->month, $actual->day);
-        $diffSeconds = $actual->diffInSeconds($scheduled, false);
+        // Fixed: Calculate difference as scheduled - actual for correct sign
+        // Positive = late (actual > scheduled), Negative = early (actual < scheduled)
+        $diffSeconds = $scheduled->diffInSeconds($actual, false);
 
         return ['seconds' => $diffSeconds];
     }

@@ -1,6 +1,8 @@
 @extends('layouts.app')
+
 @section('title', 'Laporan Absensi Pegawai')
 @section('page-title', 'Laporan Absensi Pegawai')
+@section('container-class', '')
 
 @php
     // Helper function to generate sortable column header
@@ -31,8 +33,9 @@
 @endphp
 
 @section('content')
-<div class="max-w-6xl mx-auto">
-    <div class="bg-white rounded-lg shadow p-6">
+<div class="w-full px-4 sm:px-6 py-6">
+    <div class="bg-white rounded-lg shadow-md overflow-hidden">
+        <div class="p-4">
         <div class="flex justify-between items-center mb-6">
             <h2 class="text-xl font-bold">Laporan Absensi Pegawai</h2>
         </div>
@@ -113,9 +116,12 @@
             <table class="min-w-full bg-white border border-gray-200">
                 <thead>
                     <tr class="bg-gray-100">
+                        <th class="py-3 px-4 border-b text-left">ID Pegawai</th>
                         <th class="py-3 px-4 border-b text-left">{!! sortableLink('Nama Pegawai', 'full_name', $currentSort, $currentDirection) !!}</th>
+                        <th class="py-3 px-4 border-b text-left">{!! sortableLink('NIP', 'nip', $currentSort, $currentDirection) !!}</th>
                         <th class="py-3 px-4 border-b text-left">{!! sortableLink('Jabatan', 'position', $currentSort, $currentDirection) !!}</th>
                         <th class="py-3 px-4 border-b text-left">{!! sortableLink('Tanggal', 'date', $currentSort, $currentDirection) !!}</th>
+                        <th class="py-3 px-4 border-b text-left">Hari</th>
                         <th class="py-3 px-4 border-b text-left">Nama Shift</th>
                         <th class="py-3 px-4 border-b text-left">Jam Masuk</th>
                         <th class="py-3 px-4 border-b text-left">Koordinat Masuk</th>
@@ -128,7 +134,7 @@
                         <th class="py-3 px-4 border-b text-left">{!! sortableLink('Absensi Pulang', 'clock_out', $currentSort, $currentDirection) !!}</th>
                         <th class="py-3 px-4 border-b text-left">Selisih Pulang</th>
                         <th class="py-3 px-4 border-b text-left">Status Pulang</th>
-
+                        <th class="py-3 px-4 border-b text-left">Selfie Pulang</th>
                         <th class="py-3 px-4 border-b text-left">Aksi</th>
                     </tr>
                 </thead>
@@ -136,13 +142,26 @@
                     @forelse($attendances as $attendance)
                     <tr class="hover:bg-gray-50">
                         <td class="py-3 px-4 border-b">
+                            {{ $attendance->attendable->id }}
+                        </td>
+                        <td class="py-3 px-4 border-b">
                             {{ $attendance->attendable->full_name ?? 'N/A' }}
+                        </td>
+                        <td class="py-3 px-4 border-b">
+                            {{ $attendance->attendable->nip ?? 'N/A' }}
                         </td>
                         <td class="py-3 px-4 border-b">
                             {{ $attendance->attendable->position ?? 'N/A' }}
                         </td>
                         <td class="py-3 px-4 border-b">
                             {{ $attendance->date->format('d/m/Y') }}
+                        </td>
+                        <td class="py-3 px-4 border-b">
+                            @php
+                                $dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+                                $dayName = $dayNames[$attendance->date->dayOfWeek];
+                            @endphp
+                            {{ $dayName }}
                         </td>
                         <td class="py-3 px-4 border-b">
                             @php
@@ -353,19 +372,38 @@
                             @endif
                         </td>
                         <td class="py-3 px-4 border-b">
-                            <div class="flex space-x-2">
-                                <a href="{{ route('admin.employees.show', $attendance->attendable_id) }}" class="text-blue-600 hover:underline">Detail</a>
-                                <a href="{{ route('admin.attendances.edit', $attendance->id) }}" class="text-yellow-600 hover:underline">Edit</a>
-                                <form action="{{ route('admin.attendances.destroy', $attendance->id) }}" method="POST" class="inline" onsubmit="return confirm('Yakin hapus data absensi ini?')">
+                            <div class="flex flex-wrap items-center gap-1">
+                                <a href="{{ route('admin.employees.show', $attendance->attendable_id) }}"
+                                   class="inline-flex items-center justify-center px-2 py-1 text-xs font-medium text-blue-600 bg-blue-50 rounded hover:bg-blue-100 transition-colors min-h-[24px]">
+                                    <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                    </svg>
+                                    Detail
+                                </a>
+                                <a href="{{ route('admin.attendances.edit', $attendance->id) }}"
+                                   class="inline-flex items-center justify-center px-2 py-1 text-xs font-medium text-yellow-600 bg-yellow-50 rounded hover:bg-yellow-100 transition-colors min-h-[24px]">
+                                    <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                    </svg>
+                                    Edit
+                                </a>
+                                <form action="{{ route('admin.attendances.destroy', $attendance->id) }}" method="POST" class="inline" onsubmit="return confirm('Yakin hapus data absensi ini?');">
                                     @csrf @method('DELETE')
-                                    <button type="submit" class="text-red-600 hover:underline">Hapus</button>
+                                    <button type="submit"
+                                            class="inline-flex items-center justify-center px-2 py-1 text-xs font-medium text-red-600 bg-red-50 rounded hover:bg-red-100 transition-colors min-h-[24px]">
+                                        <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                        </svg>
+                                        Hapus
+                                    </button>
                                 </form>
                             </div>
                         </td>
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="13" class="py-4 px-4 text-center text-gray-500">Tidak ada data absensi ditemukan</td>
+                        <td colspan="20" class="py-4 px-4 text-center text-gray-500">Tidak ada data absensi ditemukan</td>
                     </tr>
                     @endforelse
                 </tbody>
@@ -416,6 +454,7 @@
                 }
             </script>
         @endif
+        </div>
     </div>
 </div>
 @endsection

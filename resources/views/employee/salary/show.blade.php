@@ -5,20 +5,14 @@
 
 @section('content')
 <div class="container mx-auto px-4 py-8">
-    <div class="flex justify-between items-center mb-6">
-                <a href="{{ route('employee.salary.report', ['year' => $year]) }}" class="bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300 transition-colors flex items-center">
-                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                    </svg>
-                    Kembali
-                </a>
-                <button id="printPdfButton" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors flex items-center">
-                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v2M7 13h10" />
-                    </svg>
-                    Cetak PDF
-                </button>
-            </div>
+    <div class="mb-6">
+        <a href="{{ route('employee.salary.report', ['year' => $year]) }}" class="bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300 transition-colors flex items-center inline-flex">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            Kembali
+        </a>
+    </div>
         
             <!-- Employee Info -->
             <div class="bg-white rounded-lg shadow-md p-6 mb-8">
@@ -133,39 +127,6 @@
                     </div>
                 </div>
             </div>
-        
-            <!-- Signature Section -->
-            <div class="bg-white rounded-lg shadow-md p-6 mt-8 print-signature-section">
-                <div class="grid grid-cols-2 gap-8 text-center">
-                    <div>
-                        <p class="mb-8">Pegawai Yang Bersangkutan,</p>
-                        <p class="mt-16 font-semibold border-b border-gray-400 inline-block px-4">({{ $employee->full_name }})</p>
-                        <p class="text-sm text-gray-600 mt-2">NIP: {{ $employee->nip ?? '-' }}</p>
-                    </div>
-                    <div>
-                        <p class="mb-8">Mengetahui,</p>
-                        <p class="mt-16 font-semibold border-b border-gray-400 inline-block px-4">(........................................)</p>
-                        <p class="text-sm text-gray-600 mt-2">Nama & Jabatan</p>
-                    </div>
-                </div>
-            </div>
-        
-            </div>
-            <script>
-                document.addEventListener('DOMContentLoaded', function() {
-                    const printPdfButton = document.getElementById('printPdfButton');
-                    if (printPdfButton) {
-                        printPdfButton.addEventListener('click', function() {
-                            const year = {{ $year }};
-                            const month = {{ $month }};
-                            const url = `{{ route('employee.salary.report.pdf', ['year' => ':year', 'month' => ':month']) }}`
-                                .replace(':year', year)
-                                .replace(':month', month);
-                            
-                            window.open(url, '_blank');
-                        });
-                    }
-                });
-            </script>
-        @endsection
+</div>
+@endsection
         

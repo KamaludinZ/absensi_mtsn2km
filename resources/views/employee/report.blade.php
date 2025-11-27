@@ -2,6 +2,7 @@
 
 @section('title', 'Laporan Absensi Saya')
 @section('page-title', 'Laporan Absensi Saya')
+@section('container-class', '')
 
 @push('styles')
 <style>
@@ -11,6 +12,23 @@
     }
     .sortable-header:hover {
         background-color: rgba(0, 0, 0, 0.02);
+    }
+
+    /* Better table column spacing */
+    .attendance-report-table th,
+    .attendance-report-table td {
+        white-space: nowrap;
+    }
+
+    /* Responsive table for smaller screens */
+    @media (max-width: 768px) {
+        .attendance-report-table {
+            font-size: 0.8rem;
+        }
+        .attendance-report-table th,
+        .attendance-report-table td {
+            padding: 0.5rem 0.25rem;
+        }
     }
 </style>
 @endpush
@@ -52,7 +70,8 @@
 @endphp
 
 @section('content')
-<div class="mb-6">
+<div class="w-full py-3 px-4 md:px-6 lg:px-8">
+    <div class="mb-4">
     <form method="GET" class="bg-white p-4 rounded-lg shadow">
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
@@ -87,55 +106,64 @@
 </div>
 
 <div class="bg-white rounded-lg shadow overflow-x-auto">
-    <table class="min-w-full divide-y divide-gray-200">
-        <thead class="bg-gray-50">
+    <div class="p-4 md:p-6">
+        <table class="min-w-full divide-y divide-gray-200 attendance-report-table" style="table-layout: auto;">
+            <thead class="bg-gray-50">
             <tr>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header">
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header">
                     <a href="{{ getSortUrl('date', $sortField, $sortDirection) }}" class="flex items-center hover:text-gray-700 transition-colors">
                         Tanggal
                         {!! getSortIcon('date', $sortField, $sortDirection) !!}
                     </a>
                 </th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nama Shift</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jam Masuk</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header">
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hari</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nama Shift</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jam Masuk</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header">
                     <a href="{{ getSortUrl('clock_in', $sortField, $sortDirection) }}" class="flex items-center hover:text-gray-700 transition-colors">
                         Absensi Masuk
                         {!! getSortIcon('clock_in', $sortField, $sortDirection) !!}
                     </a>
                 </th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Selisih Masuk</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header">
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Selisih Masuk</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header">
                     <a href="{{ getSortUrl('status_in', $sortField, $sortDirection) }}" class="flex items-center hover:text-gray-700 transition-colors">
                         Status Masuk
                         {!! getSortIcon('status_in', $sortField, $sortDirection) !!}
                     </a>
                 </th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Koordinat Masuk</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Selfie Masuk</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jam Pulang</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header">
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Koordinat Masuk</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Selfie Masuk</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jam Pulang</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header">
                     <a href="{{ getSortUrl('clock_out', $sortField, $sortDirection) }}" class="flex items-center hover:text-gray-700 transition-colors">
                         Absensi Pulang
                         {!! getSortIcon('clock_out', $sortField, $sortDirection) !!}
                     </a>
                 </th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Selisih Pulang</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header">
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Selisih Pulang</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header">
                     <a href="{{ getSortUrl('status_out', $sortField, $sortDirection) }}" class="flex items-center hover:text-gray-700 transition-colors">
                         Status Pulang
                         {!! getSortIcon('status_out', $sortField, $sortDirection) !!}
                     </a>
                 </th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Koordinat Pulang</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Selfie Pulang</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Koordinat Pulang</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Selfie Pulang</th>
             </tr>
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
             @forelse($attendances as $attendance)
             <tr>
-                <td class="px-6 py-4 whitespace-nowrap">{{ $attendance->date->format('d/m/Y') }}</td>
-                <td class="px-6 py-4 whitespace-nowrap">
+                <td class="px-4 py-3 whitespace-nowrap text-sm">{{ $attendance->date->format('d/m/Y') }}</td>
+                <td class="px-4 py-3 whitespace-nowrap text-sm">
+                    @php
+                        $dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+                        $dayName = $dayNames[$attendance->date->dayOfWeek];
+                    @endphp
+                    {{ $dayName }}
+                </td>
+                <td class="px-4 py-3 whitespace-nowrap text-sm">
                     @php
                         $shiftName = null;
                         $schedule = null;
@@ -158,20 +186,20 @@
                     @endphp
                     {{ $shiftName ?? 'N/A' }}
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap">{{ $schedule ? \Carbon\Carbon::parse($schedule->start_time)->format('H:i:s') : '-' }}</td>
-                <td class="px-6 py-4 whitespace-nowrap">{{ $attendance->clock_in ? $attendance->clock_in->format('H:i:s') : '-' }}</td>
-                                                <td class="px-6 py-4 whitespace-nowrap">
+                <td class="px-4 py-3 whitespace-nowrap text-sm">{{ $schedule ? \Carbon\Carbon::parse($schedule->start_time)->format('H:i:s') : '-' }}</td>
+                <td class="px-4 py-3 whitespace-nowrap text-sm">{{ $attendance->clock_in ? $attendance->clock_in->format('H:i:s') : '-' }}</td>
+                                                <td class="px-4 py-3 whitespace-nowrap text-sm">
                                                     @if($attendance->clock_in && $schedule)
                                                         @php
                                                             $clockIn = \Carbon\Carbon::parse($attendance->clock_in);
                                                             $startTime = \Carbon\Carbon::parse($schedule->start_time)->setDate($clockIn->year, $clockIn->month, $clockIn->day);
                                                             $diffInSeconds = $clockIn->diffInSeconds($startTime, false);
-                                
+
                                                             $absDiff = abs($diffInSeconds);
                                                             $formattedValue = ($timeDiffFormat === 'minutes')
                                                                 ? ceil($absDiff / 60) . ' menit'
                                                                 : sprintf('%02d:%02d:%02d', floor($absDiff / 3600), floor(($absDiff % 3600) / 60), $absDiff % 60);
-                                
+
                                                             // Based on user's observation, a late clock-in produces a negative diff.
                                                             // So we check for < 0 to mean LATE and display '+'.
                                                             if ($diffInSeconds > 0) { // This block now represents ON-TIME or EARLY
@@ -187,7 +215,7 @@
                                                         -
                                                     @endif
                                                 </td>
-                                                <td class="px-6 py-4 whitespace-nowrap">
+                                                <td class="px-4 py-3 whitespace-nowrap text-sm">
                                                     @if (in_array($attendance->status_in, ['C', 'S', 'DL']))
                                                         <span class="px-2 py-1 rounded text-xs bg-blue-100 text-blue-800">
                                                             @if ($attendance->status_in == 'C')
@@ -203,7 +231,7 @@
                                                             $clockIn = \Carbon\Carbon::parse($attendance->clock_in);
                                                             $startTime = \Carbon\Carbon::parse($schedule->start_time)->setDate($clockIn->year, $clockIn->month, $clockIn->day);
                                                             $diffInSeconds = $clockIn->diffInSeconds($startTime, false);
-                                
+
                                                             // Based on user's observation, a late clock-in produces a negative diff.
                                                             if ($diffInSeconds > 0) { // This is ON-TIME or EARLY
                                                                 $statusText = 'Tepat Waktu';
@@ -221,7 +249,7 @@
                                                             {{ $attendance->clock_in ? 'N/A' : 'Tidak Hadir' }}
                                                         </span>
                                                     @endif
-                                                </td>                <td class="px-6 py-4 whitespace-nowrap">
+                                                </td>                <td class="px-4 py-3 whitespace-nowrap text-sm">
                     @if($attendance->clock_in && $attendance->clock_in_latitude && $attendance->clock_in_longitude)
                         <div class="text-sm">
                             <p>{{ number_format($attendance->clock_in_latitude, 6) }}, {{ number_format($attendance->clock_in_longitude, 6) }}</p>
@@ -231,22 +259,22 @@
                         <span>-</span>
                     @endif
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap">
+                <td class="px-4 py-3 whitespace-nowrap text-sm">
                     @if($attendance->selfie_path_in)
                         @php
                             $filename = basename($attendance->selfie_path_in);
                             $type = 'employee';
                         @endphp
                         <a href="{{ route('selfies.show', ['type' => $type, 'filename' => $filename]) }}" target="_blank">
-                            <img src="{{ route('selfies.show', ['type' => $type, 'filename' => $filename]) }}" alt="Selfie Masuk" class="w-16 h-16 object-cover rounded border cursor-pointer hover:opacity-80">
+                            <img src="{{ route('selfies.show', ['type' => $type, 'filename' => $filename]) }}" alt="Selfie Masuk" class="w-12 h-12 object-cover rounded border cursor-pointer hover:opacity-80">
                         </a>
                     @else
                         -
                     @endif
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap">{{ $schedule ? \Carbon\Carbon::parse($schedule->end_time)->format('H:i:s') : '-' }}</td>
-                <td class="px-6 py-4 whitespace-nowrap">{{ $attendance->clock_out ? $attendance->clock_out->format('H:i:s') : '-' }}</td>
-                <td class="px-6 py-4 whitespace-nowrap">
+                <td class="px-4 py-3 whitespace-nowrap text-sm">{{ $schedule ? \Carbon\Carbon::parse($schedule->end_time)->format('H:i:s') : '-' }}</td>
+                <td class="px-4 py-3 whitespace-nowrap text-sm">{{ $attendance->clock_out ? $attendance->clock_out->format('H:i:s') : '-' }}</td>
+                <td class="px-4 py-3 whitespace-nowrap text-sm">
                     @if($attendance->clock_out && $schedule)
                         @php
                             $clockOut = \Carbon\Carbon::parse($attendance->clock_out);
@@ -273,7 +301,7 @@
                         -
                     @endif
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap">
+                <td class="px-4 py-3 whitespace-nowrap text-sm">
                     @if (in_array($attendance->status_out, ['C', 'S', 'DL']))
                         <span class="px-2 py-1 rounded text-xs bg-blue-100 text-blue-800">
                             @if ($attendance->status_out == 'C')
@@ -309,7 +337,7 @@
                         </span>
                     @endif
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap">
+                <td class="px-4 py-3 whitespace-nowrap text-sm">
                     @if($attendance->clock_out && $attendance->clock_out_latitude && $attendance->clock_out_longitude)
                         <div class="text-sm">
                             <p>{{ number_format($attendance->clock_out_latitude, 6) }}, {{ number_format($attendance->clock_out_longitude, 6) }}</p>
@@ -319,14 +347,14 @@
                         <span>-</span>
                     @endif
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap">
+                <td class="px-4 py-3 whitespace-nowrap text-sm">
                     @if($attendance->selfie_path_out)
                         @php
                             $filename = basename($attendance->selfie_path_out);
                             $type = 'employee';
                         @endphp
                         <a href="{{ route('selfies.show', ['type' => $type, 'filename' => $filename]) }}" target="_blank">
-                            <img src="{{ route('selfies.show', ['type' => $type, 'filename' => $filename]) }}" alt="Selfie Pulang" class="w-16 h-16 object-cover rounded border cursor-pointer hover:opacity-80">
+                            <img src="{{ route('selfies.show', ['type' => $type, 'filename' => $filename]) }}" alt="Selfie Pulang" class="w-12 h-12 object-cover rounded border cursor-pointer hover:opacity-80">
                         </a>
                     @else
                         -
@@ -335,25 +363,26 @@
             </tr>
             @empty
             <tr>
-                <td colspan="12" class="px-6 py-4 text-center text-gray-500">Tidak ada data absensi</td>
+                <td colspan="15" class="px-4 py-3 text-center text-gray-500 whitespace-nowrap">Tidak ada data absensi</td>
             </tr>
             @endforelse
         </tbody>
     </table>
+    </div> <!-- Closing the padding div -->
 </div>
 
-<div class="mt-6 flex justify-end space-x-4">
-    <a href="{{ route('employee.attendance.report.export', array_merge(request()->query(), ['format' => 'pdf'])) }}" 
+<div class="mt-4 flex justify-end space-x-4">
+    <a href="{{ route('employee.attendance.report.export', array_merge(request()->query(), ['format' => 'pdf'])) }}"
        class="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2">
         Export PDF
     </a>
-    <a href="{{ route('employee.attendance.report.export', array_merge(request()->query(), ['format' => 'excel'])) }}" 
+    <a href="{{ route('employee.attendance.report.export', array_merge(request()->query(), ['format' => 'excel'])) }}"
        class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">
         Export Excel
     </a>
 </div>
 
-<div class="mt-4">
-    {{ $attendances->links() }}
+    </div>
 </div>
+
 @endsection

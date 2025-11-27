@@ -16,22 +16,37 @@ use App\Mail\PermissionRejectedMail;
 class PermissionController extends Controller
 {
     use Paginable;
-    public function index()
+    public function index(Request $request)
     {
-        $perPage = $this->getPerPagePreference();
-        if ($perPage === 'all') {
-            $permissions = collect(Permission::where('permissible_type', Employee::class)
-                ->with(['permissible'])
-                ->orderBy('created_at', 'desc')
-                ->get());
+        $query = Permission::where('permissible_type', Employee::class)
+            ->with(['permissible', 'approvedBy']);
+
+        // Filter by month and year - default to current month and year if no filters provided
+        $selectedMonth = $request->filled('month') ? $request->month : now()->month;
+        $selectedYear = $request->filled('year') ? $request->year : now()->year;
+
+        if ($request->filled('month') && $request->filled('year')) {
+            $query->whereMonth('start_date', $request->month)
+                  ->whereYear('start_date', $request->year);
+        } elseif ($request->filled('month')) {
+            $query->whereMonth('start_date', $request->month)
+                  ->whereYear('start_date', $selectedYear);
+        } elseif ($request->filled('year')) {
+            $query->whereYear('start_date', $request->year);
         } else {
-            $permissions = Permission::where('permissible_type', Employee::class)
-                ->with(['permissible'])
-                ->orderBy('created_at', 'desc')
-                ->paginate($perPage);
+            // Default to current month and year
+            $query->whereMonth('start_date', now()->month)
+                  ->whereYear('start_date', now()->year);
         }
 
-        return view('admin.permissions.index', compact('permissions'));
+        $perPage = $this->getPerPagePreference();
+        if ($perPage === 'all') {
+            $permissions = collect($query->orderBy('created_at', 'desc')->get());
+        } else {
+            $permissions = $query->orderBy('created_at', 'desc')->paginate($perPage);
+        }
+
+        return view('admin.permissions.index', compact('permissions', 'selectedMonth', 'selectedYear'));
     }
 
     public function employees(Request $request)
@@ -39,27 +54,29 @@ class PermissionController extends Controller
         $query = Permission::where('permissible_type', Employee::class)
             ->with(['permissible' => function($query) {
                 $query->select('id', 'full_name', 'position');
-            }]);
+            }, 'approvedBy']);
 
         // Filter by status
         if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
 
-        // Filter by date range
-        if ($request->filled('start_date') && $request->filled('end_date')) {
-            $query->where(function($q) use ($request) {
-                $q->whereBetween('start_date', [$request->start_date, $request->end_date])
-                  ->orWhereBetween('end_date', [$request->start_date, $request->end_date])
-                  ->orWhere(function($subQ) use ($request) {
-                      $subQ->where('start_date', '<=', $request->start_date)
-                           ->where('end_date', '>=', $request->end_date);
-                  });
-            });
-        } elseif ($request->filled('start_date')) {
-            $query->where('start_date', '>=', $request->start_date);
-        } elseif ($request->filled('end_date')) {
-            $query->where('end_date', '<=', $request->end_date);
+        // Filter by month and year - default to current month and year if no filters provided
+        $selectedMonth = $request->filled('month') ? $request->month : now()->month;
+        $selectedYear = $request->filled('year') ? $request->year : now()->year;
+
+        if ($request->filled('month') && $request->filled('year')) {
+            $query->whereMonth('start_date', $request->month)
+                  ->whereYear('start_date', $request->year);
+        } elseif ($request->filled('month')) {
+            $query->whereMonth('start_date', $request->month)
+                  ->whereYear('start_date', $selectedYear);
+        } elseif ($request->filled('year')) {
+            $query->whereYear('start_date', $request->year);
+        } else {
+            // Default to current month and year
+            $query->whereMonth('start_date', now()->month)
+                  ->whereYear('start_date', now()->year);
         }
 
         // Filter by employee
@@ -83,11 +100,11 @@ class PermissionController extends Controller
                 $permissions = $query->get()->sortBy(function($permission) {
                     return strtolower($permission->permissible->full_name ?? '');
                 }, SORT_REGULAR, $sortDirection === 'desc');
-                
+
                 // Manually paginate with customizable pagination
                 $perPage = $this->getPerPagePreference();
                 $currentPage = request()->get('page', 1);
-                
+
                 if ($perPage === 'all') {
                     // Show all records without pagination
                     $paginatedPermissions = new \Illuminate\Pagination\LengthAwarePaginator(
@@ -114,11 +131,11 @@ class PermissionController extends Controller
                 $permissions = $query->get()->sortBy(function($permission) {
                     return strtolower($permission->permissible->position ?? '');
                 }, SORT_REGULAR, $sortDirection === 'desc');
-                
+
                 // Manually paginate with customizable pagination
                 $perPage = $this->getPerPagePreference();
                 $currentPage = request()->get('page', 1);
-                
+
                 if ($perPage === 'all') {
                     // Show all records without pagination
                     $paginatedPermissions = new \Illuminate\Pagination\LengthAwarePaginator(
@@ -178,7 +195,7 @@ class PermissionController extends Controller
         // Get employees for filter dropdown
         $employees = Employee::orderBy('full_name')->get();
 
-        return view('admin.permissions.index', compact('permissions', 'employees', 'sortField', 'sortDirection'));
+        return view('admin.permissions.index', compact('permissions', 'employees', 'sortField', 'sortDirection', 'selectedMonth', 'selectedYear'));
     }
 
     public function createEmployee()
@@ -220,6 +237,9 @@ class PermissionController extends Controller
         if ($permission->permissible_type !== Employee::class) {
             abort(404);
         }
+
+        // Load the relation to get the current employee for this permission
+        $permission->load('permissible');
 
         $employees = Employee::where('is_active', true)->orderBy('full_name')->get();
         return view('admin.permissions.edit-employee', compact('permission', 'employees'));
@@ -283,27 +303,29 @@ class PermissionController extends Controller
         $query = Permission::where('permissible_type', Student::class)
             ->with(['permissible' => function($query) {
                 $query->select('id', 'full_name', 'rombel_id');
-            }, 'permissible.rombel']);
+            }, 'permissible.rombel', 'approvedBy']);
 
         // Filter by status
         if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
 
-        // Filter by date range
-        if ($request->filled('start_date') && $request->filled('end_date')) {
-            $query->where(function($q) use ($request) {
-                $q->whereBetween('start_date', [$request->start_date, $request->end_date])
-                  ->orWhereBetween('end_date', [$request->start_date, $request->end_date])
-                  ->orWhere(function($subQ) use ($request) {
-                      $subQ->where('start_date', '<=', $request->start_date)
-                           ->where('end_date', '>=', $request->end_date);
-                  });
-            });
-        } elseif ($request->filled('start_date')) {
-            $query->where('start_date', '>=', $request->start_date);
-        } elseif ($request->filled('end_date')) {
-            $query->where('end_date', '<=', $request->end_date);
+        // Filter by month and year - default to current month and year if no filters provided
+        $selectedMonth = $request->filled('month') ? $request->month : now()->month;
+        $selectedYear = $request->filled('year') ? $request->year : now()->year;
+
+        if ($request->filled('month') && $request->filled('year')) {
+            $query->whereMonth('start_date', $request->month)
+                  ->whereYear('start_date', $request->year);
+        } elseif ($request->filled('month')) {
+            $query->whereMonth('start_date', $request->month)
+                  ->whereYear('start_date', $selectedYear);
+        } elseif ($request->filled('year')) {
+            $query->whereYear('start_date', $request->year);
+        } else {
+            // Default to current month and year
+            $query->whereMonth('start_date', now()->month)
+                  ->whereYear('start_date', now()->year);
         }
 
         // Filter by rombel
@@ -328,19 +350,25 @@ class PermissionController extends Controller
         // Get rombels for filter dropdown
         $rombels = \App\Models\Rombel::orderBy('name')->get();
 
-        return view('admin.permissions.index', compact('permissions', 'rombels'));
+        return view('admin.permissions.index', compact('permissions', 'rombels', 'selectedMonth', 'selectedYear'));
     }
 
     public function approve(Permission $permission)
     {
-        $permission->update(['status' => 'approved']);
+        $permission->update([
+            'status' => 'approved',
+            'approved_by' => auth()->id()
+        ]);
 
         return redirect()->back()->with('success', 'Izin berhasil disetujui.');
     }
 
     public function reject(Permission $permission)
     {
-        $permission->update(['status' => 'rejected']);
+        $permission->update([
+            'status' => 'rejected',
+            'approved_by' => auth()->id()
+        ]);
 
         return redirect()->back()->with('success', 'Izin berhasil ditolak.');
     }
@@ -386,6 +414,9 @@ class PermissionController extends Controller
         if ($permission->permissible_type !== Student::class) {
             abort(404);
         }
+
+        // Load the relation to get the current student for this permission
+        $permission->load('permissible.rombel.grade');
 
         $students = Student::with('rombel')->where('is_active', true)->get();
         $grades = \App\Models\Grade::all();

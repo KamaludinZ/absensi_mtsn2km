@@ -24,7 +24,7 @@
     <link rel="stylesheet" href="{{ asset($cssPath) }}">
     @stack('styles')
 </head>
-<body>
+<body class="@yield('body-class', '')">
     <div class="min-h-screen flex flex-col md:flex-row">
         @include('components.sidebar')
 
@@ -32,8 +32,8 @@
             @include('components.navbar')
 
             <div class="flex-1 flex flex-col">
-                <main class="p-4 sm:p-6 bg-gray-50 flex-1 overflow-y-auto">
-                    <div class="container-layout">
+                <main class="p-4 sm:p-6 bg-gray-50 flex-1 overflow-y-auto @yield('body-class', '')">
+                    <div class="@yield('container-class', 'container-layout')">
                         @if(session('success'))
                             <div class="alert alert-success fade-in" role="alert">
                                 <div class="flex items-center">

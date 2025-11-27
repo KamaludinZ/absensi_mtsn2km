@@ -28,9 +28,10 @@
 @extends('layouts.app')
 
 @section('title', 'Perizinan')
+@section('container-class', '')
 
 @section('content')
-<div class="container mx-auto px-4 py-8">
+<div class="w-full py-8">
     @if(session('success'))
         <div class="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded-md">
             {{ session('success') }}
@@ -71,15 +72,39 @@
         <div class="p-4 bg-gray-50 border-b">
             <form method="GET" class="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Tanggal Mulai</label>
-                    <input type="date" name="start_date" value="{{ request('start_date') }}"
-                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Bulan</label>
+                    <select name="month" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">Semua Bulan</option>
+                        <option value="1" {{ (request('month') ?? $selectedMonth ?? now()->month) == '1' ? 'selected' : '' }}>Januari</option>
+                        <option value="2" {{ (request('month') ?? $selectedMonth ?? now()->month) == '2' ? 'selected' : '' }}>Februari</option>
+                        <option value="3" {{ (request('month') ?? $selectedMonth ?? now()->month) == '3' ? 'selected' : '' }}>Maret</option>
+                        <option value="4" {{ (request('month') ?? $selectedMonth ?? now()->month) == '4' ? 'selected' : '' }}>April</option>
+                        <option value="5" {{ (request('month') ?? $selectedMonth ?? now()->month) == '5' ? 'selected' : '' }}>Mei</option>
+                        <option value="6" {{ (request('month') ?? $selectedMonth ?? now()->month) == '6' ? 'selected' : '' }}>Juni</option>
+                        <option value="7" {{ (request('month') ?? $selectedMonth ?? now()->month) == '7' ? 'selected' : '' }}>Juli</option>
+                        <option value="8" {{ (request('month') ?? $selectedMonth ?? now()->month) == '8' ? 'selected' : '' }}>Agustus</option>
+                        <option value="9" {{ (request('month') ?? $selectedMonth ?? now()->month) == '9' ? 'selected' : '' }}>September</option>
+                        <option value="10" {{ (request('month') ?? $selectedMonth ?? now()->month) == '10' ? 'selected' : '' }}>Oktober</option>
+                        <option value="11" {{ (request('month') ?? $selectedMonth ?? now()->month) == '11' ? 'selected' : '' }}>November</option>
+                        <option value="12" {{ (request('month') ?? $selectedMonth ?? now()->month) == '12' ? 'selected' : '' }}>Desember</option>
+                    </select>
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Tanggal Selesai</label>
-                    <input type="date" name="end_date" value="{{ request('end_date') }}"
-                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Tahun</label>
+                    <select name="year" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">Semua Tahun</option>
+                        @php
+                            $currentYear = date('Y');
+                            $startYear = $currentYear - 5; // Show 5 years before current year
+                            $endYear = $currentYear + 2;   // Show 2 years after current year
+                        @endphp
+                        @for($year = $endYear; $year >= $startYear; $year--)
+                            <option value="{{ $year }}" {{ (request('year') ?? $selectedYear ?? now()->year) == $year ? 'selected' : '' }}>
+                                {{ $year }}
+                            </option>
+                        @endfor
+                    </select>
                 </div>
 
                 <div>
@@ -162,6 +187,7 @@
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{!! sortableLink('Alasan', 'reason', $currentSort, $currentDirection) !!}</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dokumen Pendukung</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{!! sortableLink('Status', 'status', $currentSort, $currentDirection) !!}</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Disetujui Oleh</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
                     </tr>
                 </thead>
@@ -205,6 +231,17 @@
                                        ($permission->status === 'rejected' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800') }}">
                                     {{ ucfirst($permission->status) }}
                                 </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                @if($permission->status !== 'pending' && $permission->approvedBy)
+                                    {{ $permission->approvedBy->full_name }}
+                                    <br>
+                                    <span class="text-xs text-gray-500">({{ $permission->approvedBy->username ?? $permission->approvedBy->email }})</span>
+                                    <br>
+                                    <span class="text-xs text-gray-500">({{ $permission->updated_at->format('d/m/Y H:i') }})</span>
+                                @else
+                                    -
+                                @endif
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm">
                                 <div class="flex items-center space-x-2">
@@ -263,7 +300,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="px-6 py-4 text-center text-gray-500">
+                            <td colspan="8" class="px-6 py-4 text-center text-gray-500">
                                 Tidak ada permohonan izin.
                             </td>
                         </tr>

@@ -18,7 +18,7 @@
                     <option value="">Pilih Tingkat Kelas</option>
                     @foreach($grades ?? [] as $grade)
                         <option value="{{ $grade->id }}" 
-                                {{ old('grade_id', $permission->permissible->rombel->grade_id ?? '') == $grade->id ? 'selected' : '' }}>
+                                {{ (string)old('grade_id', $permission->permissible->rombel->grade_id ?? '') === (string)$grade->id ? 'selected' : '' }}>
                             {{ $grade->name }}
                         </option>
                     @endforeach
@@ -38,7 +38,7 @@
                     @foreach($rombels ?? [] as $rombel)
                         <option value="{{ $rombel->id }}" 
                                 data-grade="{{ $rombel->grade_id }}" 
-                                {{ old('rombel_id', $permission->permissible->rombel_id ?? '') == $rombel->id ? 'selected' : '' }}>
+                                {{ (string)old('rombel_id', $permission->permissible->rombel_id ?? '') === (string)$rombel->id ? 'selected' : '' }}>
                             {{ $rombel->name }}
                         </option>
                     @endforeach
@@ -59,7 +59,7 @@
                     @foreach($students as $student)
                         <option value="{{ $student->id }}" 
                                 data-rombel="{{ $student->rombel_id }}" 
-                                {{ old('student_id', $permission->permissible_id) == $student->id ? 'selected' : '' }}>
+                                {{ (string)old('student_id', $permission->permissible_id) === (string)$student->id ? 'selected' : '' }}>
                             {{ $student->full_name }}
                         </option>
                     @endforeach
@@ -76,13 +76,13 @@
                 <select name="status" id="status" 
                         class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
                         required>
-                    <option value="pending" {{ old('status', $permission->status) == 'pending' ? 'selected' : '' }}>
+                    <option value="pending" {{ (string)old('status', $permission->status) === 'pending' ? 'selected' : '' }}>
                         Menunggu Persetujuan
                     </option>
-                    <option value="approved" {{ old('status', $permission->status) == 'approved' ? 'selected' : '' }}>
+                    <option value="approved" {{ (string)old('status', $permission->status) === 'approved' ? 'selected' : '' }}>
                         Disetujui
                     </option>
-                    <option value="rejected" {{ old('status', $permission->status) == 'rejected' ? 'selected' : '' }}>
+                    <option value="rejected" {{ (string)old('status', $permission->status) === 'rejected' ? 'selected' : '' }}>
                         Ditolak
                     </option>
                 </select>
@@ -95,9 +95,9 @@
                 <label class="block text-gray-700 font-bold mb-2" for="start_date">
                     Tanggal Mulai
                 </label>
-                <input type="date" name="start_date" id="start_date" 
-                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                       value="{{ old('start_date', $permission->start_date) }}" required>
+                <input type="date" name="start_date" id="start_date"
+                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                       value="{{ old('start_date', $permission->start_date ? $permission->start_date->format('Y-m-d') : '') }}" required>
                 @error('start_date')
                     <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
                 @enderror
@@ -107,9 +107,9 @@
                 <label class="block text-gray-700 font-bold mb-2" for="end_date">
                     Tanggal Selesai
                 </label>
-                <input type="date" name="end_date" id="end_date" 
-                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                       value="{{ old('end_date', $permission->end_date) }}" required>
+                <input type="date" name="end_date" id="end_date"
+                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                       value="{{ old('end_date', $permission->end_date ? $permission->end_date->format('Y-m-d') : '') }}" required>
                 @error('end_date')
                     <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
                 @enderror
@@ -119,9 +119,9 @@
                 <label class="block text-gray-700 font-bold mb-2" for="reason">
                     Alasan Izin
                 </label>
-                <textarea name="reason" id="reason" 
+                <textarea name="reason" id="reason"
                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          rows="3" required>{{ old('reason', $permission->reason) }}</textarea>
+                          rows="3" required>{{ old('reason', $permission->reason ?? '') }}</textarea>
                 @error('reason')
                     <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
                 @enderror
@@ -175,19 +175,19 @@ document.addEventListener('DOMContentLoaded', function() {
     const gradeSelect = document.getElementById('grade_id');
     const rombelSelect = document.getElementById('rombel_id');
     const studentSelect = document.getElementById('student_id');
-    
+
     // Store original options for filtering
     const rombelOptions = Array.from(rombelSelect.options).slice(1); // Exclude first option
     const studentOptions = Array.from(studentSelect.options).slice(1); // Exclude first option
-    
+
     // Filter rombels based on selected grade
     gradeSelect.addEventListener('change', function() {
         const selectedGradeId = this.value;
-        
+
         // Reset and repopulate rombel select
         rombelSelect.innerHTML = '<option value="">Pilih Rombel</option>';
         studentSelect.innerHTML = '<option value="">Pilih Siswa</option>';
-        
+
         if (selectedGradeId) {
             rombelOptions.forEach(function(option) {
                 if (option.getAttribute('data-grade') == selectedGradeId) {
@@ -199,7 +199,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 rombelSelect.appendChild(option.cloneNode(true));
             });
         }
-        
+
         // Reset student dropdown when grade changes
         if (!selectedGradeId) {
             studentOptions.forEach(function(option) {
@@ -207,14 +207,14 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
     });
-    
+
     // Filter students based on selected rombel
     rombelSelect.addEventListener('change', function() {
         const selectedRombelId = this.value;
-        
+
         // Reset and repopulate student select
         studentSelect.innerHTML = '<option value="">Pilih Siswa</option>';
-        
+
         if (selectedRombelId) {
             // Only show students from the selected rombel
             studentOptions.forEach(function(option) {
@@ -233,7 +233,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         gradeRombels.push(rombelOption.value);
                     }
                 });
-                
+
                 // Now show students from those rombels
                 studentOptions.forEach(function(option) {
                     if (gradeRombels.includes(option.getAttribute('data-rombel'))) {
@@ -248,25 +248,34 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     });
-    
-    // Trigger change on load if default values are selected
-    if (gradeSelect.value) {
-        gradeSelect.dispatchEvent(new Event('change'));
-    }
-    
-    if (rombelSelect.value) {
-        rombelSelect.dispatchEvent(new Event('change'));
-    }
-    
-    // Ensure proper initialization
-    setTimeout(function() {
+
+    // Initialize form with selected values for editing
+    function initializeForm() {
+        // If grade is selected, trigger grade change to populate rombels
         if (gradeSelect.value) {
-            gradeSelect.dispatchEvent(new Event('change'));
+            // Clone rombel options based on selected grade
+            rombelSelect.innerHTML = '<option value="">Pilih Rombel</option>';
+            rombelOptions.forEach(function(option) {
+                if (option.getAttribute('data-grade') == gradeSelect.value) {
+                    rombelSelect.appendChild(option.cloneNode(true));
+                }
+            });
         }
+
+        // If rombel is selected, trigger rombel change to populate students
         if (rombelSelect.value) {
-            rombelSelect.dispatchEvent(new Event('change'));
+            // Clone student options based on selected rombel
+            studentSelect.innerHTML = '<option value="">Pilih Siswa</option>';
+            studentOptions.forEach(function(option) {
+                if (option.getAttribute('data-rombel') == rombelSelect.value) {
+                    studentSelect.appendChild(option.cloneNode(true));
+                }
+            });
         }
-    }, 100);
+    }
+
+    // Run initialization to properly load dependent dropdowns
+    setTimeout(initializeForm, 100);
 });
 </script>
 @endsection

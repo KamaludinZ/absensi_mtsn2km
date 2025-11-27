@@ -92,6 +92,7 @@ Route::middleware(['auth', CheckRole::class . ':pegawai'])->prefix('employee')->
     });
 
     Route::prefix('profile')->name('profile.')->group(function () {
+        Route::get('/', [App\Http\Controllers\Employee\ProfileController::class, 'index'])->name('index');
         Route::get('/change-password', [App\Http\Controllers\Employee\ProfileController::class, 'showChangePasswordForm'])->name('change-password');
         Route::put('/change-password', [App\Http\Controllers\Employee\ProfileController::class, 'updatePassword'])->name('update-password');
     });
@@ -172,10 +173,16 @@ Route::middleware(['auth', CheckRole::class . ':admin'])->prefix('admin')->name(
         Route::get('/meal-allowance', [ReportController::class, 'mealAllowance'])->name('meal-allowance');
         Route::get('/meal-allowance/{employee}/{year}/{month}', [ReportController::class, 'mealAllowanceDetail'])->name('meal-allowance.detail');
         Route::get('/meal-allowance/{employee}/{year}/{month}/pdf', [ReportController::class, 'generateMealAllowancePdf'])->name('meal-allowance.pdf');
+        Route::get('/transport-allowance', [ReportController::class, 'transportAllowance'])->name('transport-allowance');
+        Route::get('/transport-allowance/{employee}/{year}/{month}', [ReportController::class, 'transportAllowanceDetail'])->name('transport-allowance.detail');
+        Route::get('/transport-allowance/{employee}/{year}/{month}/pdf', [ReportController::class, 'generateTransportAllowancePdf'])->name('transport-allowance.pdf');
         Route::get('/performance-allowance', [ReportController::class, 'performanceAllowance'])->name('performance-allowance');
+        Route::get('/performance-allowance/{employee}/{year}/{month}', [ReportController::class, 'performanceAllowanceDetail'])->name('performance-allowance.detail');
+        Route::get('/performance-allowance/{employee}/{year}/{month}/pdf', [ReportController::class, 'generatePerformanceAllowancePdf'])->name('performance-allowance.pdf');
         Route::get('/salary', [ReportController::class, 'salaryReport'])->name('salary');
         Route::get('/salary/{employee}/{year}/{month}', [ReportController::class, 'salaryReportDetail'])->name('salary.detail');
         Route::get('/salary/{employee}/{year}/{month}/pdf', [ReportController::class, 'generateSalaryPdf'])->name('salary.pdf');
+        Route::post('/salary/toggle-visibility', [ReportController::class, 'toggleSalaryMenuVisibility'])->name('salary.toggle-visibility');
     });
 
     // Attendances

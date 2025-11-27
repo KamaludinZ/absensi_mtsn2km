@@ -28,8 +28,10 @@
 @extends('layouts.app')
 @section('title', 'Data Siswa')
 @section('page-title', 'Data Siswa')
+@section('container-class', '')
 @section('content')
-<div class="mb-4 flex space-x-2">
+<div class="w-full py-6">
+    <div class="mb-4 flex space-x-2">
     <a href="{{ route('admin.students.create') }}" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">Tambah Siswa</a>
     <a href="{{ route('admin.students.import-form') }}" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">Import Excel</a>
 </div>
@@ -94,6 +96,12 @@
                             {{ $student->full_name }}
                         </div>
                         <div class="mt-1 text-sm text-gray-500">
+                            NISN: {{ $student->nisn ?? '-' }}
+                        </div>
+                        <div class="mt-1 text-sm text-gray-500">
+                            ID Absensi: {{ $student->attendance_id ?? '-' }}
+                        </div>
+                        <div class="mt-1 text-sm text-gray-500">
                             Tingkat Kelas: {{ $student->rombel->grade->description }}
                         </div>
                         <div class="mt-1 text-sm text-gray-500">
@@ -128,6 +136,8 @@
             <thead class="bg-gray-50">
                 <tr>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{!! sortableLink('Nama', 'full_name', $currentSort, $currentDirection) !!}</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{!! sortableLink('NISN', 'nisn', $currentSort, $currentDirection) !!}</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{!! sortableLink('ID Absensi', 'attendance_id', $currentSort, $currentDirection) !!}</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{!! sortableLink('Tingkat Kelas', 'grade_name', $currentSort, $currentDirection) !!}</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{!! sortableLink('Rombel', 'rombel_name', $currentSort, $currentDirection) !!}</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{!! sortableLink('Status', 'is_active', $currentSort, $currentDirection) !!}</th>
@@ -138,6 +148,8 @@
                 @forelse($students as $student)
                 <tr>
                     <td class="px-6 py-4">{{ $student->full_name }}</td>
+                    <td class="px-6 py-4">{{ $student->nisn ?? '-' }}</td>
+                    <td class="px-6 py-4">{{ $student->attendance_id ?? '-' }}</td>
                     <td class="px-6 py-4">{{ $student->rombel->grade->description }}</td>
                     <td class="px-6 py-4">{{ $student->rombel->name }}</td>
                     <td class="px-6 py-4">
@@ -210,4 +222,6 @@
         }
     </script>
 @endif
+    </div>
+</div>
 @endsection

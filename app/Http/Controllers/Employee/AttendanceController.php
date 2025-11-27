@@ -16,9 +16,9 @@ use Intervention\Image\Laravel\Facades\Image;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
-
 class AttendanceController extends Controller
 {
+
     public function index()
     {
         /** @var User $user */
@@ -473,15 +473,10 @@ class AttendanceController extends Controller
         // Validate sort direction
         $sortDirection = strtolower($sortDirection) === 'asc' ? 'asc' : 'desc';
 
+        // Always show all records for the selected month without pagination
         $attendances = $query->orderBy($sortField, $sortDirection)
             ->with(['attendable']) // Load employee relationship
-            ->paginate(20)
-            ->appends([
-                'sort' => $sortField,
-                'direction' => $sortDirection,
-                'month' => $selectedMonth,
-                'academic_year_id' => $selectedAcademicYearId
-            ]);
+            ->get();
 
         // Pre-load employee shifts and schedules to avoid N+1 queries in view
         $employeeId = $employee->id;
@@ -540,16 +535,18 @@ class AttendanceController extends Controller
 
         // Apply academic year filter if selected
         $selectedAcademicYearId = $request->filled('academic_year_id') ? $request->academic_year_id : null;
+        $academicYearName = null;
         if ($selectedAcademicYearId) {
             $academicYear = \App\Models\AcademicYear::find($selectedAcademicYearId);
             if ($academicYear) {
+                $academicYearName = $academicYear->year_name;
                 $yearParts = explode('-', $academicYear->year_name);
                 $startYear = intval($yearParts[0]);
                 $endYear = isset($yearParts[1]) ? intval($yearParts[1]) : $startYear;
-                
+
                 $startDate = $startYear . '-01-01';
                 $endDate = $endYear . '-12-31';
-                
+
                 $query->whereBetween('date', [$startDate, $endDate]);
             }
         }
@@ -558,16 +555,24 @@ class AttendanceController extends Controller
         $month = $request->filled('month') ? $request->month : now()->month;
         $query->whereMonth('date', $month);
 
-        $attendances = $query->orderBy('date', 'desc')
+        $attendances = $query->orderBy('date', 'asc')
             ->with(['attendable']) // Load employee relationship
             ->get();
 
         $format = $request->input('format', 'pdf'); // Default to PDF
 
+        // Build period string
+        $monthNames = [
+            1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April',
+            5 => 'Mei', 6 => 'Juni', 7 => 'Juli', 8 => 'Agustus',
+            9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember'
+        ];
+        $period = $monthNames[$month] . ($academicYearName ? ' ' . $academicYearName : ' ' . now()->year);
+
         if ($format === 'excel') {
             return $this->exportToExcel($attendances, $employee);
         } else {
-            return $this->exportToPdf($attendances, $employee);
+            return $this->exportToPdf($attendances, $employee, $period);
         }
     }
 
@@ -637,27 +642,109 @@ class AttendanceController extends Controller
         exit;
     }
 
-    private function exportToPdf($attendances, $employee)
+    private function exportToPdf($attendances, $employee, $period)
     {
+        // Get header settings from database
+        $schoolName = \App\Models\AttendanceSetting::where('setting_key', 'school_name')->first();
+        $schoolFullName = \App\Models\AttendanceSetting::where('setting_key', 'school_full_name')->first();
+        $schoolAddress = \App\Models\AttendanceSetting::where('setting_key', 'school_address')->first();
+        $schoolPhone = \App\Models\AttendanceSetting::where('setting_key', 'school_phone')->first();
+        $schoolEmail = \App\Models\AttendanceSetting::where('setting_key', 'school_email')->first();
+        $leftLogoPath = \App\Models\AttendanceSetting::where('setting_key', 'left_logo_path')->first();
+        $rightLogoPath = \App\Models\AttendanceSetting::where('setting_key', 'right_logo_path')->first();
+        $headmasterName = \App\Models\AttendanceSetting::where('setting_key', 'headmaster_name')->first();
+        $headmasterNip = \App\Models\AttendanceSetting::where('setting_key', 'headmaster_nip')->first();
+
+        // Convert logos to base64 for PDF
+        $leftLogoBase64 = '';
+        $rightLogoBase64 = '';
+
+        if ($leftLogoPath && $leftLogoPath->setting_value) {
+            $fullPath = public_path($leftLogoPath->setting_value);
+            if (file_exists($fullPath)) {
+                $imageData = base64_encode(file_get_contents($fullPath));
+                $imageType = pathinfo($fullPath, PATHINFO_EXTENSION);
+                $leftLogoBase64 = 'data:image/' . $imageType . ';base64,' . $imageData;
+            }
+        }
+
+        if ($rightLogoPath && $rightLogoPath->setting_value) {
+            $fullPath = public_path($rightLogoPath->setting_value);
+            if (file_exists($fullPath)) {
+                $imageData = base64_encode(file_get_contents($fullPath));
+                $imageType = pathinfo($fullPath, PATHINFO_EXTENSION);
+                $rightLogoBase64 = 'data:image/' . $imageType . ';base64,' . $imageData;
+            }
+        }
+
+        $headerSettings = [
+            'school_name' => $schoolName ? $schoolName->setting_value : 'MTsN 2 KOTA MALANG',
+            'school_full_name' => $schoolFullName ? $schoolFullName->setting_value : 'MADRASAH TSANAWIYAH NEGERI 2 KOTA MALANG',
+            'school_address' => $schoolAddress ? $schoolAddress->setting_value : 'Jl. KH. Hasyim Asy\'ari No. 1, Kota Malang, Jawa Timur 65144',
+            'school_phone' => $schoolPhone ? $schoolPhone->setting_value : '(0341) 123456',
+            'school_email' => $schoolEmail ? $schoolEmail->setting_value : 'info@mtsn2kotamalang.sch.id',
+            'left_logo' => $leftLogoBase64,
+            'right_logo' => $rightLogoBase64,
+            'headmaster_name' => $headmasterName ? $headmasterName->setting_value : '',
+            'headmaster_nip' => $headmasterNip ? $headmasterNip->setting_value : '',
+        ];
+
         // Pre-compute all data to avoid calling private methods from view
         $processedAttendances = $attendances->map(function($attendance) {
             $schedule = self::getSchedule($attendance);
 
+            // Get day name in Indonesian
+            $dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+            $dayName = $attendance->date ? $dayNames[$attendance->date->dayOfWeek] : '-';
+
+            // Determine status_in
+            $statusIn = '-';
+            if (in_array($attendance->status_in, ['C', 'S', 'DL'])) {
+                $statusMap = ['C' => 'Cuti', 'S' => 'Sakit', 'DL' => 'Dinas Luar'];
+                $statusIn = $statusMap[$attendance->status_in];
+            } elseif ($attendance->clock_in && $schedule) {
+                $clockIn = Carbon::parse($attendance->clock_in);
+                $startTime = Carbon::parse($schedule->start_time)->setDate($clockIn->year, $clockIn->month, $clockIn->day);
+                $diffInSeconds = $clockIn->diffInSeconds($startTime, false);
+                // If actual > scheduled (positive seconds), then late
+                $statusIn = ($diffInSeconds > 0) ? 'Terlambat' : 'Tepat Waktu';
+            } elseif (!$attendance->clock_in) {
+                $statusIn = 'Tidak Hadir';
+            }
+
+            // Determine status_out
+            $statusOut = '-';
+            if (in_array($attendance->status_out, ['C', 'S', 'DL'])) {
+                $statusMap = ['C' => 'Cuti', 'S' => 'Sakit', 'DL' => 'Dinas Luar'];
+                $statusOut = $statusMap[$attendance->status_out];
+            } elseif ($attendance->clock_out && $schedule) {
+                $clockOut = Carbon::parse($attendance->clock_out);
+                $endTime = Carbon::parse($schedule->end_time)->setDate($clockOut->year, $clockOut->month, $clockOut->day);
+                $diffInSeconds = $clockOut->diffInSeconds($endTime, false);
+                // If actual < scheduled (negative seconds), then early departure
+                $statusOut = ($diffInSeconds < 0) ? 'Pulang Awal' : 'Tepat Waktu';
+            } elseif (!$attendance->clock_out) {
+                $statusOut = 'Belum Pulang';
+            }
+
             return [
                 'date' => $attendance->date ? $attendance->date->format('d/m/Y') : '-',
+                'day' => $dayName,
                 'shift_name' => $schedule ? $schedule->shift_name : 'N/A',
                 'schedule_start' => $schedule ? Carbon::parse($schedule->start_time)->format('H:i:s') : '-',
                 'schedule_end' => $schedule ? Carbon::parse($schedule->end_time)->format('H:i:s') : '-',
                 'clock_in' => $attendance->clock_in ? $attendance->clock_in->format('H:i:s') : '-',
                 'clock_out' => $attendance->clock_out ? $attendance->clock_out->format('H:i:s') : '-',
-                'in_diff' => self::getInTimeDifference($attendance),
-                'out_diff' => self::getOutTimeDifference($attendance),
+                'status_in' => $statusIn,
+                'status_out' => $statusOut,
             ];
         });
 
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('employee.report-export-pdf', [
             'attendances' => $processedAttendances,
-            'employee' => $employee
+            'employee' => $employee,
+            'period' => $period,
+            'headerSettings' => $headerSettings
         ])->setPaper('a4', 'portrait')
           ->setOption('isRemoteEnabled', false)
           ->setOption('isFontSubsettingEnabled', false);

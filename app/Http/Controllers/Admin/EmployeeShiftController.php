@@ -22,30 +22,42 @@ class EmployeeShiftController extends Controller
         // Get current month and year
         $month = request('month', now()->month);
         $year = request('year', now()->year);
-        
+
         // Get all active employees
         $employees = Employee::where('is_active', true)->orderBy('full_name')->get();
-        
+
         // Get all schedules
         $schedules = Schedule::where('type', 'pegawai')->orderBy('shift_type')->orderBy('day_of_week')->get();
-        
+
         // Generate dates for the selected month
         $startDate = Carbon::create($year, $month, 1)->startOfMonth();
         $endDate = Carbon::create($year, $month, 1)->endOfMonth();
         $dates = [];
         $currentDate = $startDate->copy();
-        
+
         while ($currentDate <= $endDate) {
             $dates[] = $currentDate->copy();
             $currentDate->addDay();
         }
-        
+
         // Get existing employee shifts for this month
         $employeeShifts = EmployeeShift::whereBetween('date', [$startDate, $endDate])
             ->where('is_active', true)
             ->with('schedule') // Eager load schedule relationship
             ->get()
             ->groupBy('employee_id');
+
+        // Auto-copy shifts from previous month if current month has no shifts
+        if ($employeeShifts->isEmpty()) {
+            $this->autoCopyShiftsFromPreviousMonth($month, $year);
+
+            // Reload shifts after auto-copy
+            $employeeShifts = EmployeeShift::whereBetween('date', [$startDate, $endDate])
+                ->where('is_active', true)
+                ->with('schedule')
+                ->get()
+                ->groupBy('employee_id');
+        }
 
         // Debug logging
         Log::info('Employee shifts loaded', [
@@ -525,5 +537,118 @@ class EmployeeShiftController extends Controller
                 $attendance->save();
             }
         }
+    }
+
+    /**
+     * Auto-copy shifts from previous month to current month
+     * Respects active days settings from /admin/holidays/active-days
+     */
+    private function autoCopyShiftsFromPreviousMonth($month, $year)
+    {
+        // Calculate previous month
+        $currentDate = Carbon::create($year, $month, 1);
+        $previousMonth = $currentDate->copy()->subMonth();
+
+        // Get shifts from previous month
+        $previousMonthStart = $previousMonth->copy()->startOfMonth();
+        $previousMonthEnd = $previousMonth->copy()->endOfMonth();
+
+        $previousShifts = EmployeeShift::whereBetween('date', [$previousMonthStart, $previousMonthEnd])
+            ->where('is_active', true)
+            ->with('schedule')
+            ->get()
+            ->groupBy('employee_id');
+
+        // If no previous shifts exist, return early
+        if ($previousShifts->isEmpty()) {
+            Log::info('No previous month shifts found to copy', [
+                'current_month' => $month,
+                'current_year' => $year,
+                'previous_month' => $previousMonth->month,
+                'previous_year' => $previousMonth->year
+            ]);
+            return;
+        }
+
+        // Get active days setting (1=Monday, 7=Sunday)
+        $activeDays = json_decode(\App\Models\Setting::get('active_days', '[1,2,3,4,5]'), true) ?? [1,2,3,4,5];
+
+        // Get holidays for current month
+        $currentMonthStart = Carbon::create($year, $month, 1)->startOfMonth();
+        $currentMonthEnd = Carbon::create($year, $month, 1)->endOfMonth();
+
+        $holidays = \App\Models\Holiday::whereBetween('date', [$currentMonthStart, $currentMonthEnd])
+            ->where('is_active', true)
+            ->get();
+
+        // Generate dates for current month
+        $dates = [];
+        $date = $currentMonthStart->copy();
+        while ($date <= $currentMonthEnd) {
+            $dates[] = $date->copy();
+            $date->addDay();
+        }
+
+        $copiedCount = 0;
+
+        // Copy shifts for each employee
+        foreach ($previousShifts as $employeeId => $shifts) {
+            // For each date in current month
+            foreach ($dates as $currentDate) {
+                $dayOfWeek = (int) $currentDate->format('N'); // 1=Monday, 7=Sunday
+
+                // Check if this day is an active day
+                if (!in_array($dayOfWeek, $activeDays)) {
+                    continue;
+                }
+
+                // Check if this day is a holiday
+                $isHoliday = $holidays->contains(function($holiday) use ($currentDate) {
+                    return $holiday->date->format('Y-m-d') === $currentDate->format('Y-m-d');
+                });
+
+                if ($isHoliday) {
+                    continue;
+                }
+
+                // Find corresponding day in previous month (e.g., if today is the 15th, find the 15th of last month)
+                // But if the day doesn't exist in previous month (e.g., Feb 30), skip it
+                try {
+                    $correspondingPreviousDate = Carbon::create(
+                        $previousMonth->year,
+                        $previousMonth->month,
+                        $currentDate->day
+                    );
+                } catch (\Exception $e) {
+                    // Day doesn't exist in previous month (e.g., Feb 30)
+                    continue;
+                }
+
+                // Find shift from previous month for this employee on this day
+                $previousShift = $shifts->first(function($shift) use ($correspondingPreviousDate) {
+                    return $shift->date->format('Y-m-d') === $correspondingPreviousDate->format('Y-m-d');
+                });
+
+                if ($previousShift) {
+                    // Create new shift for current month
+                    EmployeeShift::create([
+                        'employee_id' => $employeeId,
+                        'schedule_id' => $previousShift->schedule_id,
+                        'date' => $currentDate,
+                        'is_active' => true,
+                    ]);
+                    $copiedCount++;
+                }
+            }
+        }
+
+        Log::info('Auto-copied shifts from previous month', [
+            'current_month' => $month,
+            'current_year' => $year,
+            'previous_month' => $previousMonth->month,
+            'previous_year' => $previousMonth->year,
+            'copied_count' => $copiedCount,
+            'active_days' => $activeDays
+        ]);
     }
 }
