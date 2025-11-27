@@ -1,0 +1,122 @@
+================================================================================
+  FILES TO UPLOAD - Version 1.1.2
+  Sistem Absensi MTsN 2 Kota Malang
+  Date: 27 November 2025
+================================================================================
+
+CRITICAL FILES (MUST UPLOAD):
+-----------------------------
+
+1. DATABASE MIGRATION (NEW FILE):
+   database/migrations/2025_11_27_084807_add_month_year_to_salaries_table.php
+   
+2. MODEL:
+   app/Models/Salary.php
+   
+3. CONTROLLERS:
+   app/Http/Controllers/Admin/EmployeeController.php
+   app/Http/Controllers/Admin/EmployeeShiftController.php
+   app/Http/Controllers/Admin/ReportController.php
+   app/Http/Controllers/Employee/ReportController.php
+   
+4. VIEWS:
+   resources/views/admin/employees/salary-settings.blade.php
+   resources/views/employee/attendance.blade.php
+
+5. DOCUMENTATION (NEW FILES):
+   CHANGELOG.md
+   DEPLOYMENT_GUIDE_v1.1.2.md
+   FILES_TO_UPLOAD_v1.1.2.txt
+
+================================================================================
+TOTAL FILES: 11
+NEW FILES: 3
+MODIFIED FILES: 8
+================================================================================
+
+CHANGES SUMMARY:
+----------------
+
+BUG FIXES:
+- Fixed attendance status calculation (Terlambat/Tepat Waktu/Pulang Awal)
+- Fixed location display privacy in employee attendance page
+
+NEW FEATURES:
+- Salary settings with month/year filtering
+- Auto-copy employee shifts from previous month
+
+DATABASE CHANGES:
+- Added 'month' column to salaries table
+- Added 'year' column to salaries table
+- Added unique constraint: (employee_id, month, year)
+
+================================================================================
+POST-UPLOAD COMMANDS:
+--------------------
+
+After uploading all files, run these commands on server:
+
+1. php artisan migrate --force
+2. php artisan config:clear
+3. php artisan cache:clear
+4. php artisan view:clear
+5. php artisan config:cache
+6. php artisan route:cache
+
+================================================================================
+VERIFICATION CHECKLIST:
+----------------------
+
+After deployment, verify:
+[ ] Can access /admin/employees/salary-settings
+[ ] Month/Year filter appears and works
+[ ] Can save salary for specific month
+[ ] /admin/employee-shifts shows shifts
+[ ] Opening new month auto-copies shifts
+[ ] Attendance status shows correctly
+[ ] Location display respects settings
+[ ] No errors in laravel.log
+
+================================================================================
+BACKUP REMINDER:
+---------------
+
+BEFORE uploading:
+1. Create database backup via /admin/backup
+2. Download and save backup file
+3. Create full files backup
+
+If something goes wrong, restore from backup!
+
+================================================================================
+AFFECTED ROUTES:
+---------------
+
+Admin:
+- /admin/employees/salary-settings
+- /admin/employee-shifts
+- /admin/reports/employees/{employee}/salary/{year}/{month}
+
+Employee:
+- /employee/attendance
+- /employee/salary-report/{year}/{month}
+
+================================================================================
+NOTES:
+------
+
+- Estimated deployment time: 10-15 minutes
+- Best deployment time: After 16:00 or weekends
+- Avoid: 07:00-08:00 and 15:00-16:00 (peak hours)
+- No downtime required for file upload
+- Only brief downtime for migration (1-2 minutes)
+
+================================================================================
+SUPPORT CONTACT:
+---------------
+
+Technical Issues:
+Email: it@mtsn2kotamalang.sch.id
+Phone: (0341) XXX-XXXX
+
+================================================================================

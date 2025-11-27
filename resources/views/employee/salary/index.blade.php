@@ -1,9 +1,10 @@
 @extends('layouts.app')
 @section('title', 'Arsip Laporan Gaji')
 @section('page-title', 'Arsip Laporan Gaji')
+@section('container-class', '')
 
 @section('content')
-<div class="container mx-auto">
+<div class="w-full py-6">
     <!-- Year Filter -->
     <form method="GET" class="mb-6 bg-white p-4 rounded-lg shadow">
         <div class="flex items-end space-x-4">
@@ -32,7 +33,8 @@
                     <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hari Aktif (Shift)</th>
                     <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hari Hadir</th>
                     <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tidak Hadir</th>
-                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tepat Waktu</th>
+                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tepat Waktu Masuk</th>
+                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tepat Waktu Pulang</th>
                     <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Terlambat Datang</th>
                     <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pulang Awal</th>
                     <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sakit</th>
@@ -51,7 +53,8 @@
                         <td class="px-3 py-2 whitespace-nowrap text-sm text-center text-gray-700">{{ $summary['active_days'] }}</td>
                         <td class="px-3 py-2 whitespace-nowrap text-sm text-center text-green-600 font-semibold">{{ $summary['present_days'] }}</td>
                         <td class="px-3 py-2 whitespace-nowrap text-sm text-center text-red-800 font-bold">{{ $summary['absent_days'] }}</td>
-                        <td class="px-3 py-2 whitespace-nowrap text-sm text-center text-gray-700">{{ $summary['on_time_days'] }}</td>
+                        <td class="px-3 py-2 whitespace-nowrap text-sm text-center text-green-600 font-semibold">{{ $summary['on_time_arrival_days'] ?? 0 }}</td>
+                        <td class="px-3 py-2 whitespace-nowrap text-sm text-center text-green-600 font-semibold">{{ $summary['on_time_departure_days'] ?? 0 }}</td>
                         <td class="px-3 py-2 whitespace-nowrap text-sm text-center text-red-600 font-semibold">{{ $summary['late_days'] }}</td>
                         <td class="px-3 py-2 whitespace-nowrap text-sm text-center text-yellow-600 font-semibold">{{ $summary['early_leave_days'] }}</td>
                         <td class="px-3 py-2 whitespace-nowrap text-sm text-center text-purple-600 font-semibold">{{ $summary['sick_days'] }}</td>
@@ -60,7 +63,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="10" class="px-3 py-2 text-center text-gray-500">Tidak ada data arsip gaji untuk tahun ini.</td>
+                        <td colspan="11" class="px-3 py-2 text-center text-gray-500">Tidak ada data arsip gaji untuk tahun ini.</td>
                     </tr>
                 @endforelse
             </tbody>

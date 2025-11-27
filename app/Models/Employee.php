@@ -19,6 +19,7 @@ class Employee extends Model
         'position',
         'phone',
         'email',
+        'nip',
         'is_active',
     ];
 
@@ -44,5 +45,15 @@ class Employee extends Model
     public function payrolls(): HasMany
     {
         return $this->hasMany(Payroll::class);
+    }
+
+    public function salary()
+    {
+        return $this->hasOne(Salary::class);
+    }
+
+    public function shifts(): HasMany
+    {
+        return $this->hasMany(EmployeeShift::class);
     }
 }

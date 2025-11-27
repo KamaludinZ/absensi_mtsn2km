@@ -18,7 +18,7 @@
                         required>
                     <option value="">Pilih Pegawai</option>
                     @foreach($employees as $employee)
-                        <option value="{{ $employee->id }}" {{ old('employee_id', $permission->permissible_id) == $employee->id ? 'selected' : '' }}>
+                        <option value="{{ $employee->id }}" {{ (string)old('employee_id', $permission->permissible_id) === (string)$employee->id ? 'selected' : '' }}>
                             {{ $employee->full_name }} - {{ $employee->position }}
                         </option>
                     @endforeach
@@ -35,13 +35,13 @@
                 <select name="status" id="status"
                         class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         required>
-                    <option value="pending" {{ old('status', $permission->status) == 'pending' ? 'selected' : '' }}>
+                    <option value="pending" {{ (string)old('status', $permission->status) === 'pending' ? 'selected' : '' }}>
                         Menunggu Persetujuan
                     </option>
-                    <option value="approved" {{ old('status', $permission->status) == 'approved' ? 'selected' : '' }}>
+                    <option value="approved" {{ (string)old('status', $permission->status) === 'approved' ? 'selected' : '' }}>
                         Disetujui
                     </option>
-                    <option value="rejected" {{ old('status', $permission->status) == 'rejected' ? 'selected' : '' }}>
+                    <option value="rejected" {{ (string)old('status', $permission->status) === 'rejected' ? 'selected' : '' }}>
                         Ditolak
                     </option>
                 </select>
@@ -56,7 +56,7 @@
                 </label>
                 <input type="date" name="start_date" id="start_date"
                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                       value="{{ old('start_date', $permission->start_date) }}" required>
+                       value="{{ old('start_date', $permission->start_date ? $permission->start_date->format('Y-m-d') : '') }}" required>
                 @error('start_date')
                     <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
                 @enderror
@@ -68,7 +68,7 @@
                 </label>
                 <input type="date" name="end_date" id="end_date"
                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                       value="{{ old('end_date', $permission->end_date) }}" required>
+                       value="{{ old('end_date', $permission->end_date ? $permission->end_date->format('Y-m-d') : '') }}" required>
                 @error('end_date')
                     <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
                 @enderror
@@ -80,7 +80,7 @@
                 </label>
                 <textarea name="reason" id="reason"
                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          rows="3" required>{{ old('reason', $permission->reason) }}</textarea>
+                          rows="3" required>{{ old('reason', $permission->reason ?? '') }}</textarea>
                 @error('reason')
                     <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
                 @enderror

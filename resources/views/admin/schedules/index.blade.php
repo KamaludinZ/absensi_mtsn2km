@@ -29,9 +29,11 @@
 
 @section('title', 'Pengaturan Jadwal')
 @section('page-title', 'Pengaturan Jadwal')
+@section('container-class', '')
 
 @section('content')
-<div class="bg-white rounded-lg shadow p-6">
+<div class="w-full py-6">
+    <div class="bg-white rounded-lg shadow p-6">
     <div class="flex flex-wrap justify-between items-center mb-6 gap-4">
         <h2 class="text-xl font-bold text-gray-800">Daftar Jadwal Absensi</h2>
         <div class="flex flex-wrap gap-2">
@@ -164,5 +166,6 @@
             {{ $schedules->links() }}
         </div>
     @endif
+    </div>
 </div>
 @endsection

@@ -2,9 +2,10 @@
 
 @section('title', 'Laporan Uang Makan')
 @section('page-title', 'Laporan Uang Makan Pegawai')
+@section('container-class', '')
 
 @section('content')
-<div class="container mx-auto px-4 py-8">
+<div class="w-full px-4 sm:px-6 py-6">
     @if(session('success'))
         <div class="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded-md">
             {{ session('success') }}
@@ -120,7 +121,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="9" class="px-6 py-4 text-center text-gray-500"> {{-- colspan changed from 11 to 9 --}}
+                            <td colspan="9" class="px-6 py-4 text-center text-gray-500">
                                 Tidak ada data pelaporan uang makan.
                             </td>
                         </tr>

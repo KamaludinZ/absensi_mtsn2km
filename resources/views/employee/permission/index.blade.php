@@ -2,9 +2,11 @@
 
 @section('title', 'Perizinan')
 @section('page-title', 'Perizinan')
+@section('container-class', '')
 
 @section('content')
-<div class="mb-6">
+<div class="w-full py-6">
+    <div class="mb-6">
     <div class="bg-white rounded-lg shadow p-6 mb-6">
         <h2 class="text-xl font-semibold mb-4">Status Izin Saat Ini</h2>
         @php
@@ -146,5 +148,7 @@
 
 <div class="mt-4">
     {{ $permissions->links() }}
+</div>
+    </div>
 </div>
 @endsection

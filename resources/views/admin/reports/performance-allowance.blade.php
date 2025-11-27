@@ -2,9 +2,10 @@
 
 @section('title', 'Laporan Tunjangan Kinerja')
 @section('page-title', 'Laporan Tunjangan Kinerja Pegawai')
+@section('container-class', '')
 
 @section('content')
-<div class="container mx-auto px-4 py-8">
+<div class="w-full px-4 sm:px-6 py-6">
     @if(session('success'))
         <div class="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded-md">
             {{ session('success') }}
@@ -76,12 +77,17 @@
                     <tr>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nama Pegawai</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jabatan</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Hari</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hari Aktif (Shift)</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hari Hadir</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hari Terlambat</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kepulangan Awal</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Persentase Kehadiran</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Skor Kinerja</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tidak Hadir</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tepat Waktu Masuk</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tepat Waktu Pulang</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tepat Waktu Masuk & Pulang</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Terlambat Datang</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pulang Awal</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sakit</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cuti</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dinas Luar</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nilai Tunjangan</th>
                     </tr>
                 </thead>
@@ -89,42 +95,55 @@
                     @forelse($performanceData as $data)
                         <tr>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                {{ $data['employee']->full_name ?? 'N/A' }}
+                                <a href="{{ route('admin.reports.performance-allowance.detail', ['employee' => $data['employee']->id, 'year' => $selectedYear, 'month' => $selectedMonth]) }}"
+                                   target="_blank"
+                                   class="text-blue-600 hover:text-blue-800 hover:underline">
+                                    {{ $data['employee']->full_name ?? 'N/A' }}
+                                </a>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 {{ $data['employee']->position ?? 'N/A' }}
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                {{ $data['total_days'] }}
+                            <td class="px-6 py-4 whitespace-nowrap text-center">
+                                {{ $data['active_days'] }}
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
+                            <td class="px-6 py-4 whitespace-nowrap text-center">
                                 {{ $data['present_days'] }}
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                {{ $data['late_days'] }}
+                            <td class="px-6 py-4 whitespace-nowrap text-center">
+                                {{ $data['absent_days'] }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-center">
+                                {{ $data['on_time_arrival_days'] ?? 0 }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-center">
+                                {{ $data['on_time_departure_days'] ?? 0 }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-center">
+                                {{ $data['on_time_both_days'] ?? 0 }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-center">
+                                {{ $data['late_arrival_days'] ?? 0 }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-center">
+                                {{ $data['early_departure_days'] ?? 0 }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-center">
+                                {{ $data['sick_days'] }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-center">
+                                {{ $data['leave_days'] }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-center">
+                                {{ $data['official_duty_days'] }}
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                {{ $data['early_departure_days'] }}
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                {{ $data['present_rate'] }}%
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                {{ $data['performance_score'] }}/100
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                @php
-                                    // Calculate allowance based on performance score
-                                    $baseAllowance = 500000; // Base allowance
-                                    $adjustment = $data['performance_score'] / 100;
-                                    $finalAllowance = $baseAllowance * $adjustment;
-                                @endphp
-                                Rp {{ number_format($finalAllowance, 0, ',', '.') }}
+                                Rp {{ number_format($data['total_performance_allowance'], 0, ',', '.') }}
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="9" class="px-6 py-4 text-center text-gray-500">
+                            <td colspan="14" class="px-6 py-4 text-center text-gray-500">
                                 Tidak ada data pelaporan tunjangan kinerja.
                             </td>
                         </tr>
@@ -143,7 +162,7 @@
                 </div>
                 <div>
                     <p class="text-sm text-gray-700">
-                        Rata-rata Skor Kinerja: {{ number_format(collect($performanceData)->avg('performance_score'), 2) }}/100
+                        Total Pembayaran Tunjangan Kinerja: Rp {{ number_format(collect($performanceData)->sum('total_performance_allowance'), 0, ',', '.') }}
                     </p>
                 </div>
             </div>

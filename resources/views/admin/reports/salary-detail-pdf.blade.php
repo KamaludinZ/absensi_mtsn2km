@@ -11,6 +11,54 @@
             font-size: 7pt; /* Reduced font size */
             line-height: 1.1;
         }
+        .header {
+            text-align: center;
+            margin-bottom: 10px;
+            border-bottom: 3px solid #000;
+            padding-bottom: 5px;
+        }
+        .header-content {
+            display: table;
+            width: 100%;
+        }
+        .logo-left, .logo-right {
+            display: table-cell;
+            width: 60px;
+            vertical-align: middle;
+        }
+        .logo-left img, .logo-right img {
+            max-width: 50px;
+            max-height: 50px;
+        }
+        .header-text {
+            display: table-cell;
+            vertical-align: middle;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 11pt;
+            text-transform: uppercase;
+        }
+        .header h2 {
+            margin: 2px 0;
+            font-size: 10pt;
+            font-weight: normal;
+        }
+        .header p {
+            margin: 1px 0;
+            font-size: 7pt;
+        }
+        .report-title {
+            text-align: center;
+            margin: 10px 0;
+        }
+        .report-title h3 {
+            margin: 3px 0;
+            font-size: 10pt;
+            text-transform: uppercase;
+            text-decoration: underline;
+        }
         h1 {
             font-size: 12pt;
             text-align: center;
@@ -63,7 +111,7 @@
         .font-bold { font-weight: bold; }
         .signature-table {
             width: 100%;
-            margin-top: 10px;
+            margin-top: 5px;
             border-collapse: collapse;
         }
         .signature-table td {
@@ -82,20 +130,53 @@
     </style>
 </head>
 <body>
-    <h1>LAPORAN GAJI PEGAWAI</h1>
+    <div class="header">
+        <div class="header-content">
+            <div class="logo-left">
+                @if(!empty($headerSettings['left_logo']))
+                    <img src="{{ $headerSettings['left_logo'] }}" alt="Logo Kiri">
+                @endif
+            </div>
+            <div class="header-text">
+                <h1>{{ $headerSettings['school_name'] ?? 'MTsN 2 KOTA MALANG' }}</h1>
+                <h2>{{ $headerSettings['school_full_name'] ?? 'MADRASAH TSANAWIYAH NEGERI 2 KOTA MALANG' }}</h2>
+                <p>{{ $headerSettings['school_address'] ?? 'Jl. KH. Hasyim Asy\'ari No. 1, Kota Malang, Jawa Timur 65144' }}</p>
+                <p>
+                    @if(!empty($headerSettings['school_phone']))
+                        Telp: {{ $headerSettings['school_phone'] }}
+                    @endif
+                    @if(!empty($headerSettings['school_phone']) && !empty($headerSettings['school_email']))
+                        |
+                    @endif
+                    @if(!empty($headerSettings['school_email']))
+                        Email: {{ $headerSettings['school_email'] }}
+                    @endif
+                </p>
+            </div>
+            <div class="logo-right">
+                @if(!empty($headerSettings['right_logo']))
+                    <img src="{{ $headerSettings['right_logo'] }}" alt="Logo Kanan">
+                @endif
+            </div>
+        </div>
+    </div>
+
+    <div class="report-title">
+        <h3>LAPORAN GAJI PEGAWAI</h3>
+    </div>
 
     <table class="header-info">
         <tr>
             <td class="label">Nama Pegawai</td>
             <td>: {{ $employee->full_name }}</td>
-            <td class="label">Periode</td>
-            <td>: {{ \Carbon\Carbon::create($year, $month)->isoFormat('MMMM YYYY') }}</td>
-        </tr>
-        <tr>
             <td class="label">Jabatan</td>
             <td>: {{ $employee->position ?? 'N/A' }}</td>
+        </tr>
+        <tr>
             <td class="label">NIP</td>
             <td>: {{ $employee->nip ?? 'N/A' }}</td>
+            <td class="label">Periode</td>
+            <td>: {{ \Carbon\Carbon::create($year, $month)->isoFormat('MMMM YYYY') }}</td>
         </tr>
     </table>
 
@@ -177,14 +258,18 @@
     <table class="signature-table">
         <tr>
             <td>
+                <p style="visibility: hidden; margin: 0;">Mengetahui,</p>
                 <p>Pegawai Yang Bersangkutan,</p>
                 <div class="signature-space"></div>
                 <p class="signature-name">({{ $employee->full_name }})</p>
+                <p style="font-size: 7pt; margin-top: 2px;">NIP: {{ $employee->nip ?? '-' }}</p>
             </td>
             <td>
                 <p>Mengetahui,</p>
+                <p>Kepala Madrasah</p>
                 <div class="signature-space"></div>
-                <p class="signature-name">(........................................)</p>
+                <p class="signature-name">({{ $headerSettings['headmaster_name'] ?? '................................' }})</p>
+                <p style="font-size: 7pt; margin-top: 2px;">NIP: {{ $headerSettings['headmaster_nip'] ?? '................................' }}</p>
             </td>
         </tr>
     </table>

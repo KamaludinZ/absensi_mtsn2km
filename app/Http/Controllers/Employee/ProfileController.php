@@ -10,6 +10,21 @@ use Illuminate\Validation\Rules\Password;
 class ProfileController extends Controller
 {
     /**
+     * Display the employee profile
+     */
+    public function index()
+    {
+        $user = auth()->user();
+        $employee = $user->employee;
+
+        if (!$employee) {
+            return redirect()->back()->with('error', 'Data pegawai tidak ditemukan.');
+        }
+
+        return view('employee.profile.index', compact('employee', 'user'));
+    }
+
+    /**
      * Show the change password form
      */
     public function showChangePasswordForm()

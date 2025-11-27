@@ -41,6 +41,7 @@
                 </div>
 
                 <!-- Location Information -->
+                @if(isset($locationSettings['display_with_coordinates']) && $locationSettings['display_with_coordinates'])
                 <div class="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
                     <h3 class="text-lg font-semibold text-gray-800 mb-2">Lokasi Anda</h3>
                     <div x-show="locationEnabled" class="flex items-center">
@@ -49,43 +50,22 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
                         </svg>
                         <div>
-                            @if(isset($locationSettings['display_with_coordinates']) && $locationSettings['display_with_coordinates'])
                             <p class="text-sm text-gray-700">Koordinat:
                                 <span x-text="currentLocation ? currentLocation.latitude + ', ' + currentLocation.longitude : 'Mengambil lokasi...'"></span>
                             </p>
                             <p class="text-sm text-gray-600" x-text="currentLocation ? 'Akurasi: ' + Math.round(currentLocation.accuracy) + ' meter' : 'Akurasi: -'"></p>
-                            @else
-                            <p class="text-sm text-gray-700">Status lokasi:
-                                <span x-text="currentLocation ? 'Lokasi terdeteksi' : 'Mengambil lokasi...'"></span>
-                            </p>
-                            @endif
                             <template x-if="lastLocationCheck">
                                 <div>
                                     <p class="text-sm" x-bind:class="locationInGeofence ? 'text-green-600' : 'text-red-600'"
-                                       x-text="locationInGeofence ?
-                                            @if(isset($locationSettings['display_with_coordinates']) && $locationSettings['display_with_coordinates'])
-                                            ('Lokasi Anda berada di dalam area geofence (' + Math.round(lastLocationCheck.distance) + 'm dari pusat)')
-                                            @else
-                                            'Lokasi Anda berada di dalam area geofence'
-                                            @endif
-                                            :
-                                            @if(isset($locationSettings['display_with_coordinates']) && $locationSettings['display_with_coordinates'])
-                                            ('Peringatan: Lokasi Anda di luar area geofence (' + Math.round(lastLocationCheck.distance) + 'm dari pusat)')
-                                            @else
-                                            'Peringatan: Lokasi Anda di luar area geofence'
-                                            @endif
-                                            ">
+                                       x-text="locationInGeofence ? ('Lokasi Anda berada di dalam area geofence (' + Math.round(lastLocationCheck.distance) + 'm dari pusat)') : ('Peringatan: Lokasi Anda di luar area geofence (' + Math.round(lastLocationCheck.distance) + 'm dari pusat)')">
                                     </p>
-                                    @if(isset($locationSettings['display_with_coordinates']) && $locationSettings['display_with_coordinates'])
                                     <p class="text-xs text-gray-500" x-show="lastLocationCheck && !lastLocationCheck.withinStrictRadius && lastLocationCheck.withinAllowedRadius">
                                         * Diperbolehkan karena toleransi akurasi GPS (radius: <span x-text="geofenceRadius"></span>m + akurasi: <span x-text="Math.round(currentLocation?.accuracy || 0)"></span>m)
                                     </p>
-                                    @endif
                                 </div>
                             </template>
                             <template x-if="!lastLocationCheck">
-                                <p class="text-sm" x-bind:class="locationInGeofence ? 'text-green-600' : 'text-red-600'"
-                                   x-text="locationInGeofence ? 'Lokasi Anda berada di dalam area geofence' : 'Peringatan: Lokasi Anda di luar area geofence'"></p>
+                                <p class="text-sm text-gray-600" x-text="currentLocation ? 'Lokasi telah diverifikasi' : ''"></p>
                             </template>
                         </div>
                     </div>
@@ -99,6 +79,7 @@
                         </div>
                     </div>
                 </div>
+                @endif
 
                 <!-- Map Display -->
                 @if(isset($locationSettings['display_with_map']) && $locationSettings['display_with_map'])
@@ -154,6 +135,7 @@
                 </div>
                 
                 <!-- Location Information -->
+                @if(isset($locationSettings['display_with_coordinates']) && $locationSettings['display_with_coordinates'])
                 <div class="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
                     <h3 class="text-lg font-semibold text-gray-800 mb-1">Lokasi Absensi</h3>
                     <div class="flex items-center">
@@ -162,66 +144,54 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
                         </svg>
                         <div>
-                            @if(isset($locationSettings['display_with_coordinates']) && $locationSettings['display_with_coordinates'])
                             <p class="text-sm text-gray-700">Koordinat:
                                 <span x-text="currentLocation ? currentLocation.latitude + ', ' + currentLocation.longitude : 'Mengambil lokasi...'"></span>
                             </p>
                             <p class="text-sm text-gray-600" x-text="currentLocation ? 'Akurasi: ' + Math.round(currentLocation.accuracy) + ' meter' : 'Akurasi: -'"></p>
-                            @else
-                            <p class="text-sm text-gray-700">Status lokasi:
-                                <span x-text="currentLocation ? 'Lokasi terdeteksi' : 'Mengambil lokasi...'"></span>
-                            </p>
-                            @endif
                             <template x-if="lastLocationCheck">
                                 <div>
                                     <p class="text-sm" x-bind:class="locationInGeofence ? 'text-green-600' : 'text-red-600'"
-                                       x-text="locationInGeofence ?
-                                            @if(isset($locationSettings['display_with_coordinates']) && $locationSettings['display_with_coordinates'])
-                                            ('Sesuai area geofence (' + Math.round(lastLocationCheck.distance) + 'm dari pusat)')
-                                            @else
-                                            'Sesuai area geofence'
-                                            @endif
-                                            :
-                                            @if(isset($locationSettings['display_with_coordinates']) && $locationSettings['display_with_coordinates'])
-                                            ('Peringatan: Di luar area geofence (' + Math.round(lastLocationCheck.distance) + 'm dari pusat)')
-                                            @else
-                                            'Peringatan: Di luar area geofence'
-                                            @endif
-                                            ">
+                                       x-text="locationInGeofence ? ('Sesuai area geofence (' + Math.round(lastLocationCheck.distance) + 'm dari pusat)') : ('Peringatan: Di luar area geofence (' + Math.round(lastLocationCheck.distance) + 'm dari pusat)')">
                                     </p>
-                                    @if(isset($locationSettings['display_with_coordinates']) && $locationSettings['display_with_coordinates'])
                                     <p class="text-xs text-gray-500" x-show="lastLocationCheck && !lastLocationCheck.withinStrictRadius && lastLocationCheck.withinAllowedRadius">
                                         * Diperbolehkan karena toleransi akurasi GPS (radius: <span x-text="geofenceRadius"></span>m + akurasi: <span x-text="Math.round(currentLocation?.accuracy || 0)"></span>m)
                                     </p>
-                                    @endif
                                 </div>
                             </template>
                             <template x-if="!lastLocationCheck">
-                                <p class="text-sm" x-bind:class="locationInGeofence ? 'text-green-600' : 'text-red-600'"
-                                   x-text="locationInGeofence ? 'Sesuai area geofence' : 'Peringatan: Di luar area geofence'"></p>
+                                <p class="text-sm text-gray-600" x-text="currentLocation ? 'Lokasi telah diverifikasi' : ''"></p>
                             </template>
                         </div>
                     </div>
                 </div>
+                @endif
 
-                <div class="mb-6">
+                <!-- Camera section (only show if selfie is required) -->
+                <div class="mb-6" x-show="requireSelfie">
                     <video x-ref="video" autoplay playsinline class="w-full rounded-lg border border-gray-300" style="display:none;"></video>
                     <canvas x-ref="canvas" class="w-full rounded-lg border border-gray-300" style="display:none;"></canvas>
                     <img x-show="capturedImage" :src="capturedImage" class="w-full rounded-lg border border-gray-300">
                 </div>
 
-                <!-- Loading State --> 
+                <!-- Info message when selfie is not required -->
+                <div x-show="!requireSelfie" class="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <p class="text-center text-gray-700">Foto selfie tidak diperlukan untuk absensi ini. Klik tombol di bawah untuk mengirim absensi.</p>
+                </div>
+
+                <!-- Loading State -->
                 <div x-show="submitting" class="text-center mb-4">
                     <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                     <p class="text-gray-600 mt-2">Mengirim absensi beserta lokasi...</p>
                 </div>
 
                 <div class="flex space-x-4" x-show="!submitting">
-                    <button @click="captureImage" x-show="!capturedImage" class="flex-1 bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition duration-200 font-semibold">
+                    <!-- Show "Ambil Foto" button only if selfie is required -->
+                    <button @click="captureImage" x-show="requireSelfie && !capturedImage" class="flex-1 bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition duration-200 font-semibold">
                         Ambil Foto
                     </button>
-                    
-                    <div x-show="capturedImage" class="w-full space-y-4">
+
+                    <!-- Show submit and retake buttons when selfie is captured -->
+                    <div x-show="requireSelfie && capturedImage" class="w-full space-y-4">
                         <button @click="submitAttendance" class="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition duration-200 font-semibold">
                             Kirim Absensi
                         </button>
@@ -229,6 +199,11 @@
                             Foto Ulang
                         </button>
                     </div>
+
+                    <!-- Show submit button directly when selfie is not required -->
+                    <button @click="submitAttendance" x-show="!requireSelfie" class="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition duration-200 font-semibold">
+                        Kirim Absensi
+                    </button>
                 </div>
                 
                 <div class="mt-4">
@@ -303,6 +278,8 @@ function attendanceApp() {
         geofenceMarker: null,
         userMarker: null,
         displayWithMap: {{ isset($locationSettings['display_with_map']) && $locationSettings['display_with_map'] ? 'true' : 'false' }},
+        displayWithCoordinates: {{ isset($locationSettings['display_with_coordinates']) && $locationSettings['display_with_coordinates'] ? 'true' : 'false' }},
+        requireSelfie: {{ isset($attendanceSettings['require_selfie_photo']) && $attendanceSettings['require_selfie_photo'] ? 'true' : 'false' }},
 
         init() {
             // Initialize clock and schedule
@@ -457,11 +434,13 @@ function attendanceApp() {
                 this.error = 'Lokasi Anda tidak berada di area geofence yang ditentukan. Silakan pindah ke area yang sesuai.';
                 return;
             }
-            
+
             this.attendanceType = type;
             this.step = 2;
-            // Start camera after moving to step 2
-            this.startCamera();
+            // Start camera after moving to step 2 (only if selfie is required)
+            if (this.requireSelfie) {
+                this.startCamera();
+            }
         },
 
         // Request location access with improved cross-browser support
@@ -692,7 +671,15 @@ function attendanceApp() {
                         popupAnchor: [0, -32]
                     })
                 }).addTo(this.map);
-                this.geofenceMarker.bindPopup(`<b>Pusat Geofence</b><br>Lat: ${this.geofenceCenter.lat.toFixed(6)}<br>Lng: ${this.geofenceCenter.lng.toFixed(6)}`);
+
+                // Build popup content based on display_with_coordinates setting
+                let geofencePopupContent = '<b>Pusat Geofence</b>';
+
+                if (this.displayWithCoordinates) {
+                    geofencePopupContent += `<br>Lat: ${this.geofenceCenter.lat.toFixed(6)}<br>Lng: ${this.geofenceCenter.lng.toFixed(6)}`;
+                }
+
+                this.geofenceMarker.bindPopup(geofencePopupContent);
 
                 // Add geofence circle (red transparent)
                 this.geofenceCircle = L.circle([this.geofenceCenter.lat, this.geofenceCenter.lng], {
@@ -739,7 +726,15 @@ function attendanceApp() {
 
                 const statusText = this.locationInGeofence ? 'Di dalam area' : 'Di luar area';
                 const statusColor = this.locationInGeofence ? 'green' : 'red';
-                this.userMarker.bindPopup(`<b style="color: ${statusColor}">Lokasi Anda</b><br>${statusText}<br>Lat: ${userLat.toFixed(6)}<br>Lng: ${userLng.toFixed(6)}<br>Akurasi: ${Math.round(this.currentLocation.accuracy)}m`);
+
+                // Build popup content based on display_with_coordinates setting
+                let popupContent = `<b style="color: ${statusColor}">Lokasi Anda</b><br>${statusText}`;
+
+                if (this.displayWithCoordinates) {
+                    popupContent += `<br>Lat: ${userLat.toFixed(6)}<br>Lng: ${userLng.toFixed(6)}<br>Akurasi: ${Math.round(this.currentLocation.accuracy)}m`;
+                }
+
+                this.userMarker.bindPopup(popupContent);
 
                 // Pan to show both markers
                 const bounds = L.latLngBounds([

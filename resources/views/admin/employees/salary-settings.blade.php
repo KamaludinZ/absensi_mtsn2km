@@ -17,7 +17,43 @@
                 <div class="flex justify-between items-center">
                     <div>
                         <h2 class="text-xl font-bold text-gray-800">Pengaturan Gaji Pegawai</h2>
-                        <p class="text-sm text-gray-600 mt-1">Atur komponen gaji untuk masing-masing pegawai</p>
+                        <p class="text-sm text-gray-600 mt-1">Atur komponen gaji untuk masing-masing pegawai - {{ \Carbon\Carbon::create($year, $month, 1)->translatedFormat('F') }} {{ $year }}</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <!-- Month/Year Filter -->
+                        <form method="GET" class="flex items-center gap-2">
+                            <select name="month" class="border border-gray-300 rounded px-3 py-2 text-sm">
+                                @for($i = 1; $i <= 12; $i++)
+                                    <option value="{{ $i }}" {{ $i == $month ? 'selected' : '' }}>
+                                        {{ \Carbon\Carbon::create(2025, $i, 1)->translatedFormat('F') }}
+                                    </option>
+                                @endfor
+                            </select>
+
+                            <select name="year" class="border border-gray-300 rounded px-3 py-2 text-sm">
+                                @for($y = now()->year - 2; $y <= now()->year + 2; $y++)
+                                    <option value="{{ $y }}" {{ $y == $year ? 'selected' : '' }}>
+                                        {{ $y }}
+                                    </option>
+                                @endfor
+                            </select>
+
+                            <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 text-sm">
+                                Tampilkan
+                            </button>
+                        </form>
+
+                        <div class="border-l border-gray-300 h-8 mx-2"></div>
+
+                        <button type="button" id="enable-edit-mode" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors">
+                            Edit Gaji Pegawai
+                        </button>
+                        <button type="submit" id="save-changes" form="salary-settings-form" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 hidden transition-colors">
+                            Simpan Perubahan
+                        </button>
+                        <button type="button" id="cancel-edit" class="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 hidden transition-colors">
+                            Batal
+                        </button>
                     </div>
                 </div>
             </div>
@@ -58,20 +94,11 @@
             </div>
 
             <div class="flex flex-wrap items-center gap-4">
-                <button type="button" id="apply-bulk-settings" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                <button type="button" id="apply-bulk-settings" class="bg-purple-600 text-white px-6 py-2 font-medium rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-colors !bg-purple-600 !text-white">
                     Terapkan ke Semua Pegawai
                 </button>
-                <button type="button" id="apply-bulk-selected" class="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                <button type="button" id="apply-bulk-selected" class="bg-purple-600 text-white px-6 py-2 rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors" disabled>
                     Terapkan ke Pegawai Terpilih
-                </button>
-                <button type="button" id="enable-edit-mode" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">
-                    Edit Gaji Pegawai
-                </button>
-                <button type="submit" id="save-changes" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 hidden">
-                    Simpan Perubahan
-                </button>
-                <button type="button" id="cancel-edit" class="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 hidden">
-                    Batal
                 </button>
             </div>
 
@@ -93,8 +120,10 @@
             </div>
         </div>
 
-        <form method="POST" action="{{ route('admin.employees.update-salary-settings') }}">
+        <form id="salary-settings-form" method="POST" action="{{ route('admin.employees.update-salary-settings') }}">
             @csrf
+            <input type="hidden" name="month" value="{{ $month }}">
+            <input type="hidden" name="year" value="{{ $year }}">
 
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
@@ -272,37 +301,31 @@ document.addEventListener('DOMContentLoaded', function() {
     // Apply bulk settings to all employees
     if (applyBulkSettingsBtn) {
         applyBulkSettingsBtn.addEventListener('click', function() {
-            // Ensure edit mode is enabled before applying bulk changes
             if (saveChangesBtn.classList.contains('hidden')) {
                 alert('Silakan klik tombol "Edit Gaji Pegawai" terlebih dahulu untuk mengaktifkan mode edit.');
                 return;
             }
-
-            if (!confirm('Apakah Anda yakin ingin menerapkan pengaturan gaji yang sama ke SEMUA pegawai?')) {
+            if (!confirm('Apakah Anda yakin ingin menerapkan pengaturan gaji yang sama ke SEMUA pegawai? Kolom yang kosong tidak akan diterapkan.')) {
                 return;
             }
-
-            const bulkValues = {
-                base_salary: bulkBaseSalary.value || 0,
-                meal_allowance: bulkMealAllowance.value || 0,
-                transport_allowance: bulkTransportAllowance.value || 0,
-                performance_allowance: bulkPerformanceAllowance.value || 0
-            };
-
-            // Fill all salary fields with bulk values using employee checkboxes
             employeeCheckboxes.forEach(checkbox => {
                 const employeeId = checkbox.value;
-
-                // Find the corresponding salary fields for this employee
-                const baseSalaryField = document.querySelector(`input[name="salaries[${employeeId}][base_salary]"]`);
-                const mealAllowanceField = document.querySelector(`input[name="salaries[${employeeId}][meal_allowance]"]`);
-                const transportAllowanceField = document.querySelector(`input[name="salaries[${employeeId}][transport_allowance]"]`);
-                const performanceAllowanceField = document.querySelector(`input[name="salaries[${employeeId}][performance_allowance]"]`);
-
-                if (baseSalaryField) baseSalaryField.value = bulkValues.base_salary;
-                if (mealAllowanceField) mealAllowanceField.value = bulkValues.meal_allowance;
-                if (transportAllowanceField) transportAllowanceField.value = bulkValues.transport_allowance;
-                if (performanceAllowanceField) performanceAllowanceField.value = bulkValues.performance_allowance;
+                if (bulkBaseSalary.value !== '') {
+                    const field = document.querySelector(`input[name="salaries[${employeeId}][base_salary]"]`);
+                    if (field) field.value = bulkBaseSalary.value;
+                }
+                if (bulkMealAllowance.value !== '') {
+                    const field = document.querySelector(`input[name="salaries[${employeeId}][meal_allowance]"]`);
+                    if (field) field.value = bulkMealAllowance.value;
+                }
+                if (bulkTransportAllowance.value !== '') {
+                    const field = document.querySelector(`input[name="salaries[${employeeId}][transport_allowance]"]`);
+                    if (field) field.value = bulkTransportAllowance.value;
+                }
+                if (bulkPerformanceAllowance.value !== '') {
+                    const field = document.querySelector(`input[name="salaries[${employeeId}][performance_allowance]"]`);
+                    if (field) field.value = bulkPerformanceAllowance.value;
+                }
             });
         });
     }
@@ -310,50 +333,75 @@ document.addEventListener('DOMContentLoaded', function() {
     // Apply bulk settings to selected employees only
     if (applyBulkSelectedBtn) {
         applyBulkSelectedBtn.addEventListener('click', function() {
-            // Ensure edit mode is enabled before applying bulk changes
             if (saveChangesBtn.classList.contains('hidden')) {
                 alert('Silakan klik tombol "Edit Gaji Pegawai" terlebih dahulu untuk mengaktifkan mode edit.');
                 return;
             }
-
             const selectedCheckboxes = document.querySelectorAll('.employee-checkbox:checked');
-
             if (selectedCheckboxes.length === 0) {
                 alert('Silakan pilih setidaknya satu pegawai terlebih dahulu.');
                 return;
             }
-
-            if (!confirm(`Apakah Anda yakin ingin menerapkan pengaturan gaji yang sama ke ${selectedCheckboxes.length} pegawai yang dipilih?`)) {
+            if (!confirm(`Apakah Anda yakin ingin menerapkan pengaturan gaji yang sama ke ${selectedCheckboxes.length} pegawai yang dipilih? Kolom yang kosong tidak akan diterapkan.`)) {
                 return;
             }
-
-            const bulkValues = {
-                base_salary: bulkBaseSalary.value || 0,
-                meal_allowance: bulkMealAllowance.value || 0,
-                transport_allowance: bulkTransportAllowance.value || 0,
-                performance_allowance: bulkPerformanceAllowance.value || 0
-            };
-
-            // Fill only selected employee salary fields with bulk values
             selectedCheckboxes.forEach(checkbox => {
                 const employeeId = checkbox.value;
-
-                // Find the corresponding salary fields for this selected employee
-                const baseSalaryField = document.querySelector(`input[name="salaries[${employeeId}][base_salary]"]`);
-                const mealAllowanceField = document.querySelector(`input[name="salaries[${employeeId}][meal_allowance]"]`);
-                const transportAllowanceField = document.querySelector(`input[name="salaries[${employeeId}][transport_allowance]"]`);
-                const performanceAllowanceField = document.querySelector(`input[name="salaries[${employeeId}][performance_allowance]"]`);
-
-                if (baseSalaryField) baseSalaryField.value = bulkValues.base_salary;
-                if (mealAllowanceField) mealAllowanceField.value = bulkValues.meal_allowance;
-                if (transportAllowanceField) transportAllowanceField.value = bulkValues.transport_allowance;
-                if (performanceAllowanceField) performanceAllowanceField.value = bulkValues.performance_allowance;
+                if (bulkBaseSalary.value !== '') {
+                    const field = document.querySelector(`input[name="salaries[${employeeId}][base_salary]"]`);
+                    if (field) field.value = bulkBaseSalary.value;
+                }
+                if (bulkMealAllowance.value !== '') {
+                    const field = document.querySelector(`input[name="salaries[${employeeId}][meal_allowance]"]`);
+                    if (field) field.value = bulkMealAllowance.value;
+                }
+                if (bulkTransportAllowance.value !== '') {
+                    const field = document.querySelector(`input[name="salaries[${employeeId}][transport_allowance]"]`);
+                    if (field) field.value = bulkTransportAllowance.value;
+                }
+                if (bulkPerformanceAllowance.value !== '') {
+                    const field = document.querySelector(`input[name="salaries[${employeeId}][performance_allowance]"]`);
+                    if (field) field.value = bulkPerformanceAllowance.value;
+                }
             });
         });
     }
 
     // Initialize the selected count
     updateSelectedCount();
+
+    // Handle edit mode without the top save button
+    // Modify the edit mode behavior to not use the top save button
+    if (enableEditModeBtn) {
+        enableEditModeBtn.addEventListener('click', function() {
+            // Enable all salary input fields
+            allSalaryInputs.forEach(input => {
+                input.disabled = false;
+                input.classList.remove('bg-gray-100', 'cursor-not-allowed');
+            });
+
+            // Show cancel button but hide the edit button
+            enableEditModeBtn.classList.add('hidden');
+            cancelEditBtn.classList.remove('hidden');
+            // Don't show the save button in the control panel as per user requirement
+            // Form will be submitted via the bottom submit button
+        });
+    }
+
+    // Update cancel edit functionality
+    if (cancelEditBtn) {
+        cancelEditBtn.addEventListener('click', function() {
+            // Disable all salary input fields again
+            allSalaryInputs.forEach(input => {
+                input.disabled = true;
+                input.classList.add('bg-gray-100', 'cursor-not-allowed');
+            });
+
+            // Hide cancel button and show edit button again
+            cancelEditBtn.classList.add('hidden');
+            enableEditModeBtn.classList.remove('hidden');
+        });
+    }
 });
 </script>
 @endsection

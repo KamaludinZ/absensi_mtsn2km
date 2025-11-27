@@ -191,6 +191,77 @@
     .container-layout {
         @apply max-w-7xl mx-auto px-4 sm:px-6;
     }
+
+    .container-full-width .container-layout {
+        @apply max-w-full mx-0 px-0 sm:px-0;
+    }
+
+    main[class*="container-full-width"],
+    [class*="container-full-width"] main,
+    body.container-full-width main,
+    .container-full-width main {
+        padding: 0 !important;
+    }
+
+    /* More specific override for reports full width */
+    .container-full-width main.p-4,
+    .container-full-width main.p-6,
+    .container-full-width main[class*="p-"] {
+        padding: 0 !important;
+    }
+
+    /* Full width reports specific overrides */
+    .container-full-width main {
+        margin: 0 !important;
+        padding: 0 !important;
+        background: white !important; /* Override background color */
+    }
+
+    /* Override the flex container behavior for reports */
+    body.container-full-width .main-content,
+    .container-full-width .main-content {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    /* Override immediate parent of main specifically */
+    body.container-full-width .flex-1.flex.flex-col > main,
+    .container-full-width .flex-1.flex.flex-col > main {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    /* Target the exact parent container of main */
+    body.container-full-width .main-content > div.flex-1.flex.flex-col,
+    .container-full-width .main-content > div.flex-1.flex.flex-col {
+        margin: 0 !important;
+        padding: 0 !important;
+        flex: none !important;  /* Override flex behavior */
+    }
+
+    /* Override flex behavior to expand main */
+    body.container-full-width main,
+    .container-full-width main {
+        flex: 1 1 auto !important;  /* Override flex behavior to expand */
+    }
+
+
+    /* Ensure the content area fills available space */
+    .container-full-width .container-layout {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    body.container-full-width main .container-layout,
+    .container-full-width main .container-layout {
+        max-width: none !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+    }
 }
 
 /* Layout and responsive improvements */
@@ -267,7 +338,24 @@
 
 .loading-spinner {
     animation: spin 1s linear infinite;
-    @apply -ml-1 mr-3 h-5 w-5;
+    @apply mr-3 h-5 w-5;
+}
+
+/* Loading container to ensure proper alignment */
+.loading-container {
+    @apply flex items-center;
+}
+
+.loading-icon {
+    @apply animate-spin h-5 w-5 mr-2 flex-shrink-0;
+}
+
+.loading-icon-sm {
+    @apply animate-spin h-4 w-4 mr-2 flex-shrink-0;
+}
+
+.loading-icon-lg {
+    @apply animate-spin h-6 w-6 mr-2 flex-shrink-0;
 }
 
 /* Grid utilities */

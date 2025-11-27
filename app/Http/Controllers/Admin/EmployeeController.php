@@ -16,7 +16,22 @@ class EmployeeController extends Controller
     public function index()
     {
         $query = Employee::with('user');
-        
+
+        // Calculate summary statistics
+        $totalEmployees = Employee::count();
+        $activeEmployees = Employee::where('is_active', true)->count();
+        $inactiveEmployees = Employee::where('is_active', false)->count();
+
+        // Group employees by position or type if possible
+        // For this implementation, we'll categorize based on common Indonesian position patterns
+        $guruEmployees = Employee::where(function($query) {
+            $query->where('position', 'LIKE', '%Guru%')
+                  ->orWhere('position', 'LIKE', '%Pendidik%')
+                  ->orWhere('position', 'LIKE', '%Dosen%');
+        })->count();
+
+        $staffEmployees = $totalEmployees - $guruEmployees; // Remaining employees are considered staff
+
         // Sorting logic
         $sortField = request('sort', 'full_name');
         $sortDirection = request('direction', 'asc');
@@ -38,11 +53,11 @@ class EmployeeController extends Controller
                 $employees = $query->get()->sortBy(function($employee) {
                     return strtolower($employee->user->username ?? '');
                 }, SORT_REGULAR, $sortDirection === 'desc');
-                
+
                 // Manually paginate with customizable pagination
                 $perPage = $this->getPerPagePreference();
                 $currentPage = request()->get('page', 1);
-                
+
                 if ($perPage === 'all') {
                     // Show all records without pagination
                     $paginatedEmployees = new \Illuminate\Pagination\LengthAwarePaginator(
@@ -76,7 +91,7 @@ class EmployeeController extends Controller
                 }
                 break;
         }
-        
+
         if (!isset($employees)) {
             $perPage = $this->getPerPagePreference();
             if ($perPage === 'all') {
@@ -85,8 +100,17 @@ class EmployeeController extends Controller
                 $employees = $query->paginate($perPage);
             }
         }
-        
-        return view('admin.employees.index', compact('employees', 'sortField', 'sortDirection'));
+
+        return view('admin.employees.index', compact(
+            'employees',
+            'sortField',
+            'sortDirection',
+            'totalEmployees',
+            'activeEmployees',
+            'inactiveEmployees',
+            'guruEmployees',
+            'staffEmployees'
+        ));
     }
 
     public function create()
@@ -403,5 +427,111 @@ class EmployeeController extends Controller
 
         $writer->save('php://output');
         exit;
+    }
+
+    public function salarySettings()
+    {
+        // Get month and year from request, default to current month/year
+        $month = (int) request('month', now()->month);
+        $year = (int) request('year', now()->year);
+
+        // Get all employees with their salary for the selected month/year
+        $employees = Employee::orderBy('full_name')->get();
+
+        // Load salary relationship with month/year filter
+        $employees->load(['salary' => function($query) use ($month, $year) {
+            $query->where('month', $month)->where('year', $year);
+        }]);
+
+        return view('admin.employees.salary-settings', compact('employees', 'month', 'year'));
+    }
+
+    public function updateSalarySettings(Request $request)
+    {
+        $request->validate([
+            'month' => 'required|integer|min:1|max:12',
+            'year' => 'required|integer|min:2020|max:2030',
+            'salaries' => 'array',
+            'salaries.*.base_salary' => 'nullable|numeric|min:0',
+            'salaries.*.meal_allowance' => 'nullable|numeric|min:0',
+            'salaries.*.transport_allowance' => 'nullable|numeric|min:0',
+            'salaries.*.performance_allowance' => 'nullable|numeric|min:0',
+        ]);
+
+        $month = (int) $request->month;
+        $year = (int) $request->year;
+        $updatedCount = 0;
+
+        if ($request->has('salaries')) {
+            foreach ($request->salaries as $employeeId => $salaryData) {
+                $employee = Employee::find($employeeId);
+
+                if ($employee) {
+                    // Ensure all values are numeric and non-negative
+                    $salaryData = array_map(function($value) {
+                        return $value === null || $value === '' ? 0 : max(0, (float)$value);
+                    }, $salaryData);
+
+                    // Update or create salary record for the specific month/year
+                    \App\Models\Salary::updateOrCreate(
+                        [
+                            'employee_id' => $employee->id,
+                            'month' => $month,
+                            'year' => $year,
+                        ],
+                        [
+                            'base_salary' => $salaryData['base_salary'] ?? 0,
+                            'meal_allowance' => $salaryData['meal_allowance'] ?? 0,
+                            'transport_allowance' => $salaryData['transport_allowance'] ?? 0,
+                            'performance_allowance' => $salaryData['performance_allowance'] ?? 0,
+                        ]
+                    );
+
+                    $updatedCount++;
+                }
+            }
+        }
+
+        // Handle bulk updates if they exist
+        if ($request->has('bulk_base_salary') ||
+            $request->has('bulk_meal_allowance') ||
+            $request->has('bulk_transport_allowance') ||
+            $request->has('bulk_performance_allowance')) {
+
+            $bulkUpdates = [
+                'base_salary' => $request->input('bulk_base_salary'),
+                'meal_allowance' => $request->input('bulk_meal_allowance'),
+                'transport_allowance' => $request->input('bulk_transport_allowance'),
+                'performance_allowance' => $request->input('bulk_performance_allowance'),
+            ];
+
+            // Filter out null/empty values
+            $filteredBulkUpdates = array_filter($bulkUpdates, function($value) {
+                return $value !== null && $value !== '';
+            });
+
+            if (!empty($filteredBulkUpdates)) {
+                $employees = Employee::all();
+                foreach ($employees as $employee) {
+                    \App\Models\Salary::updateOrCreate(
+                        [
+                            'employee_id' => $employee->id,
+                            'month' => $month,
+                            'year' => $year,
+                        ],
+                        [
+                            'base_salary' => $filteredBulkUpdates['base_salary'] ?? (isset($filteredBulkUpdates['base_salary']) ? 0 : null),
+                            'meal_allowance' => $filteredBulkUpdates['meal_allowance'] ?? (isset($filteredBulkUpdates['meal_allowance']) ? 0 : null),
+                            'transport_allowance' => $filteredBulkUpdates['transport_allowance'] ?? (isset($filteredBulkUpdates['transport_allowance']) ? 0 : null),
+                            'performance_allowance' => $filteredBulkUpdates['performance_allowance'] ?? (isset($filteredBulkUpdates['performance_allowance']) ? 0 : null),
+                        ]
+                    );
+                }
+                $updatedCount += $employees->count();
+            }
+        }
+
+        return redirect()->route('admin.employees.salary-settings', ['month' => $month, 'year' => $year])
+            ->with('success', "Pengaturan gaji berhasil diperbarui untuk {$updatedCount} pegawai pada bulan " . \Carbon\Carbon::create()->month($month)->translatedFormat('F') . " {$year}.");
     }
 }

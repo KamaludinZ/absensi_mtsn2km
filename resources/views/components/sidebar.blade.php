@@ -129,7 +129,7 @@
             </a>
 
             <!-- Data Pegawai Group -->
-            <div class="nav-group" x-data="{ open: @if(request()->routeIs('admin.schedules.custom.*') || request()->routeIs('admin.employee-shifts.*') || request()->routeIs('admin.employees.*') || request()->routeIs('admin.reports.*') || request()->routeIs('admin.permissions.*') || request()->routeIs('admin.exports.employees')) true @else false @endif }">
+            <div class="nav-group" x-data="{ open: @if(request()->routeIs('admin.schedules.custom.*') || request()->routeIs('admin.employee-shifts.*') || request()->routeIs('admin.employees.*') || request()->routeIs('admin.reports.meal-allowance') || request()->routeIs('admin.reports.transport-allowance') || request()->routeIs('admin.reports.performance-allowance') || request()->routeIs('admin.reports.salary') || request()->routeIs('admin.permissions.pegawai') || request()->routeIs('admin.attendance-corrections.*') || request()->routeIs('admin.exports.employees')) true @else false @endif }">
                 <button @click="open = !open" class="nav-group-header" :aria-expanded="open" aria-controls="pegawai-submenu">
                     <div class="nav-group-title">
                         <div class="nav-icon">
@@ -174,7 +174,7 @@
                         </svg>
                         <span class="nav-text">Pengaturan Shift</span>
                     </a>
-                    <a href="{{ route('admin.employees.index') }}" class="nav-sub-item {{ request()->routeIs('admin.employees.*') ? 'active' : '' }}">
+                    <a href="{{ route('admin.employees.index') }}" class="nav-sub-item {{ request()->routeIs('admin.employees.index') ? 'active' : '' }}">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
                         </svg>
@@ -186,7 +186,7 @@
                         </svg>
                         <span class="nav-text">Pengaturan Gaji</span>
                     </a>
-                    <a href="{{ route('admin.reports.index') }}" class="nav-sub-item {{ request()->routeIs('admin.reports.*') && !request()->routeIs('admin.reports.students') ? 'active' : '' }}">
+                    <a href="{{ route('admin.reports.index') }}" class="nav-sub-item {{ request()->routeIs('admin.reports.index') ? 'active' : '' }}">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
@@ -197,6 +197,12 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
                         </svg>
                         <span class="nav-text">Laporan Uang Makan</span>
+                    </a>
+                    <a href="{{ route('admin.reports.transport-allowance') }}" class="nav-sub-item {{ request()->routeIs('admin.reports.transport-allowance') ? 'active' : '' }}">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                        </svg>
+                        <span class="nav-text">Laporan Uang Transport</span>
                     </a>
                     <a href="{{ route('admin.reports.performance-allowance') }}" class="nav-sub-item {{ request()->routeIs('admin.reports.performance-allowance') ? 'active' : '' }}">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -443,7 +449,12 @@
                 </div>
                 <span class="nav-text">Report Absensi</span>
             </a>
-            <a href="{{ route('employee.salary.report') }}" 
+            @php
+                $showSalaryMenuSetting = \App\Models\AttendanceSetting::where('setting_key', 'show_salary_menu_in_employee')->first();
+                $showSalaryMenu = $showSalaryMenuSetting ? filter_var($showSalaryMenuSetting->setting_value, FILTER_VALIDATE_BOOLEAN) : true;
+            @endphp
+            @if($showSalaryMenu)
+            <a href="{{ route('employee.salary.report') }}"
                class="nav-item {{ request()->routeIs('employee.salary.report') ? 'active' : '' }}"
                :class="{'pl-8': collapsed}">
                 <div class="nav-icon">
@@ -453,6 +464,7 @@
                 </div>
                 <span class="nav-text">Laporan Gaji</span>
             </a>
+            @endif
             <a href="{{ route('employee.permission.index') }}"
                class="nav-item {{ request()->routeIs('employee.permission.*') ? 'active' : '' }}"
                :class="{'pl-8': collapsed}">

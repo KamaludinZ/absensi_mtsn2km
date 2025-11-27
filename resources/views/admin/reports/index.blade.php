@@ -1,8 +1,13 @@
 @extends('layouts.app')
+
 @section('title', 'Laporan Absensi')
 @section('page-title', 'Laporan Absensi')
+@section('container-class', '')
+
 @section('content')
-<div class="max-w-2xl mx-auto bg-white rounded-lg shadow p-6">
+<div class="w-full px-4 sm:px-6 py-6">
+    <div class="bg-white rounded-lg shadow-md overflow-hidden">
+        <div class="p-4">
     <form action="{{ route('admin.reports.generate') }}" method="POST">
         @csrf
         <div class="mb-4">
@@ -38,5 +43,7 @@
         </div>
         <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700">Generate Laporan</button>
     </form>
+        </div>
+    </div>
 </div>
 @endsection
