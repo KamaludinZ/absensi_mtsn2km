@@ -23,6 +23,7 @@ Update versi 1.1.2 ini berisi perbaikan bug kritis dan penambahan fitur baru:
 ## Files yang Diperbarui
 
 ### Database Migrations (NEW)
+database/migrations/2025_11_21_130903_create_salaries_table.php
 database/migrations/2025_11_27_084807_add_month_year_to_salaries_table.php
 
 ### Models
@@ -53,7 +54,9 @@ Download backup file ke lokasi aman
 
 ### Step 2: Update Code
 
-Upload 9 files yang diperbarui ke server production
+Upload 16 files yang diperbarui ke server production
+
+**PENTING:** Pastikan file migration `create_salaries_table.php` diupload SEBELUM menjalankan migrate!
 
 ### Step 3: Database Migration
 
@@ -78,25 +81,48 @@ Test location privacy settings
 
 WAJIB DIUPLOAD:
 
-1. database/migrations/2025_11_27_084807_add_month_year_to_salaries_table.php
-2. app/Models/Salary.php
-3. app/Http/Controllers/Admin/EmployeeController.php
-4. app/Http/Controllers/Admin/EmployeeShiftController.php
-5. app/Http/Controllers/Admin/ReportController.php
-6. app/Http/Controllers/Employee/ReportController.php
-7. resources/views/admin/employees/salary-settings.blade.php
-8. resources/views/employee/attendance.blade.php
-9. CHANGELOG.md
-10. DEPLOYMENT_GUIDE_v1.1.2.md
+1. database/migrations/2025_11_21_130903_create_salaries_table.php
+2. database/migrations/2025_11_27_084807_add_month_year_to_salaries_table.php
+3. app/Models/Salary.php
+4. app/Http/Controllers/Admin/EmployeeController.php
+5. app/Http/Controllers/Admin/EmployeeShiftController.php
+6. app/Http/Controllers/Admin/ReportController.php
+7. app/Http/Controllers/Employee/ReportController.php
+8. resources/views/admin/employees/salary-settings.blade.php
+9. resources/views/employee/attendance.blade.php
+10. CHANGELOG.md
+11. DEPLOYMENT_GUIDE_v1.1.2.md
+12. FILES_TO_UPLOAD_v1.1.2.txt
+13. PRODUCTION_FIX_GUIDE.md
+14. VERSION
+15. package.json
+16. README.md
 
 ---
 
 ## Database Changes
 
-Table: salaries
-- Added column: month (tinyint, default 1)
-- Added column: year (smallint, default 2025)
+Table: salaries (NEW TABLE - will be created if not exists)
+- id (bigint)
+- employee_id (bigint, foreign key to employees)
+- base_salary (decimal 15,2)
+- meal_allowance (decimal 15,2)
+- transport_allowance (decimal 15,2)
+- performance_allowance (decimal 15,2)
+- other_allowances (decimal 15,2)
+- total_salary (decimal 15,2)
+- month (tinyint, default 1) - NEW COLUMN
+- year (smallint, default 2025) - NEW COLUMN
+- created_at, updated_at (timestamps)
 - Added unique constraint: (employee_id, month, year)
+
+---
+
+## Troubleshooting
+
+Jika mengalami error "relation salaries does not exist":
+- Baca file **PRODUCTION_FIX_GUIDE.md** untuk solusi lengkap
+- File migration `create_salaries_table.php` harus diupload terlebih dahulu
 
 ---
 
