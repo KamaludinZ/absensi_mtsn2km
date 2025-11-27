@@ -59,4 +59,76 @@ If you discover a security vulnerability within Laravel, please send an e-mail t
 ## License
 
 The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
-# absensi_mtsn2km
+
+---
+
+# Sistem Absensi MTsN 2 Kota Malang
+
+**Version:** 1.1.2
+**Last Updated:** 27 November 2025
+
+## About
+
+Sistem Absensi berbasis web untuk MTsN 2 Kota Malang yang dibangun dengan Laravel 12 dan Tailwind CSS.
+
+## Features
+
+- User authentication (Admin, Employee, Student)
+- Geolocation-based attendance
+- Shift scheduling system
+- Permission/leave management
+- Salary calculation & reporting
+- Employee & student reports
+- Attendance corrections
+- System monitoring
+- Security logging
+- Database backup & restore
+
+## Requirements
+
+- PHP >= 8.2
+- PostgreSQL >= 14
+- Composer
+- Node.js >= 18
+- NPM
+
+## Installation
+
+```bash
+# Clone repository
+git clone [repository-url]
+cd absensi_mtsn2km
+
+# Install dependencies
+composer install
+npm install
+
+# Setup environment
+cp .env.example .env
+php artisan key:generate
+
+# Run migrations
+php artisan migrate
+
+# Build assets
+npm run build
+
+# Start server
+php artisan serve
+```
+
+## Version History
+
+See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
+
+## Deployment
+
+See [DEPLOYMENT_GUIDE_v1.1.2.md](DEPLOYMENT_GUIDE_v1.1.2.md) for production deployment instructions.
+
+## Support
+
+Technical support: it@mtsn2kotamalang.sch.id
+
+## License
+
+Proprietary software for MTsN 2 Kota Malang.

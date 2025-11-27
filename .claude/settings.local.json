@@ -28,7 +28,8 @@
       "Bash(del test_performance_calculation.php check_attendance_without_shift.php check_all_employees.php check_employee_27.php)",
       "Bash(powershell -Command:*)",
       "Bash(del tailwind.config.js)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(del test_salary_migration.php)"
     ],
     "deny": [],
     "ask": []

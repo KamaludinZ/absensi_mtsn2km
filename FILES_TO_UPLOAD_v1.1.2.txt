@@ -7,7 +7,8 @@
 CRITICAL FILES (MUST UPLOAD):
 -----------------------------
 
-1. DATABASE MIGRATION (NEW FILE):
+1. DATABASE MIGRATIONS (NEW FILES):
+   database/migrations/2025_11_21_130903_create_salaries_table.php
    database/migrations/2025_11_27_084807_add_month_year_to_salaries_table.php
    
 2. MODEL:
@@ -27,11 +28,17 @@ CRITICAL FILES (MUST UPLOAD):
    CHANGELOG.md
    DEPLOYMENT_GUIDE_v1.1.2.md
    FILES_TO_UPLOAD_v1.1.2.txt
+   PRODUCTION_FIX_GUIDE.md
+
+6. VERSION FILES:
+   VERSION
+   package.json
+   README.md
 
 ================================================================================
-TOTAL FILES: 11
-NEW FILES: 3
-MODIFIED FILES: 8
+TOTAL FILES: 16
+NEW FILES: 5
+MODIFIED FILES: 11
 ================================================================================
 
 CHANGES SUMMARY:
@@ -46,6 +53,7 @@ NEW FEATURES:
 - Auto-copy employee shifts from previous month
 
 DATABASE CHANGES:
+- Created new 'salaries' table (if not exists)
 - Added 'month' column to salaries table
 - Added 'year' column to salaries table
 - Added unique constraint: (employee_id, month, year)
