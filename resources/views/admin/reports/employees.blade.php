@@ -38,6 +38,9 @@
         <div class="p-4">
         <div class="flex justify-between items-center mb-6">
             <h2 class="text-xl font-bold">Laporan Absensi Pegawai</h2>
+            <a href="{{ route('admin.attendances.create') }}" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                + Tambah Absensi
+            </a>
         </div>
         
         <!-- Filter Form -->
