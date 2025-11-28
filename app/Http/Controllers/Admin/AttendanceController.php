@@ -14,7 +14,7 @@ class AttendanceController extends Controller
 {
     public function edit($id)
     {
-        $attendance = Attendance::findOrFail($id);
+        $attendance = Attendance::with('attendable')->findOrFail($id);
 
         // Load attendable with its relationships
         if ($attendance->attendable_type === Student::class) {
@@ -34,7 +34,74 @@ class AttendanceController extends Controller
         $query = parse_url($previousUrl, PHP_URL_QUERY);
         $queryParamString = $query ? '?' . $query : '';
 
-        return view('admin.attendances.edit', compact('attendance', 'employees', 'schedules', 'queryParamString'));
+        // Calculate computed status_in if not manually set
+        $computedStatusIn = null;
+        if (empty($attendance->status_in) && $attendance->clock_in) {
+            $schedule = $this->getSchedule($attendance);
+            if ($schedule) {
+                $clockIn = \Carbon\Carbon::parse($attendance->clock_in);
+                $startTime = \Carbon\Carbon::parse($schedule->start_time)->setDate($clockIn->year, $clockIn->month, $clockIn->day);
+                $diffInSeconds = $clockIn->diffInSeconds($startTime, false);
+                $computedStatusIn = ($diffInSeconds > 0) ? 'Terlambat' : 'Tepat Waktu';
+            } elseif (!$attendance->clock_in) {
+                $computedStatusIn = 'Tidak Hadir';
+            }
+        } else {
+            // For permission types, convert codes to display values
+            if (in_array($attendance->status_in, ['C', 'S', 'DL'])) {
+                $statusMap = ['C' => 'Cuti', 'S' => 'Sakit', 'DL' => 'Dinas Luar'];
+                $computedStatusIn = $statusMap[$attendance->status_in];
+            }
+        }
+
+        // Calculate computed status_out if not manually set
+        $computedStatusOut = null;
+        if (empty($attendance->status_out) && $attendance->clock_out) {
+            $schedule = $this->getSchedule($attendance);
+            if ($schedule) {
+                $clockOut = \Carbon\Carbon::parse($attendance->clock_out);
+                $endTime = \Carbon\Carbon::parse($schedule->end_time)->setDate($clockOut->year, $clockOut->month, $clockOut->day);
+                $diffInSeconds = $clockOut->diffInSeconds($endTime, false);
+                $computedStatusOut = ($diffInSeconds < 0) ? 'Pulang Awal' : 'Tepat Waktu';
+            } elseif (!$attendance->clock_out) {
+                $computedStatusOut = 'Belum Pulang';
+            }
+        } else {
+            // For permission types, convert codes to display values
+            if (in_array($attendance->status_out, ['C', 'S', 'DL'])) {
+                $statusMap = ['C' => 'Cuti', 'S' => 'Sakit', 'DL' => 'Dinas Luar'];
+                $computedStatusOut = $statusMap[$attendance->status_out];
+            }
+        }
+
+        return view('admin.attendances.edit', compact(
+            'attendance',
+            'employees',
+            'schedules',
+            'queryParamString',
+            'computedStatusIn',
+            'computedStatusOut'
+        ));
+    }
+
+    private function getSchedule($attendance)
+    {
+        // Try to get shift from employee_shifts table
+        $employeeShift = \App\Models\EmployeeShift::where('employee_id', $attendance->attendable_id)
+            ->where('date', $attendance->date)
+            ->with('schedule')
+            ->first();
+
+        if ($employeeShift && $employeeShift->schedule) {
+            return $employeeShift->schedule;
+        }
+
+        // Try to get schedule by day of week
+        $dayOfWeek = $attendance->date->dayOfWeek;
+        if ($dayOfWeek == 0) $dayOfWeek = 7; // Convert Sunday (0) to 7
+        return Schedule::where('type', 'pegawai')
+            ->where('day_of_week', $dayOfWeek)
+            ->first();
     }
 
     public function update(Request $request, $id)
@@ -67,11 +134,52 @@ class AttendanceController extends Controller
         }
 
         if ($request->filled('status_in')) {
-            $updateData['status_in'] = $request->status_in;
+            $statusIn = $request->status_in;
+            // Convert display status back to internal code if it's a permission type
+            if (in_array($statusIn, ['Cuti', 'Sakit', 'Dinas Luar'])) {
+                $reverseStatusMap = ['Cuti' => 'C', 'Sakit' => 'S', 'Dinas Luar' => 'DL'];
+                $statusIn = $reverseStatusMap[$statusIn];
+                $updateData['status_in'] = $statusIn; // User explicitly selected a permission
+            }
+            // For other values, keep as is (user wants to manually set specific status)
+            else {
+                $updateData['status_in'] = $statusIn;
+            }
+        }
+        // If clock_in value is in request and different from current value (or null to time), and previous status was computed (not permission),
+        // then clear status_in to allow recomputation
+        else if ($request->has('clock_in') && !in_array($attendance->status_in, ['C', 'S', 'DL'])) {
+            // User changed clock_in, clear the old computed status to allow new computation
+            $updateData['status_in'] = null;
+        }
+        // In other cases where status_in is not provided, keep existing value
+        else {
+            // Don't change the status_in value if it wasn't explicitly submitted
         }
 
+        // Handle status_out: convert display text back to internal codes if needed
         if ($request->filled('status_out')) {
-            $updateData['status_out'] = $request->status_out;
+            $statusOut = $request->status_out;
+            // Convert display status back to internal code if it's a permission type
+            if (in_array($statusOut, ['Cuti', 'Sakit', 'Dinas Luar'])) {
+                $reverseStatusMap = ['Cuti' => 'C', 'Sakit' => 'S', 'Dinas Luar' => 'DL'];
+                $statusOut = $reverseStatusMap[$statusOut];
+                $updateData['status_out'] = $statusOut; // User explicitly selected a permission
+            }
+            // For other values, keep as is (user wants to manually set specific status)
+            else {
+                $updateData['status_out'] = $statusOut;
+            }
+        }
+        // If clock_out value is in request and different from current value (or null to time), and previous status was computed (not permission),
+        // then clear status_out to allow recomputation
+        else if ($request->has('clock_out') && !in_array($attendance->status_out, ['C', 'S', 'DL'])) {
+            // User changed clock_out, clear the old computed status to allow new computation
+            $updateData['status_out'] = null;
+        }
+        // In other cases where status_out is not provided, keep existing value
+        else {
+            // Don't change the status_out value if it wasn't explicitly submitted
         }
 
         $attendance->update($updateData);
@@ -79,12 +187,18 @@ class AttendanceController extends Controller
         // Determine the route based on attendable type
         $route = $attendance->attendable_type === Student::class ? 'admin.reports.students' : 'admin.reports.index';
 
-        // Get the original request parameters from the referring page
-        $previousUrl = url()->previous();
-        $query = parse_url($previousUrl, PHP_URL_QUERY);
+        // Preserve query parameters from the hidden input or referring page
         $redirectUrl = route($route);
-        if ($query) {
-            $redirectUrl .= '?' . $query;
+        if ($request->filled('redirect_params')) {
+            // Use the query parameters that were stored in the hidden input
+            $redirectUrl .= $request->redirect_params;
+        } else {
+            // Fallback: try to get from the referring page
+            $previousUrl = url()->previous();
+            $query = parse_url($previousUrl, PHP_URL_QUERY);
+            if ($query) {
+                $redirectUrl .= '?' . $query;
+            }
         }
 
         return redirect($redirectUrl)
@@ -118,12 +232,17 @@ class AttendanceController extends Controller
         $employees = Employee::orderBy('full_name')->get();
 
         // Get all students for the dropdown
-        $students = \App\Models\Student::orderBy('full_name')->get();
+        $students = Student::orderBy('full_name')->get();
 
         // Get all schedules for employee shifts
         $schedules = Schedule::where('type', 'pegawai')->get();
 
-        return view('admin.attendances.create', compact('employees', 'students', 'schedules'));
+        // Get the referring URL query parameters
+        $previousUrl = url()->previous();
+        $query = parse_url($previousUrl, PHP_URL_QUERY);
+        $queryParamString = $query ? '?' . $query : '';
+
+        return view('admin.attendances.create', compact('employees', 'students', 'schedules', 'queryParamString'));
     }
 
     public function store(Request $request)
@@ -184,15 +303,18 @@ class AttendanceController extends Controller
         // Determine the route based on attendable type
         $route = $request->attendable_type === 'App\Models\Student' ? 'admin.reports.students' : 'admin.reports.index';
 
-        // Preserve query parameters from the referring page (if coming from reports page)
-        $previousUrl = url()->previous();
-        $query = parse_url($previousUrl, PHP_URL_QUERY);
+        // Preserve query parameters from the hidden input or referring page
         $redirectUrl = route($route);
-        if ($query) {
-            $redirectUrl .= '?' . $query;
+        if ($request->filled('redirect_params')) {
+            // Use the query parameters that were stored in the hidden input
+            $redirectUrl .= $request->redirect_params;
         } else {
-            // If coming directly to create page, just go to the main report route
-            $redirectUrl = route($route);
+            // Fallback: try to get from the referring page
+            $previousUrl = url()->previous();
+            $query = parse_url($previousUrl, PHP_URL_QUERY);
+            if ($query) {
+                $redirectUrl .= '?' . $query;
+            }
         }
 
         // Return with appropriate success message based on attendable type
