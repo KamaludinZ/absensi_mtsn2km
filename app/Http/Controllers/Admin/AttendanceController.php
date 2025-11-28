@@ -29,7 +29,12 @@ class AttendanceController extends Controller
         // Get schedules
         $schedules = Schedule::where('type', 'pegawai')->get();
 
-        return view('admin.attendances.edit', compact('attendance', 'employees', 'schedules'));
+        // Get the referring URL query parameters
+        $previousUrl = url()->previous();
+        $query = parse_url($previousUrl, PHP_URL_QUERY);
+        $queryParamString = $query ? '?' . $query : '';
+
+        return view('admin.attendances.edit', compact('attendance', 'employees', 'schedules', 'queryParamString'));
     }
 
     public function update(Request $request, $id)
@@ -71,14 +76,19 @@ class AttendanceController extends Controller
 
         $attendance->update($updateData);
 
-        // Redirect to appropriate report page based on attendable type
-        if ($attendance->attendable_type === Student::class) {
-            return redirect()->route('admin.reports.students')
-                ->with('success', 'Data absensi siswa berhasil diperbarui.');
+        // Determine the route based on attendable type
+        $route = $attendance->attendable_type === Student::class ? 'admin.reports.students' : 'admin.reports.index';
+
+        // Get the original request parameters from the referring page
+        $previousUrl = url()->previous();
+        $query = parse_url($previousUrl, PHP_URL_QUERY);
+        $redirectUrl = route($route);
+        if ($query) {
+            $redirectUrl .= '?' . $query;
         }
 
-        return redirect()->route('admin.reports.index')
-            ->with('success', 'Data absensi pegawai berhasil diperbarui.');
+        return redirect($redirectUrl)
+            ->with('success', $attendance->attendable_type === Student::class ? 'Data absensi siswa berhasil diperbarui.' : 'Data absensi pegawai berhasil diperbarui.');
     }
 
     public function destroy($id)
@@ -87,13 +97,18 @@ class AttendanceController extends Controller
         $isStudent = $attendance->attendable_type === Student::class;
         $attendance->delete();
 
-        // Redirect to appropriate report page based on attendable type
-        if ($isStudent) {
-            return redirect()->route('admin.reports.students')
-                ->with('success', 'Data absensi siswa berhasil dihapus.');
+        // Determine the route based on attendable type
+        $route = $isStudent ? 'admin.reports.students' : 'admin.reports.index';
+
+        // Get the original request parameters from the referring page
+        $previousUrl = url()->previous();
+        $query = parse_url($previousUrl, PHP_URL_QUERY);
+        $redirectUrl = route($route);
+        if ($query) {
+            $redirectUrl .= '?' . $query;
         }
 
-        return redirect()->route('admin.reports.index')
-            ->with('success', 'Data absensi pegawai berhasil dihapus.');
+        return redirect($redirectUrl)
+            ->with('success', $isStudent ? 'Data absensi siswa berhasil dihapus.' : 'Data absensi pegawai berhasil dihapus.');
     }
 }

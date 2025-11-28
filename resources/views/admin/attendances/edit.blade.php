@@ -7,11 +7,11 @@
 <div class="max-w-4xl mx-auto">
     <div class="mb-4">
         @if($attendance->attendable_type === 'App\\Models\\Student')
-            <a href="{{ route('admin.reports.students') }}" class="text-blue-600 hover:text-blue-800">
+            <a href="{{ route('admin.reports.students') . $queryParamString }}" class="text-blue-600 hover:text-blue-800">
                 &larr; Kembali ke Laporan Siswa
             </a>
         @else
-            <a href="{{ route('admin.reports.index') }}" class="text-blue-600 hover:text-blue-800">
+            <a href="{{ route('admin.reports.index') . $queryParamString }}" class="text-blue-600 hover:text-blue-800">
                 &larr; Kembali ke Laporan Pegawai
             </a>
         @endif
@@ -184,12 +184,12 @@
             <!-- Action Buttons -->
             <div class="flex justify-end space-x-3 mt-8">
                 @if($attendance->attendable_type === 'App\\Models\\Student')
-                    <a href="{{ route('admin.reports.students') }}"
+                    <a href="{{ route('admin.reports.students') . $queryParamString }}"
                        class="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
                         Batal
                     </a>
                 @else
-                    <a href="{{ route('admin.reports.index') }}"
+                    <a href="{{ route('admin.reports.index') . $queryParamString }}"
                        class="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
                         Batal
                     </a>
