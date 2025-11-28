@@ -224,16 +224,19 @@ document.addEventListener('DOMContentLoaded', function() {
     // Store the original HTML for employee dropdown
     const employeeDropdownHTML = attendableSelectContainer.innerHTML;
 
-    // Create student dropdown options (we'll populate these via JS)
-    const studentDropdownHTML = `
-        <label for="attendable_id" class="block text-sm font-medium text-gray-700 mb-2">Nama <span class="text-red-500">*</span></label>
-        <select id="attendable_id" name="attendable_id" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" required>
-            <option value="">Pilih Siswa</option>
-            @foreach($students as $student)
-                <option value="{{ $student->id }}">{{ $student->full_name }} ({{ $student->nisn }})</option>
-            @endforeach
-        </select>
-    `;
+    // Prepare students data as JSON
+    const studentsData = @json($students);
+
+    // Create student dropdown HTML dynamically
+    let studentOptionsHTML = '<option value="">Pilih Siswa</option>';
+    studentsData.forEach(function(student) {
+        studentOptionsHTML += '<option value="' + student.id + '">' + student.full_name + ' (' + student.nisn + ')</option>';
+    });
+
+    const studentDropdownHTML = '<label for="attendable_id" class="block text-sm font-medium text-gray-700 mb-2">Nama <span class="text-red-500">*</span></label>' +
+        '<select id="attendable_id" name="attendable_id" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" required>' +
+        studentOptionsHTML +
+        '</select>';
 
     attendableTypeSelect.addEventListener('change', function() {
         if (this.value === 'App\\Models\\Employee') {

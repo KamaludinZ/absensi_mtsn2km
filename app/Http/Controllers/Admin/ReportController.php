@@ -96,8 +96,11 @@ class ReportController extends Controller
                 break;
         }
 
-        // Get all employees for the dropdown
-        $employees = Employee::orderBy('full_name')->get();
+        // Get all active employees for the dropdown (optimized - only load active)
+        $employees = Employee::where('is_active', true)
+            ->orderBy('full_name')
+            ->select('id', 'full_name', 'nip') // Only select needed columns
+            ->get();
 
         // Get available months/years for the dropdown
         $months = [
@@ -121,7 +124,7 @@ class ReportController extends Controller
             ->orderBy('year', 'desc')
             ->pluck('year');
 
-        // Calculate summary statistics
+        // Calculate summary statistics (OPTIMIZED: single query instead of 5 separate queries)
         $summaryQuery = Attendance::where('attendable_type', Employee::class);
         if ($selectedMonth && $selectedYear) {
             $summaryQuery->whereMonth('date', $selectedMonth)
@@ -132,25 +135,20 @@ class ReportController extends Controller
             $summaryQuery->where('attendable_id', $request->employee_id);
         }
 
-        $totalAttendances = $summaryQuery->count();
+        // Use single aggregate query instead of multiple count queries
+        $stats = $summaryQuery->selectRaw('
+            COUNT(*) as total,
+            COUNT(CASE WHEN clock_in IS NOT NULL OR clock_out IS NOT NULL THEN 1 END) as present,
+            COUNT(CASE WHEN clock_in IS NULL OR clock_out IS NULL THEN 1 END) as absent,
+            COUNT(CASE WHEN status_in = ? THEN 1 END) as late,
+            COUNT(CASE WHEN status_out = ? THEN 1 END) as early_departure
+        ', ['Terlambat', 'Pulang Awal'])->first();
 
-        // Count present (has either clock_in or clock_out)
-        $presentCount = (clone $summaryQuery)->where(function($q) {
-            $q->whereNotNull('clock_in')
-              ->orWhereNotNull('clock_out');
-        })->count();
-
-        // Count absent - records where clock_in or clock_out is null (didn't attend)
-        $absentCount = (clone $summaryQuery)->where(function($q) {
-            $q->whereNull('clock_in')
-              ->orWhereNull('clock_out');
-        })->count();
-
-        // Count late arrivals by checking status_in (should be 'Terlambat' as set by the controller)
-        $lateCount = (clone $summaryQuery)->where('status_in', 'Terlambat')->count();
-
-        // Count early departures by checking status_out (should be 'Pulang Awal' as set by the controller)
-        $earlyDepartureCount = (clone $summaryQuery)->where('status_out', 'Pulang Awal')->count();
+        $totalAttendances = $stats->total ?? 0;
+        $presentCount = $stats->present ?? 0;
+        $absentCount = $stats->absent ?? 0;
+        $lateCount = $stats->late ?? 0;
+        $earlyDepartureCount = $stats->early_departure ?? 0;
 
         // Get permission statistics for the same date range
         $permissionQuery = \App\Models\Permission::where('permissible_type', Employee::class);
@@ -185,16 +183,26 @@ class ReportController extends Controller
             'permissions' => $permissionCount
         ];
 
-        // Get time difference format setting
-        $timeDiffFormatSetting = \App\Models\AttendanceSetting::where('setting_key', 'time_difference_format')->first();
-        $timeDiffFormat = $timeDiffFormatSetting ? $timeDiffFormatSetting->setting_value : 'time';
+        // Get time difference format setting (OPTIMIZED: with caching)
+        $timeDiffFormat = \Illuminate\Support\Facades\Cache::remember(
+            'attendance_setting_time_difference_format',
+            3600, // Cache for 1 hour
+            function () {
+                $setting = \App\Models\AttendanceSetting::where('setting_key', 'time_difference_format')->first();
+                return $setting ? $setting->setting_value : 'time';
+            }
+        );
 
         return view('admin.reports.employees', compact('attendances', 'employees', 'months', 'years', 'summary', 'timeDiffFormat', 'selectedMonth', 'selectedYear'));
     }
     
     public function students()
     {
-        $rombels = Rombel::with('academicYear')->orderBy('name')->get();
+        // OPTIMIZED: Only select needed columns
+        $rombels = Rombel::with('academicYear:id,name,year_start,year_end')
+            ->orderBy('name')
+            ->select('id', 'name', 'academic_year_id')
+            ->get();
         return view('admin.reports.index', compact('rombels'));
     }
 
@@ -223,14 +231,17 @@ class ReportController extends Controller
             $query->whereBetween('date', [$startDate, $endDate]);
         }
 
+        // OPTIMIZED: Use whereHas instead of whereIn with pluck (reduces queries)
         if ($request->filled('rombel_id')) {
-            $studentIds = Student::where('rombel_id', $request->rombel_id)->pluck('id');
-            $query->whereIn('attendable_id', $studentIds);
+            $query->whereHasMorph('attendable', [Student::class], function ($q) use ($request) {
+                $q->where('rombel_id', $request->rombel_id);
+            });
         }
 
         if ($request->filled('student_name')) {
-            $studentIds = Student::where('full_name', 'ILIKE', '%' . $request->student_name . '%')->pluck('id');
-            $query->whereIn('attendable_id', $studentIds);
+            $query->whereHasMorph('attendable', [Student::class], function ($q) use ($request) {
+                $q->where('full_name', 'ILIKE', '%' . $request->student_name . '%');
+            });
         }
 
         $perPage = $this->getPerPagePreference();
@@ -239,7 +250,11 @@ class ReportController extends Controller
         } else {
             $attendances = $query->paginate($perPage);
         }
-        $rombels = Rombel::orderBy('name')->get();
+
+        // OPTIMIZED: Only select needed columns for rombels dropdown
+        $rombels = Rombel::orderBy('name')
+            ->select('id', 'name')
+            ->get();
 
         // Get available months for the dropdown
         $months = [

@@ -228,11 +228,14 @@ class AttendanceController extends Controller
 
     public function create()
     {
+        // Redirect to employee create by default
+        return redirect()->route('admin.attendances.create-employee');
+    }
+
+    public function createEmployee()
+    {
         // Get all employees for the dropdown
         $employees = Employee::orderBy('full_name')->get();
-
-        // Get all students for the dropdown
-        $students = Student::orderBy('full_name')->get();
 
         // Get all schedules for employee shifts
         $schedules = Schedule::where('type', 'pegawai')->get();
@@ -242,7 +245,23 @@ class AttendanceController extends Controller
         $query = parse_url($previousUrl, PHP_URL_QUERY);
         $queryParamString = $query ? '?' . $query : '';
 
-        return view('admin.attendances.create', compact('employees', 'students', 'schedules', 'queryParamString'));
+        return view('admin.attendances.create-employee', compact('employees', 'schedules', 'queryParamString'));
+    }
+
+    public function createStudent()
+    {
+        // Get all students for the dropdown
+        $students = Student::orderBy('full_name')->get();
+
+        // Get all schedules for student shifts
+        $schedules = Schedule::where('type', 'siswa')->get();
+
+        // Get the referring URL query parameters
+        $previousUrl = url()->previous();
+        $query = parse_url($previousUrl, PHP_URL_QUERY);
+        $queryParamString = $query ? '?' . $query : '';
+
+        return view('admin.attendances.create-student', compact('students', 'schedules', 'queryParamString'));
     }
 
     public function store(Request $request)

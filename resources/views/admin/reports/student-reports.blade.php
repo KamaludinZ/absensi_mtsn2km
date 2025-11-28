@@ -10,8 +10,8 @@
         <div class="p-4">
     <div class="flex justify-between items-center mb-6">
         <h2 class="text-xl font-bold text-gray-800">Rekap Absensi Siswa</h2>
-        <a href="{{ route('admin.attendances.create') }}" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-            + Tambah Absensi
+        <a href="{{ route('admin.attendances.create-student') }}" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+            + Tambah Absensi Siswa
         </a>
     </div>
     
