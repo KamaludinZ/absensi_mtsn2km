@@ -151,4 +151,97 @@ class ScheduleController extends Controller
 
         return response()->json($data);
     }
+
+    /**
+     * Get schedule information for a specific date and attendable
+     */
+    public function getScheduleInfo(\Illuminate\Http\Request $request)
+    {
+        try {
+            $request->validate([
+                'date' => 'required|date',
+                'attendable_id' => 'required|integer',
+                'attendable_type' => [
+                    'required',
+                    'string',
+                    function ($attribute, $value, $fail) {
+                        $validTypes = ['App\Models\Employee', 'App\Models\Student'];
+                        \Log::info('Validating attendable_type: ' . $value);
+                        if (!in_array($value, $validTypes)) {
+                            $fail('The ' . $attribute . ' must be one of: ' . implode(', ', $validTypes) . '. Got: ' . $value);
+                        }
+                    }
+                ]
+            ]);
+
+            $validatedData = $request->all();
+
+            $date = $validatedData['date'];
+            $attendableId = $validatedData['attendable_id'];
+            $attendableType = $validatedData['attendable_type'];
+
+            \Log::info('Fetching schedule for:', [
+                'date' => $date,
+                'attendable_id' => $attendableId,
+                'attendable_type' => $attendableType
+            ]);
+
+            $schedule = null;
+
+            if ($attendableType === 'App\Models\Employee') {
+                // Try to get shift from employee_shifts table for the specific date
+                $employeeShift = \App\Models\EmployeeShift::where('employee_id', $attendableId)
+                    ->where('date', $date)
+                    ->with('schedule')
+                    ->first();
+
+                \Log::info('Employee shift found:', ['shift' => $employeeShift?->toArray()]);
+
+                if ($employeeShift && $employeeShift->schedule) {
+                    $schedule = $employeeShift->schedule;
+                } else {
+                    // Try to get schedule by day of week
+                    $carbonDate = \Carbon\Carbon::parse($date);
+                    $dayOfWeek = $carbonDate->dayOfWeek;
+                    if ($dayOfWeek == 0) $dayOfWeek = 7; // Convert Sunday (0) to 7
+
+                    $schedule = \App\Models\Schedule::where('type', 'pegawai')
+                        ->where('day_of_week', $dayOfWeek)
+                        ->first();
+                }
+            } else { // Student
+                $carbonDate = \Carbon\Carbon::parse($date);
+                $dayOfWeek = $carbonDate->dayOfWeek;
+                if ($dayOfWeek == 0) $dayOfWeek = 7; // Convert Sunday (0) to 7
+
+                $schedule = \App\Models\Schedule::where('type', 'siswa')
+                    ->where('day_of_week', $dayOfWeek)
+                    ->first();
+            }
+
+            \Log::info('Final schedule found:', ['schedule' => $schedule?->toArray()]);
+
+            if ($schedule) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [
+                        'shift_name' => $schedule->shift_name ?? null,
+                        'start_time' => $schedule->start_time ? \Carbon\Carbon::parse($schedule->start_time)->format('H:i:s') : null,
+                        'end_time' => $schedule->end_time ? \Carbon\Carbon::parse($schedule->end_time)->format('H:i:s') : null,
+                    ]
+                ]);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => null
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error getting schedule info: ' . $e->getMessage() . ' in file ' . $e->getFile() . ' line ' . $e->getLine());
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal mengambil informasi jadwal: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }

@@ -345,9 +345,12 @@ Route::middleware(['auth', CheckRole::class . ':admin'])->prefix('admin')->name(
     });
 });
 
-// Additional student permissions CRUD routes 
+// Additional student permissions CRUD routes
 Route::get('/admin/permissions/students/create', [App\Http\Controllers\Admin\PermissionController::class, 'createStudent'])->name('admin.permissions.students.create');
 Route::post('/admin/permissions/students', [App\Http\Controllers\Admin\PermissionController::class, 'storeStudent'])->name('admin.permissions.students.store');
 Route::get('/admin/permissions/students/{permission}/edit', [App\Http\Controllers\Admin\PermissionController::class, 'editStudent'])->name('admin.permissions.students.edit');
 Route::put('/admin/permissions/students/{permission}', [App\Http\Controllers\Admin\PermissionController::class, 'updateStudent'])->name('admin.permissions.students.update');
 Route::delete('/admin/permissions/students/{permission}', [App\Http\Controllers\Admin\PermissionController::class, 'destroyStudent'])->name('admin.permissions.students.destroy');
+
+// API route for schedule information
+Route::post('/api/schedule-info', [App\Http\Controllers\API\ScheduleController::class, 'getScheduleInfo'])->middleware('auth');
