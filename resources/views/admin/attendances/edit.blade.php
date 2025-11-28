@@ -138,7 +138,7 @@
                     <input type="time"
                            id="clock_in"
                            name="clock_in"
-                           value="{{ old('clock_in', $attendance->clock_in ? $attendance->clock_in->format('H:i') : '') }}"
+                           value="{{ old('clock_in', $attendance->clock_in ? $attendance->clock_in->format('H:i:s') : '') }}"
                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                            step="1">
                     <p class="text-xs text-gray-500 mt-1">Kosongkan jika tidak ada absensi masuk</p>
@@ -150,7 +150,7 @@
                     <input type="time"
                            id="clock_out"
                            name="clock_out"
-                           value="{{ old('clock_out', $attendance->clock_out ? $attendance->clock_out->format('H:i') : '') }}"
+                           value="{{ old('clock_out', $attendance->clock_out ? $attendance->clock_out->format('H:i:s') : '') }}"
                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                            step="1">
                     <p class="text-xs text-gray-500 mt-1">Kosongkan jika tidak ada absensi pulang</p>

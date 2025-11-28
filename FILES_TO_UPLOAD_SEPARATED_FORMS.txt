@@ -1,0 +1,125 @@
+================================================================================
+DEPLOYMENT: SEPARATED ATTENDANCE FORMS (Pegawai & Siswa)
+Tanggal: 28 November 2025
+================================================================================
+
+RINGKASAN PERUBAHAN:
+-------------------
+Memisahkan form tambah absensi menjadi 2 form terpisah:
+- Form khusus untuk Pegawai (create-employee)
+- Form khusus untuk Siswa (create-student)
+
+Ini menyelesaikan masalah syntax error di production yang disebabkan oleh
+Blade directives di dalam JavaScript template literals.
+
+================================================================================
+FILES YANG HARUS DI-UPLOAD KE PRODUCTION:
+================================================================================
+
+1. app/Http/Controllers/Admin/AttendanceController.php
+   Lokasi: app/Http/Controllers/Admin/AttendanceController.php
+   Perubahan: Ditambahkan method createEmployee() dan createStudent()
+
+2. resources/views/admin/attendances/create-employee.blade.php
+   Lokasi: resources/views/admin/attendances/create-employee.blade.php
+   Status: FILE BARU - Form khusus untuk pegawai
+
+3. resources/views/admin/attendances/create-student.blade.php
+   Lokasi: resources/views/admin/attendances/create-student.blade.php
+   Status: FILE BARU - Form khusus untuk siswa
+
+4. routes/web.php
+   Lokasi: routes/web.php
+   Perubahan: Ditambahkan 2 routes baru (line 191-192)
+   - admin.attendances.create-employee
+   - admin.attendances.create-student
+
+5. resources/views/admin/reports/employees.blade.php
+   Lokasi: resources/views/admin/reports/employees.blade.php
+   Perubahan: Button "Tambah Absensi" diubah ke route create-employee
+
+6. resources/views/admin/reports/student-reports.blade.php
+   Lokasi: resources/views/admin/reports/student-reports.blade.php
+   Perubahan: Button "Tambah Absensi" diubah ke route create-student
+
+================================================================================
+COMMANDS SETELAH UPLOAD:
+================================================================================
+
+Jalankan commands ini di server production (via SSH atau terminal):
+
+cd /path/to/absensi_mtsn2km
+
+# Clear all caches
+php artisan view:clear
+php artisan route:clear
+php artisan config:clear
+php artisan cache:clear
+
+# Optional: Optimize for production
+php artisan route:cache
+php artisan config:cache
+php artisan view:cache
+
+================================================================================
+TESTING CHECKLIST:
+================================================================================
+
+[ ] 1. Test Form Pegawai:
+       - Buka: /admin/reports (halaman laporan pegawai)
+       - Klik tombol "+ Tambah Absensi Pegawai"
+       - Pastikan form muncul dengan dropdown pegawai saja
+       - Isi form dan submit
+       - Cek apakah data tersimpan dengan benar
+
+[ ] 2. Test Form Siswa:
+       - Buka: /admin/reports/students (halaman laporan siswa)
+       - Klik tombol "+ Tambah Absensi Siswa"
+       - Pastikan form muncul dengan dropdown siswa saja
+       - Isi form dan submit
+       - Cek apakah data tersimpan dengan benar
+
+[ ] 3. Cek Console Browser:
+       - Buka Developer Tools (F12)
+       - Tab Console
+       - Pastikan tidak ada error saat form dibuka
+       - Tidak ada lagi error "unexpected token <"
+
+[ ] 4. Test Schedule Loading:
+       - Di form pegawai, pilih salah satu pegawai dari dropdown
+       - Pastikan jadwal ter-load otomatis
+       - Di form siswa, pilih salah satu siswa dari dropdown
+       - Pastikan jadwal ter-load otomatis
+
+================================================================================
+TROUBLESHOOTING:
+================================================================================
+
+Jika masih ada masalah:
+
+1. Cek log error:
+   tail -f storage/logs/laravel.log
+
+2. Cek permissions file:
+   chmod -R 755 storage bootstrap/cache
+   chown -R www-data:www-data storage bootstrap/cache
+
+3. Pastikan semua file sudah ter-upload dengan benar:
+   ls -la app/Http/Controllers/Admin/AttendanceController.php
+   ls -la resources/views/admin/attendances/create-employee.blade.php
+   ls -la resources/views/admin/attendances/create-student.blade.php
+
+4. Jika route tidak ditemukan (404), pastikan route:clear sudah dijalankan
+
+================================================================================
+NOTES:
+================================================================================
+
+- File create.blade.php yang lama TIDAK DIHAPUS, masih bisa digunakan jika
+  diperlukan
+- Kedua form baru (create-employee dan create-student) sudah menggunakan
+  JavaScript murni tanpa Blade directives di dalam template literals
+- Setiap form memiliki hidden input attendable_type yang sesuai dengan model
+- Route create yang lama sekarang redirect ke create-employee sebagai default
+
+================================================================================

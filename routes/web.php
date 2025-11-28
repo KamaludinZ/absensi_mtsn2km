@@ -188,6 +188,8 @@ Route::middleware(['auth', CheckRole::class . ':admin'])->prefix('admin')->name(
     // Attendances
     Route::prefix('attendances')->name('attendances.')->group(function () {
         Route::get('/create', [App\Http\Controllers\Admin\AttendanceController::class, 'create'])->name('create');
+        Route::get('/create-employee', [App\Http\Controllers\Admin\AttendanceController::class, 'createEmployee'])->name('create-employee');
+        Route::get('/create-student', [App\Http\Controllers\Admin\AttendanceController::class, 'createStudent'])->name('create-student');
         Route::get('/{id}/edit', [App\Http\Controllers\Admin\AttendanceController::class, 'edit'])->name('edit');
         Route::put('/{id}', [App\Http\Controllers\Admin\AttendanceController::class, 'update'])->name('update');
         Route::post('/', [App\Http\Controllers\Admin\AttendanceController::class, 'store'])->name('store');

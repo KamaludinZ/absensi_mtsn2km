@@ -1,0 +1,37 @@
+INSTRUKSI DEPLOYMENT - PISAH FORM ABSENSI PEGAWAI DAN SISWA
+===========================================================
+
+PERBAIKAN YANG DILAKUKAN:
+- Pisahkan form tambah absensi menjadi 2: khusus pegawai dan khusus siswa
+- Hilangkan dynamic dropdown switching yang menyebabkan Blade syntax error
+
+FILE YANG PERLU DIUPLOAD KE PRODUCTION:
+========================================
+
+1. app/Http/Controllers/Admin/AttendanceController.php (SUDAH TERUPDATE DI LOCAL)
+   - Tambah method: createEmployee() dan createStudent()
+   - Method create() redirect ke createEmployee()
+
+2. resources/views/admin/attendances/create-employee.blade.php (AKAN DIBUAT)
+   - Form khusus untuk tambah absensi pegawai
+   
+3. resources/views/admin/attendances/create-student.blade.php (AKAN DIBUAT)
+   - Form khusus untuk tambah absensi siswa
+
+4. routes/web.php (PERLU UPDATE)
+   - Tambah route: admin.attendances.create-employee
+   - Tambah route: admin.attendances.create-student
+
+5. resources/views/admin/reports/index.blade.php (PERLU UPDATE)
+   - Update tombol "Tambah Absensi" ke route create-employee
+
+6. resources/views/admin/reports/student-reports.blade.php (PERLU UPDATE) 
+   - Update tombol "Tambah Absensi" ke route create-student
+
+LANGKAH DEPLOYMENT:
+===================
+1. Upload semua file ke production
+2. Jalankan: php artisan view:clear
+3. Jalankan: php artisan route:clear
+4. Jalankan: php artisan cache:clear
+5. Test kedua halaman

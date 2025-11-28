@@ -29,7 +29,10 @@
       "Bash(powershell -Command:*)",
       "Bash(del tailwind.config.js)",
       "Bash(rm:*)",
-      "Bash(del test_salary_migration.php)"
+      "Bash(del test_salary_migration.php)",
+      "Bash(timeout:*)",
+      "Bash(powershell:*)",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []
