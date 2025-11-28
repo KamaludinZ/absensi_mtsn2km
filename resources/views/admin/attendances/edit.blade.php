@@ -110,9 +110,18 @@
                             name="status_in"
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                         <option value="">Pilih Status</option>
-                        <option value="Tepat Waktu" {{ old('status_in', $attendance->status_in) == 'Tepat Waktu' ? 'selected' : '' }}>Tepat Waktu</option>
-                        <option value="Terlambat" {{ old('status_in', $attendance->status_in) == 'Terlambat' ? 'selected' : '' }}>Terlambat</option>
-                        <option value="present" {{ old('status_in', $attendance->status_in) == 'present' ? 'selected' : '' }}>Hadir</option>
+                        <!-- Perizinan -->
+                        <optgroup label="Perizinan">
+                            <option value="C" {{ old('status_in', $attendance->status_in) == 'C' ? 'selected' : '' }}>Cuti</option>
+                            <option value="S" {{ old('status_in', $attendance->status_in) == 'S' ? 'selected' : '' }}>Sakit</option>
+                            <option value="DL" {{ old('status_in', $attendance->status_in) == 'DL' ? 'selected' : '' }}>Dinas Luar</option>
+                        </optgroup>
+                        <!-- Status Kehadiran -->
+                        <optgroup label="Kehadiran">
+                            <option value="Tepat Waktu" {{ old('status_in', $attendance->status_in) == 'Tepat Waktu' ? 'selected' : '' }}>Tepat Waktu</option>
+                            <option value="Terlambat" {{ old('status_in', $attendance->status_in) == 'Terlambat' ? 'selected' : '' }}>Terlambat</option>
+                            <option value="present" {{ old('status_in', $attendance->status_in) == 'present' ? 'selected' : '' }}>Hadir</option>
+                        </optgroup>
                     </select>
                 </div>
 
@@ -123,9 +132,18 @@
                             name="status_out"
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                         <option value="">Pilih Status</option>
-                        <option value="Tepat Waktu" {{ old('status_out', $attendance->status_out) == 'Tepat Waktu' ? 'selected' : '' }}>Tepat Waktu</option>
-                        <option value="Pulang Awal" {{ old('status_out', $attendance->status_out) == 'Pulang Awal' ? 'selected' : '' }}>Pulang Awal</option>
-                        <option value="present" {{ old('status_out', $attendance->status_out) == 'present' ? 'selected' : '' }}>Hadir</option>
+                        <!-- Perizinan -->
+                        <optgroup label="Perizinan">
+                            <option value="C" {{ old('status_out', $attendance->status_out) == 'C' ? 'selected' : '' }}>Cuti</option>
+                            <option value="S" {{ old('status_out', $attendance->status_out) == 'S' ? 'selected' : '' }}>Sakit</option>
+                            <option value="DL" {{ old('status_out', $attendance->status_out) == 'DL' ? 'selected' : '' }}>Dinas Luar</option>
+                        </optgroup>
+                        <!-- Status Kehadiran -->
+                        <optgroup label="Kehadiran">
+                            <option value="Tepat Waktu" {{ old('status_out', $attendance->status_out) == 'Tepat Waktu' ? 'selected' : '' }}>Tepat Waktu</option>
+                            <option value="Pulang Awal" {{ old('status_out', $attendance->status_out) == 'Pulang Awal' ? 'selected' : '' }}>Pulang Awal</option>
+                            <option value="present" {{ old('status_out', $attendance->status_out) == 'present' ? 'selected' : '' }}>Hadir</option>
+                        </optgroup>
                     </select>
                 </div>
 
