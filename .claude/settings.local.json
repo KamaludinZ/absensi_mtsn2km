@@ -32,7 +32,8 @@
       "Bash(del test_salary_migration.php)",
       "Bash(timeout:*)",
       "Bash(powershell:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(del fix_duplicate_salaries.php)"
     ],
     "deny": [],
     "ask": []

@@ -48,15 +48,25 @@
         <div class="mb-6 p-4 bg-gray-50 rounded-lg">
             <form method="GET" class="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Tanggal Mulai</label>
-                    <input type="date" name="start_date" value="{{ request('start_date') }}"
-                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Bulan</label>
+                    <select name="month" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        @foreach($months as $value => $name)
+                            <option value="{{ $value }}" {{ $selectedMonth == $value ? 'selected' : '' }}>
+                                {{ $name }}
+                            </option>
+                        @endforeach
+                    </select>
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Tanggal Selesai</label>
-                    <input type="date" name="end_date" value="{{ request('end_date') }}"
-                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Tahun</label>
+                    <select name="year" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        @foreach($years as $yearOption)
+                            <option value="{{ $yearOption }}" {{ $selectedYear == $yearOption ? 'selected' : '' }}>
+                                {{ $yearOption }}
+                            </option>
+                        @endforeach
+                    </select>
                 </div>
 
                 <div>
@@ -103,7 +113,6 @@
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{!! sortableLink('Alasan', 'reason', $currentSort, $currentDirection) !!}</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dokumen</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{!! sortableLink('Status', 'status', $currentSort, $currentDirection) !!}</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
@@ -137,34 +146,10 @@
                                     {{ ucfirst($permission->status) }}
                                 </span>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm">
-                                <div class="flex items-center space-x-2">
-                                    @if($permission->status === 'pending')
-                                        <form action="{{ route('monitoring.permissions.approve', $permission) }}" method="POST" class="inline-block">
-                                            @csrf
-                                            <button type="submit" class="text-green-600 hover:text-green-900" title="Setujui" onclick="return confirm('Apakah Anda yakin ingin menyetujui izin ini?')">
-                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                                                </svg>
-                                            </button>
-                                        </form>
-                                        <form action="{{ route('monitoring.permissions.reject', $permission) }}" method="POST" class="inline-block">
-                                            @csrf
-                                            <button type="submit" class="text-red-600 hover:text-red-900" title="Tolak" onclick="return confirm('Apakah Anda yakin ingin menolak izin ini?')">
-                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                                                </svg>
-                                            </button>
-                                        </form>
-                                    @else
-                                        -
-                                    @endif
-                                </div>
-                            </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="px-6 py-4 text-center text-gray-500">
+                            <td colspan="6" class="px-6 py-4 text-center text-gray-500">
                                 Tidak ada data perizinan pegawai.
                             </td>
                         </tr>
