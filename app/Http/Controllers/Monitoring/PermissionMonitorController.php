@@ -93,6 +93,10 @@ class PermissionMonitorController extends Controller
 
     public function employees(Request $request)
     {
+        // Set default to current month and year
+        $selectedMonth = $request->input('month', \Carbon\Carbon::now()->month);
+        $selectedYear = $request->input('year', \Carbon\Carbon::now()->year);
+
         $query = Permission::where('permissible_type', Employee::class)
             ->with(['permissible']);
 
@@ -101,21 +105,18 @@ class PermissionMonitorController extends Controller
             $query->where('status', $request->status);
         }
 
-        // Filter by date range
-        if ($request->filled('start_date') && $request->filled('end_date')) {
-            $query->where(function($q) use ($request) {
-                $q->whereBetween('start_date', [$request->start_date, $request->end_date])
-                  ->orWhereBetween('end_date', [$request->start_date, $request->end_date])
-                  ->orWhere(function($subQ) use ($request) {
-                      $subQ->where('start_date', '<=', $request->start_date)
-                           ->where('end_date', '>=', $request->end_date);
-                  });
-            });
-        } elseif ($request->filled('start_date')) {
-            $query->where('start_date', '>=', $request->start_date);
-        } elseif ($request->filled('end_date')) {
-            $query->where('end_date', '<=', $request->end_date);
-        }
+        // Filter by month and year (always applied with default values)
+        $startDate = \Carbon\Carbon::create($selectedYear, $selectedMonth, 1)->startOfMonth();
+        $endDate = $startDate->copy()->endOfMonth();
+
+        $query->where(function($q) use ($startDate, $endDate) {
+            $q->whereBetween('start_date', [$startDate, $endDate])
+              ->orWhereBetween('end_date', [$startDate, $endDate])
+              ->orWhere(function($subQ) use ($startDate, $endDate) {
+                  $subQ->where('start_date', '<=', $startDate)
+                       ->where('end_date', '>=', $endDate);
+              });
+        });
 
         // Filter by employee
         if ($request->filled('employee_id')) {
@@ -169,11 +170,23 @@ class PermissionMonitorController extends Controller
         // Get employees for filter dropdown
         $employees = Employee::orderBy('full_name')->get();
 
-        return view('monitoring.permissions.employees', compact('permissions', 'employees', 'sortField', 'sortDirection'));
+        // Prepare months and years for dropdown
+        $months = [
+            1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April',
+            5 => 'Mei', 6 => 'Juni', 7 => 'Juli', 8 => 'Agustus',
+            9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember'
+        ];
+        $years = range(date('Y'), date('Y') - 5);
+
+        return view('monitoring.permissions.employees', compact('permissions', 'employees', 'sortField', 'sortDirection', 'months', 'years', 'selectedMonth', 'selectedYear'));
     }
 
     public function students(Request $request)
     {
+        // Set default to current month and year
+        $selectedMonth = $request->input('month', \Carbon\Carbon::now()->month);
+        $selectedYear = $request->input('year', \Carbon\Carbon::now()->year);
+
         $query = Permission::where('permissible_type', Student::class)
             ->with(['permissible.rombel']);
 
@@ -182,21 +195,18 @@ class PermissionMonitorController extends Controller
             $query->where('status', $request->status);
         }
 
-        // Filter by date range
-        if ($request->filled('start_date') && $request->filled('end_date')) {
-            $query->where(function($q) use ($request) {
-                $q->whereBetween('start_date', [$request->start_date, $request->end_date])
-                  ->orWhereBetween('end_date', [$request->start_date, $request->end_date])
-                  ->orWhere(function($subQ) use ($request) {
-                      $subQ->where('start_date', '<=', $request->start_date)
-                           ->where('end_date', '>=', $request->end_date);
-                  });
-            });
-        } elseif ($request->filled('start_date')) {
-            $query->where('start_date', '>=', $request->start_date);
-        } elseif ($request->filled('end_date')) {
-            $query->where('end_date', '<=', $request->end_date);
-        }
+        // Filter by month and year (always applied with default values)
+        $startDate = \Carbon\Carbon::create($selectedYear, $selectedMonth, 1)->startOfMonth();
+        $endDate = $startDate->copy()->endOfMonth();
+
+        $query->where(function($q) use ($startDate, $endDate) {
+            $q->whereBetween('start_date', [$startDate, $endDate])
+              ->orWhereBetween('end_date', [$startDate, $endDate])
+              ->orWhere(function($subQ) use ($startDate, $endDate) {
+                  $subQ->where('start_date', '<=', $startDate)
+                       ->where('end_date', '>=', $endDate);
+              });
+        });
 
         // Filter by rombel
         if ($request->filled('rombel_id')) {
@@ -275,7 +285,15 @@ class PermissionMonitorController extends Controller
         // Get rombels for filter dropdown
         $rombels = Rombel::orderBy('name')->get();
 
-        return view('monitoring.permissions.students', compact('permissions', 'rombels', 'sortField', 'sortDirection'));
+        // Prepare months and years for dropdown
+        $months = [
+            1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April',
+            5 => 'Mei', 6 => 'Juni', 7 => 'Juli', 8 => 'Agustus',
+            9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember'
+        ];
+        $years = range(date('Y'), date('Y') - 5);
+
+        return view('monitoring.permissions.students', compact('permissions', 'rombels', 'sortField', 'sortDirection', 'months', 'years', 'selectedMonth', 'selectedYear'));
     }
 
     public function approve(Permission $permission)

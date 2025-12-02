@@ -28,8 +28,8 @@ class SecurityHeaders
         // Define base CSP policies
         $basePolicies = [
             "default-src" => "'self'",
-            "script-src" => "'self' 'unsafe-inline' 'unsafe-eval' https://www.google.com/maps/ https://unpkg.com https://static.cloudflareinsights.com",
-            "style-src" => "'self' 'unsafe-inline' https://unpkg.com",
+            "script-src" => "'self' 'unsafe-inline' 'unsafe-eval' https://www.google.com/maps/ https://unpkg.com https://static.cloudflareinsights.com https://cdn.jsdelivr.net",
+            "style-src" => "'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net",
             "img-src" => "'self' data: https:",
             "font-src" => "'self'",
             "connect-src" => "'self' https://unpkg.com https://*.tile.openstreetmap.org",

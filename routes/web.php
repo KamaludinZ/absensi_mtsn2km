@@ -118,7 +118,12 @@ Route::middleware(['auth', CheckRole::class . ':monitoring'])->prefix('monitorin
         Route::post('/{permission}/reject', [PermissionMonitorController::class, 'reject'])->name('reject');
         Route::post('/manual', [PermissionMonitorController::class, 'createManual'])->name('manual');
     });
-    
+
+    // Reports routes for monitoring users
+    Route::prefix('reports')->name('reports.')->group(function () {
+        Route::get('/salary', [App\Http\Controllers\Monitoring\ReportController::class, 'salaryReport'])->name('salary');
+    });
+
     // Profile routes for monitoring users
     Route::prefix('profile')->name('profile.')->group(function () {
         Route::get('/change-password', [App\Http\Controllers\Monitoring\ProfileController::class, 'showChangePasswordForm'])->name('change-password');

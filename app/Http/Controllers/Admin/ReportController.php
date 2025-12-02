@@ -511,8 +511,8 @@ class ReportController extends Controller
         $selectedMonth = $request->input('month', Carbon::now()->month);
         $selectedYear = $request->input('year', Carbon::now()->year);
 
-        $employeeQuery = Employee::with(['salary' => function($query) use ($selectedMonth, $selectedYear) {
-            $query->where('month', $selectedMonth)->where('year', $selectedYear);
+        $employeeQuery = Employee::with(['salary' => function($query) {
+            $query->latest('created_at');
         }])->where('is_active', true);
 
         if ($request->filled('employee_id')) {
@@ -725,8 +725,8 @@ class ReportController extends Controller
         $selectedMonth = $request->input('month', Carbon::now()->month);
         $selectedYear = $request->input('year', Carbon::now()->year);
 
-        $employeeQuery = Employee::with(['salary' => function($query) use ($selectedMonth, $selectedYear) {
-            $query->where('month', $selectedMonth)->where('year', $selectedYear);
+        $employeeQuery = Employee::with(['salary' => function($query) {
+            $query->latest('created_at');
         }])->where('is_active', true);
         if ($request->filled('employee_id')) {
             $employeeQuery->where('id', $request->employee_id);
@@ -974,8 +974,8 @@ class ReportController extends Controller
         $selectedMonth = $request->input('month', Carbon::now()->month);
         $selectedYear = $request->input('year', Carbon::now()->year);
 
-        $employeeQuery = Employee::with(['salary' => function($query) use ($selectedMonth, $selectedYear) {
-            $query->where('month', $selectedMonth)->where('year', $selectedYear);
+        $employeeQuery = Employee::with(['salary' => function($query) {
+            $query->latest('created_at');
         }])->where('is_active', true);
 
         // Filter by specific employee if provided
@@ -1173,8 +1173,8 @@ class ReportController extends Controller
 
     private function getSalaryDetailData(Employee $employee, $year, $month)
     {
-        $employee->load(['salary' => function($query) use ($month, $year) {
-            $query->where('month', $month)->where('year', $year);
+        $employee->load(['salary' => function($query) {
+            $query->latest('created_at');
         }]);
         $salary = $employee->salary;
 
@@ -1352,8 +1352,8 @@ class ReportController extends Controller
 
     private function getMealAllowanceDetailData(Employee $employee, $year, $month)
     {
-        $employee->load(['salary' => function($query) use ($month, $year) {
-            $query->where('month', $month)->where('year', $year);
+        $employee->load(['salary' => function($query) {
+            $query->latest('created_at');
         }]);
         $salary = $employee->salary;
 
@@ -1495,8 +1495,8 @@ class ReportController extends Controller
         $selectedMonth = $request->input('month', Carbon::now()->month);
         $selectedYear = $request->input('year', Carbon::now()->year);
 
-        $employeeQuery = Employee::with(['salary' => function($query) use ($selectedMonth, $selectedYear) {
-            $query->where('month', $selectedMonth)->where('year', $selectedYear);
+        $employeeQuery = Employee::with(['salary' => function($query) {
+            $query->latest('created_at');
         }])->where('is_active', true);
 
         if ($request->filled('employee_id')) {
@@ -1715,8 +1715,8 @@ class ReportController extends Controller
 
     private function getTransportAllowanceDetailData(Employee $employee, $year, $month)
     {
-        $employee->load(['salary' => function($query) use ($month, $year) {
-            $query->where('month', $month)->where('year', $year);
+        $employee->load(['salary' => function($query) {
+            $query->latest('created_at');
         }]);
         $salary = $employee->salary;
 
@@ -1859,8 +1859,8 @@ class ReportController extends Controller
 
     private function getPerformanceAllowanceDetailData(Employee $employee, $year, $month)
     {
-        $employee->load(['salary' => function($query) use ($month, $year) {
-            $query->where('month', $month)->where('year', $year);
+        $employee->load(['salary' => function($query) {
+            $query->latest('created_at');
         }]);
         $salary = $employee->salary;
 

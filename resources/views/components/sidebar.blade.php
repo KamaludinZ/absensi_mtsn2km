@@ -510,7 +510,7 @@
                 <span class="nav-text">Dashboard</span>
             </a>
 
-            <div class="nav-group" x-data="{ open: @if(request()->routeIs('monitoring.employees') || request()->routeIs('monitoring.permissions.employees') || request()->routeIs('monitoring.students') || request()->routeIs('monitoring.permissions.students')) true @else false @endif }">
+            <div class="nav-group" x-data="{ open: @if(request()->routeIs('monitoring.employees') || request()->routeIs('monitoring.permissions.employees') || request()->routeIs('monitoring.students') || request()->routeIs('monitoring.permissions.students') || request()->routeIs('monitoring.reports.*')) true @else false @endif }">
                 <button @click="open = !open" class="nav-group-header" :aria-expanded="open" aria-controls="monitoring-submenu">
                     <div class="nav-group-title">
                         <div class="nav-icon">
@@ -563,17 +563,11 @@
                     </a>
 
                     <!-- Monitoring Reports -->
-                    <a href="{{ route('admin.reports.meal-allowance') }}" class="nav-sub-item {{ request()->routeIs('admin.reports.meal-allowance') ? 'active' : '' }}">
+                    <a href="{{ route('monitoring.reports.salary') }}" class="nav-sub-item {{ request()->routeIs('monitoring.reports.salary') ? 'active' : '' }}">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" />
                         </svg>
-                        <span class="nav-text">Laporan Uang Makan</span>
-                    </a>
-                    <a href="{{ route('admin.reports.performance-allowance') }}" class="nav-sub-item {{ request()->routeIs('admin.reports.performance-allowance') ? 'active' : '' }}">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                        </svg>
-                        <span class="nav-text">Laporan Tunjangan Kinerja</span>
+                        <span class="nav-text">Monitoring Laporan Gaji</span>
                     </a>
                 </div>
             </div>

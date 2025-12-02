@@ -16,9 +16,13 @@ use App\Services\SecurityService;
 
 class DashboardController extends Controller
 {
-    public function adminDashboard(SecurityService $securityService)
+    public function adminDashboard(Request $request, SecurityService $securityService)
     {
         $today = Carbon::today();
+
+        // Get filter parameters for charts
+        $selectedMonth = $request->input('month', Carbon::now()->month);
+        $selectedYear = $request->input('year', Carbon::now()->year);
 
         $totalEmployees = Cache::remember('active_employee_count', 300, function () {
             return Employee::where('is_active', true)->count();
@@ -45,6 +49,24 @@ class DashboardController extends Controller
         $pendingPermissions = Cache::remember('pending_permissions_count', 60, function () {
             return Permission::where('status', 'pending')->count();
         });
+
+        // Recent login attempts (last 10)
+        $recentLogins = \App\Models\LoginAttempt::orderBy('created_at', 'desc')
+            ->limit(10)
+            ->get();
+
+        // Recent attendances (last 15)
+        $recentAttendances = Attendance::with(['attendable'])
+            ->orderBy('clock_in', 'desc')
+            ->whereNotNull('clock_in')
+            ->limit(15)
+            ->get();
+
+        // Employee attendance data for chart
+        $employeeAttendanceData = $this->getEmployeeAttendanceData($selectedMonth, $selectedYear);
+
+        // Student attendance data for chart
+        $studentAttendanceData = $this->getStudentAttendanceData($selectedMonth, $selectedYear);
 
         // Additional data for the admin dashboard
         $currentAcademicYear = Cache::remember('current_academic_year', 300, function () {
@@ -100,6 +122,14 @@ class DashboardController extends Controller
                 ->get();
         });
 
+        // Months and years for filter dropdown
+        $months = [
+            1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April',
+            5 => 'Mei', 6 => 'Juni', 7 => 'Juli', 8 => 'Agustus',
+            9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember'
+        ];
+        $years = range(date('Y'), date('Y') - 2);
+
         return view('admin.dashboard', compact(
             'totalEmployees',
             'totalStudents',
@@ -113,7 +143,15 @@ class DashboardController extends Controller
             'totalSchedules',
             'backupCount',
             'securityStats',
-            'holidaysThisMonth'
+            'holidaysThisMonth',
+            'recentLogins',
+            'recentAttendances',
+            'employeeAttendanceData',
+            'studentAttendanceData',
+            'months',
+            'years',
+            'selectedMonth',
+            'selectedYear'
         ));
     }
 
@@ -176,14 +214,18 @@ class DashboardController extends Controller
         ));
     }
 
-    public function monitoringDashboard()
+    public function monitoringDashboard(Request $request)
     {
         $today = Carbon::today();
+
+        // Get filter parameters for charts
+        $selectedMonth = $request->input('month', Carbon::now()->month);
+        $selectedYear = $request->input('year', Carbon::now()->year);
 
         $totalEmployees = Cache::remember('active_employee_count', 300, function () {
             return Employee::where('is_active', true)->count();
         });
-        
+
         $totalStudents = Cache::remember('active_student_count', 300, function () {
             return Student::where('is_active', true)->count();
         });
@@ -207,6 +249,24 @@ class DashboardController extends Controller
                 ->where('permissible_type', Employee::class)
                 ->count();
         });
+
+        // Recent login attempts (last 10)
+        $recentLogins = \App\Models\LoginAttempt::orderBy('created_at', 'desc')
+            ->limit(10)
+            ->get();
+
+        // Recent attendances (last 15)
+        $recentAttendances = Attendance::with(['attendable'])
+            ->orderBy('clock_in', 'desc')
+            ->whereNotNull('clock_in')
+            ->limit(15)
+            ->get();
+
+        // Employee attendance data for chart
+        $employeeAttendanceData = $this->getEmployeeAttendanceData($selectedMonth, $selectedYear);
+
+        // Student attendance data for chart
+        $studentAttendanceData = $this->getStudentAttendanceData($selectedMonth, $selectedYear);
 
         // Additional data for monitoring dashboard
         $pendingStudentPermissions = Cache::remember('pending_student_permissions_count', 60, function () {
@@ -272,6 +332,14 @@ class DashboardController extends Controller
                 ->get();
         });
 
+        // Months and years for filter dropdown
+        $months = [
+            1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April',
+            5 => 'Mei', 6 => 'Juni', 7 => 'Juli', 8 => 'Agustus',
+            9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember'
+        ];
+        $years = range(date('Y'), date('Y') - 2);
+
         return view('monitoring.dashboard', compact(
             'totalEmployees',
             'totalStudents',
@@ -287,7 +355,123 @@ class DashboardController extends Controller
             'totalSchedules',
             'backupCount',
             'overallAttendanceRate',
-            'holidaysThisMonth'
+            'holidaysThisMonth',
+            'recentLogins',
+            'recentAttendances',
+            'employeeAttendanceData',
+            'studentAttendanceData',
+            'months',
+            'years',
+            'selectedMonth',
+            'selectedYear'
         ));
+    }
+
+    private function getEmployeeAttendanceData($month, $year)
+    {
+        $totalEmployees = Employee::where('is_active', true)->count();
+
+        if ($totalEmployees == 0) {
+            return [
+                'labels' => [],
+                'present' => [],
+                'absent' => [],
+                'percentage' => 0
+            ];
+        }
+
+        $startDate = Carbon::create($year, $month, 1)->startOfMonth();
+        $endDate = $startDate->copy()->endOfMonth();
+        $daysInMonth = $startDate->daysInMonth;
+
+        $labels = [];
+        $presentData = [];
+        $absentData = [];
+
+        for ($day = 1; $day <= $daysInMonth; $day++) {
+            $currentDate = Carbon::create($year, $month, $day);
+            $labels[] = $currentDate->format('d M');
+
+            $presentCount = Attendance::where('attendable_type', Employee::class)
+                ->whereDate('date', $currentDate)
+                ->whereNotNull('clock_in')
+                ->count();
+
+            $absentCount = $totalEmployees - $presentCount;
+
+            $presentData[] = $presentCount;
+            $absentData[] = $absentCount;
+        }
+
+        // Calculate overall percentage
+        $totalPresent = Attendance::where('attendable_type', Employee::class)
+            ->whereMonth('date', $month)
+            ->whereYear('date', $year)
+            ->whereNotNull('clock_in')
+            ->count();
+
+        $totalPossibleAttendance = $totalEmployees * $daysInMonth;
+        $percentage = $totalPossibleAttendance > 0 ? round(($totalPresent / $totalPossibleAttendance) * 100, 1) : 0;
+
+        return [
+            'labels' => $labels,
+            'present' => $presentData,
+            'absent' => $absentData,
+            'percentage' => $percentage
+        ];
+    }
+
+    private function getStudentAttendanceData($month, $year)
+    {
+        $totalStudents = Student::where('is_active', true)->count();
+
+        if ($totalStudents == 0) {
+            return [
+                'labels' => [],
+                'present' => [],
+                'absent' => [],
+                'percentage' => 0
+            ];
+        }
+
+        $startDate = Carbon::create($year, $month, 1)->startOfMonth();
+        $endDate = $startDate->copy()->endOfMonth();
+        $daysInMonth = $startDate->daysInMonth;
+
+        $labels = [];
+        $presentData = [];
+        $absentData = [];
+
+        for ($day = 1; $day <= $daysInMonth; $day++) {
+            $currentDate = Carbon::create($year, $month, $day);
+            $labels[] = $currentDate->format('d M');
+
+            $presentCount = Attendance::where('attendable_type', Student::class)
+                ->whereDate('date', $currentDate)
+                ->whereNotNull('clock_in')
+                ->count();
+
+            $absentCount = $totalStudents - $presentCount;
+
+            $presentData[] = $presentCount;
+            $absentData[] = $absentCount;
+        }
+
+        // Calculate overall percentage
+        $totalPresent = Attendance::where('attendable_type', Student::class)
+            ->whereMonth('date', $month)
+            ->whereYear('date', $year)
+            ->whereNotNull('clock_in')
+            ->count();
+
+        $totalPossibleAttendance = $totalStudents * $daysInMonth;
+        $percentage = $totalPossibleAttendance > 0 ? round(($totalPresent / $totalPossibleAttendance) * 100, 1) : 0;
+
+        return [
+            'labels' => $labels,
+            'present' => $presentData,
+            'absent' => $absentData,
+            'percentage' => $percentage
+        ];
     }
 }

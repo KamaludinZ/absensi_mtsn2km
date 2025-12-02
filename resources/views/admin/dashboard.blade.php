@@ -377,4 +377,314 @@
         @endif
     </div>
 </div>
+
+<!-- Chart Filter -->
+<div class="card mb-6">
+    <div class="p-6">
+        <h3 class="text-lg font-semibold text-gray-800 mb-4">Filter Grafik Kehadiran</h3>
+        <form method="GET" class="flex gap-4 items-end">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Bulan</label>
+                <select name="month" class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    @foreach($months as $value => $name)
+                        <option value="{{ $value }}" {{ $selectedMonth == $value ? 'selected' : '' }}>
+                            {{ $name }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Tahun</label>
+                <select name="year" class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    @foreach($years as $year)
+                        <option value="{{ $year }}" {{ $selectedYear == $year ? 'selected' : '' }}>
+                            {{ $year }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+            <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+                Tampilkan
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Attendance Charts -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+    <!-- Employee Attendance Chart -->
+    <div class="card">
+        <div class="p-6">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-800">Grafik Kehadiran Pegawai</h3>
+                    <p class="text-sm text-gray-600">{{ $months[$selectedMonth] }} {{ $selectedYear }}</p>
+                </div>
+                <div class="text-right">
+                    <p class="text-2xl font-bold text-blue-600">{{ $employeeAttendanceData['percentage'] }}%</p>
+                    <p class="text-xs text-gray-600">Persentase Kehadiran</p>
+                </div>
+            </div>
+            <canvas id="employeeAttendanceChart" height="80"></canvas>
+        </div>
+    </div>
+
+    <!-- Student Attendance Chart -->
+    <div class="card">
+        <div class="p-6">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-800">Grafik Kehadiran Siswa</h3>
+                    <p class="text-sm text-gray-600">{{ $months[$selectedMonth] }} {{ $selectedYear }}</p>
+                </div>
+                <div class="text-right">
+                    <p class="text-2xl font-bold text-green-600">{{ $studentAttendanceData['percentage'] }}%</p>
+                    <p class="text-xs text-gray-600">Persentase Kehadiran</p>
+                </div>
+            </div>
+            <canvas id="studentAttendanceChart" height="80"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activities -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+    <!-- Recent Login Attempts -->
+    <div class="card">
+        <div class="p-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">Aktivitas Login Terbaru</h3>
+            <div class="space-y-3 max-h-96 overflow-y-auto">
+                @forelse($recentLogins as $login)
+                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div class="flex items-center space-x-3">
+                            <div class="flex-shrink-0">
+                                @if($login->successful)
+                                    <div class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                                        <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                        </svg>
+                                    </div>
+                                @else
+                                    <div class="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                                        <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                        </svg>
+                                    </div>
+                                @endif
+                            </div>
+                            <div>
+                                <p class="text-sm font-medium text-gray-900">
+                                    {{ $login->username }}
+                                </p>
+                                <p class="text-xs text-gray-500">
+                                    {{ $login->ip_address }} • {{ $login->created_at->diffForHumans() }}
+                                </p>
+                            </div>
+                        </div>
+                        <span class="text-xs font-medium px-2 py-1 rounded {{ $login->successful ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">
+                            {{ $login->successful ? 'Berhasil' : 'Gagal' }}
+                        </span>
+                    </div>
+                @empty
+                    <p class="text-center text-gray-500 py-8">Tidak ada aktivitas login</p>
+                @endforelse
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Attendances -->
+    <div class="card">
+        <div class="p-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">Absensi Terbaru</h3>
+            <div class="space-y-3 max-h-96 overflow-y-auto">
+                @forelse($recentAttendances as $attendance)
+                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div class="flex items-center space-x-3">
+                            <div class="flex-shrink-0">
+                                @if($attendance->attendable_type === 'App\Models\Employee')
+                                    <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                                        <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                        </svg>
+                                    </div>
+                                @else
+                                    <div class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                                        <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                                        </svg>
+                                    </div>
+                                @endif
+                            </div>
+                            <div>
+                                <p class="text-sm font-medium text-gray-900">
+                                    {{ $attendance->attendable->full_name ?? 'N/A' }}
+                                </p>
+                                <p class="text-xs text-gray-500">
+                                    {{ $attendance->attendable_type === 'App\Models\Employee' ? 'Pegawai' : 'Siswa' }}
+                                    • {{ \Carbon\Carbon::parse($attendance->clock_in)->format('H:i') }}
+                                    • {{ $attendance->date->format('d/m/Y') }}
+                                </p>
+                            </div>
+                        </div>
+                        <span class="text-xs font-medium px-2 py-1 rounded {{ $attendance->status_in === 'Tepat Waktu' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800' }}">
+                            {{ $attendance->status_in ?? 'Hadir' }}
+                        </span>
+                    </div>
+                @empty
+                    <p class="text-center text-gray-500 py-8">Tidak ada absensi terbaru</p>
+                @endforelse
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+    // Employee Attendance Chart
+    const employeeCtx = document.getElementById('employeeAttendanceChart');
+    if (employeeCtx) {
+        // Find the maximum value in the datasets to determine proper y-axis scale
+        const empData = {!! json_encode($employeeAttendanceData['present']) !!}.concat({!! json_encode($employeeAttendanceData['absent']) !!});
+        const maxEmpValue = empData.length > 0 ? Math.max(...empData) : 0;
+        const totalEmployees = {!! json_encode($totalEmployees) !!};
+        const suggestedMaxEmp = maxEmpValue > 0 ? Math.min(Math.ceil(maxEmpValue * 1.2), totalEmployees) : 10;
+        const stepSizeEmp = maxEmpValue > 0 ? Math.max(1, Math.ceil(maxEmpValue / 5)) : 2;
+
+        new Chart(employeeCtx, {
+            type: 'line',
+            data: {
+                labels: {!! json_encode($employeeAttendanceData['labels']) !!},
+                datasets: [{
+                    label: 'Hadir',
+                    data: {!! json_encode($employeeAttendanceData['present']) !!},
+                    borderColor: 'rgb(59, 130, 246)',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }, {
+                    label: 'Tidak Hadir',
+                    data: {!! json_encode($employeeAttendanceData['absent']) !!},
+                    borderColor: 'rgb(239, 68, 68)',
+                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'bottom'
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: {
+                            maxRotation: 45,
+                            minRotation: 45
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        suggestedMax: suggestedMaxEmp,
+                        ticks: {
+                            stepSize: stepSizeEmp,
+                            callback: function(value) {
+                                if (Number.isInteger(value)) {
+                                    return value;
+                                }
+                            }
+                        }
+                    }
+                },
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
+                plugins: {
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false
+                    }
+                }
+            }
+        });
+    }
+
+    // Student Attendance Chart
+    const studentCtx = document.getElementById('studentAttendanceChart');
+    if (studentCtx) {
+        // Find the maximum value in the datasets to determine proper y-axis scale
+        const studData = {!! json_encode($studentAttendanceData['present']) !!}.concat({!! json_encode($studentAttendanceData['absent']) !!});
+        const maxStudValue = studData.length > 0 ? Math.max(...studData) : 0;
+        const totalStudents = {!! json_encode($totalStudents) !!};
+        const suggestedMaxStud = maxStudValue > 0 ? Math.min(Math.ceil(maxStudValue * 1.2), totalStudents) : 10;
+        const stepSizeStud = maxStudValue > 0 ? Math.max(1, Math.ceil(maxStudValue / 5)) : 2;
+
+        new Chart(studentCtx, {
+            type: 'line',
+            data: {
+                labels: {!! json_encode($studentAttendanceData['labels']) !!},
+                datasets: [{
+                    label: 'Hadir',
+                    data: {!! json_encode($studentAttendanceData['present']) !!},
+                    borderColor: 'rgb(34, 197, 94)',
+                    backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }, {
+                    label: 'Tidak Hadir',
+                    data: {!! json_encode($studentAttendanceData['absent']) !!},
+                    borderColor: 'rgb(239, 68, 68)',
+                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'bottom'
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: {
+                            maxRotation: 45,
+                            minRotation: 45
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        suggestedMax: suggestedMaxStud,
+                        ticks: {
+                            stepSize: stepSizeStud,
+                            callback: function(value) {
+                                if (Number.isInteger(value)) {
+                                    return value;
+                                }
+                            }
+                        }
+                    }
+                },
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
+                plugins: {
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false
+                    }
+                }
+            }
+        });
+    }
+</script>
 @endsection
