@@ -180,10 +180,6 @@
                 </tbody>
             </table>
         </div>
-        
-        <div class="mt-4">
-            {{ $attendanceCorrections->links() }}
-        </div>
     </div>
 </div>
 @endsection

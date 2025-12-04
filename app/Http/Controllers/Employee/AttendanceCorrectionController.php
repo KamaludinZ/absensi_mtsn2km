@@ -27,7 +27,7 @@ class AttendanceCorrectionController extends Controller
         $attendanceCorrections = AttendanceCorrection::where('correctable_type', Employee::class)
             ->where('correctable_id', $employee->id)
             ->orderBy('created_at', 'desc')
-            ->paginate(15);
+            ->get();
 
         return view('employee.attendance_corrections.index', compact('attendanceCorrections'));
     }
