@@ -51,7 +51,7 @@ class AttendanceCorrectionController extends Controller
             $query->where('date', '<=', $request->end_date);
         }
 
-        $attendanceCorrections = $query->orderBy('created_at', 'desc')->paginate(15);
+        $attendanceCorrections = $query->orderBy('created_at', 'desc')->get();
 
         return view('admin.attendance_corrections.index', compact('attendanceCorrections'));
     }

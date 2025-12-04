@@ -40,6 +40,7 @@
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jam Pulang (Original)</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jam Pulang (Koreksi)</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Alasan</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dokumen Bukti</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Disetujui Oleh</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
@@ -54,6 +55,21 @@
                             <td class="px-6 py-4 whitespace-nowrap">{{ $correction->original_clock_out ? \Carbon\Carbon::parse($correction->original_clock_out)->format('H:i') : '-' }}</td>
                             <td class="px-6 py-4 whitespace-nowrap">{{ $correction->corrected_clock_out ? \Carbon\Carbon::parse($correction->corrected_clock_out)->format('H:i') : '-' }}</td>
                             <td class="px-6 py-4">{{ Str::limit($correction->reason, 100) }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                @if($correction->supporting_document)
+                                    <a href="{{ asset('storage/' . $correction->supporting_document) }}"
+                                       target="_blank"
+                                       class="text-blue-600 hover:text-blue-900 inline-flex items-center"
+                                       title="Lihat Dokumen">
+                                        <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                                        </svg>
+                                        PDF
+                                    </a>
+                                @else
+                                    <span class="text-gray-400">-</span>
+                                @endif
+                            </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full
                                     {{ $correction->status === 'approved' ? 'bg-green-100 text-green-800' :
@@ -81,17 +97,13 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="9" class="px-6 py-4 text-center text-gray-500">
+                            <td colspan="10" class="px-6 py-4 text-center text-gray-500">
                                 Belum ada permohonan koreksi absensi.
                             </td>
                         </tr>
                     @endforelse
                 </tbody>
             </table>
-        </div>
-        
-        <div class="mt-4">
-            {{ $attendanceCorrections->links() }}
         </div>
     </div>
 </div>
