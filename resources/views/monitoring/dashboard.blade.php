@@ -128,7 +128,7 @@
     </div>
 </div>
 
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+<div class="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
     <div class="card border-card">
         <div class="p-6">
             <div class="flex items-center mb-4">
@@ -143,6 +143,24 @@
                 <p class="text-4xl font-bold text-yellow-600">{{ $pendingPermissions ?? 0 }}</p>
                 <p class="text-gray-600 mt-2">Permohonan Tertunda</p>
                 <a href="{{ route('monitoring.permissions.employees') }}" class="btn btn-primary mt-4 w-full">Review Izin</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-card">
+        <div class="p-6">
+            <div class="flex items-center mb-4">
+                <div class="bg-orange-100 p-2 rounded-lg mr-3">
+                    <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                </div>
+                <h3 class="text-subheading font-semibold text-gray-800">Perbaikan Pending</h3>
+            </div>
+            <div class="text-center py-6">
+                <p class="text-4xl font-bold text-orange-600">{{ $pendingCorrections ?? 0 }}</p>
+                <p class="text-gray-600 mt-2">Ajuan Perbaikan</p>
+                <a href="{{ route('admin.attendance-corrections.index') }}" class="btn btn-primary mt-4 w-full">Review Ajuan</a>
             </div>
         </div>
     </div>

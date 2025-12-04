@@ -50,6 +50,10 @@ class DashboardController extends Controller
             return Permission::where('status', 'pending')->count();
         });
 
+        $pendingCorrections = Cache::remember('pending_corrections_count', 60, function () {
+            return \App\Models\AttendanceCorrection::where('status', 'pending')->count();
+        });
+
         // Recent login attempts (last 10)
         $recentLogins = \App\Models\LoginAttempt::orderBy('created_at', 'desc')
             ->limit(10)
@@ -136,6 +140,7 @@ class DashboardController extends Controller
             'todayEmployeePresent',
             'todayStudentPresent',
             'pendingPermissions',
+            'pendingCorrections',
             'currentAcademicYear',
             'totalMonitoringUsers',
             'totalGrades',
@@ -250,6 +255,10 @@ class DashboardController extends Controller
                 ->count();
         });
 
+        $pendingCorrections = Cache::remember('pending_corrections_count', 60, function () {
+            return \App\Models\AttendanceCorrection::where('status', 'pending')->count();
+        });
+
         // Recent login attempts (last 10)
         $recentLogins = \App\Models\LoginAttempt::orderBy('created_at', 'desc')
             ->limit(10)
@@ -346,6 +355,7 @@ class DashboardController extends Controller
             'todayEmployeePresent',
             'todayStudentPresent',
             'pendingPermissions',
+            'pendingCorrections',
             'pendingStudentPermissions',
             'totalPermissionsToday',
             'currentAcademicYear',
