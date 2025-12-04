@@ -32,7 +32,7 @@ class SecurityHeaders
             "style-src" => "'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net",
             "img-src" => "'self' data: https:",
             "font-src" => "'self'",
-            "connect-src" => "'self' https://unpkg.com https://*.tile.openstreetmap.org",
+            "connect-src" => "'self' https://unpkg.com https://cdn.jsdelivr.net https://*.tile.openstreetmap.org",
             "frame-src" => "https://www.google.com/maps/",
             "object-src" => "'none'",
             "base-uri" => "'self'",
