@@ -6,7 +6,8 @@
     <form action="{{ route('admin.employees.update', $employee) }}" method="POST">
         @csrf @method('PUT')
         <div class="mb-4">
-
+            <label class="block text-sm font-medium text-gray-700 mb-2">NIP</label>
+            <input type="text" name="nip" value="{{ old('nip', $employee->nip) }}" required class="w-full px-4 py-2 border rounded-lg">
         </div>
         <div class="mb-4">
             <label class="block text-sm font-medium text-gray-700 mb-2">Nama Lengkap</label>

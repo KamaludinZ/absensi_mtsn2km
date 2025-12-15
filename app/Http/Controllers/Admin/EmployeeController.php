@@ -140,6 +140,7 @@ class EmployeeController extends Controller
     public function store(Request $request)
     {
         $request->validate([
+            'nip' => 'required|string|max:255|unique:employees,nip', // Add NIP validation
             'full_name' => 'required|string|max:255',
             'position' => 'required|string|max:255',
             'is_active' => 'required|boolean',
@@ -165,6 +166,7 @@ class EmployeeController extends Controller
 
         Employee::create([
             'user_id' => $userId,
+            'nip' => $request->nip, // Add NIP to creation
             'full_name' => $request->full_name,
             'position' => $request->position,
             'is_active' => $request->is_active,
@@ -183,18 +185,19 @@ class EmployeeController extends Controller
     {
         // Prepare validation rules
         $rules = [
+            'nip' => 'required|string|max:255|unique:employees,nip,' . $employee->id, // Add NIP validation with unique rule excluding current employee
             'full_name' => 'required|string|max:255',
             'position' => 'required|string|max:255',
             'is_active' => 'required|boolean',
         ];
-        
+
         // Add username validation if username is provided
         if ($request->filled('username')) {
-            $rules['username'] = $employee->user 
-                ? 'required|string|unique:users,username,' . $employee->user->id 
+            $rules['username'] = $employee->user
+                ? 'required|string|unique:users,username,' . $employee->user->id
                 : 'required|string|unique:users,username';
         }
-        
+
         // Add password validation if password is provided
         if ($request->filled('password')) {
             $rules['password'] = 'required|string|min:6';
@@ -202,7 +205,7 @@ class EmployeeController extends Controller
 
         $request->validate($rules);
 
-        $employee->update($request->only(['full_name', 'position', 'is_active']));
+        $employee->update($request->only(['nip', 'full_name', 'position', 'is_active'])); // Include NIP in update
 
         // Handle user account updates
         if ($request->filled('username') || $request->filled('password')) {
