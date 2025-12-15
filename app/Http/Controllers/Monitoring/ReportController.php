@@ -26,7 +26,19 @@ class ReportController extends Controller
             $employeeQuery->where('id', $request->employee_id);
         }
 
-        $employees = $employeeQuery->orderBy('full_name')->get();
+        // Sorting functionality - default to alphabetical order by name
+        $sortField = $request->get('sort', 'full_name');
+        $sortDirection = $request->get('direction', 'asc');
+
+        if ($sortField === 'full_name') {
+            $employeeQuery->orderBy('full_name', $sortDirection);
+        } elseif ($sortField === 'position') {
+            $employeeQuery->orderBy('position', $sortDirection);
+        } else {
+            $employeeQuery->orderBy('full_name', $sortDirection);
+        }
+
+        $employees = $employeeQuery->get();
         $employeeIds = $employees->pluck('id');
 
         // Prepare attendance query
@@ -145,8 +157,46 @@ class ReportController extends Controller
             ];
         }
 
-        // Data for filters
-        $allEmployees = Employee::orderBy('full_name')->get();
+        // Sort the final data array based on the sort parameters
+        $sortField = $request->get('sort', 'full_name');
+        $sortDirection = $request->get('direction', 'asc');
+
+        $salaryData = collect($salaryData)->sortBy(function($data) use ($sortField) {
+            switch ($sortField) {
+                case 'position':
+                    return strtolower($data['employee']->position ?? '');
+                case 'total_salary':
+                    return $data['total_salary'];
+                case 'total_meal_allowance':
+                    return $data['total_meal_allowance'];
+                case 'total_transport_allowance':
+                    return $data['total_transport_allowance'];
+                case 'total_performance_allowance':
+                    return $data['total_performance_allowance'];
+                case 'base_salary':
+                    return $data['base_salary'];
+                case 'present_days':
+                    return $data['present_days'];
+                case 'perfect_days':
+                    return $data['perfect_days'];
+                case 'full_name':
+                default:
+                    return strtolower($data['employee']->full_name ?? '');
+            }
+        }, SORT_REGULAR, $sortDirection === 'desc');
+
+        $salaryData = $salaryData->values()->all();
+
+        // Data for filters - only include employees who were active during this month or before
+        $allEmployees = Employee::where(function($query) use ($selectedMonth, $selectedYear) {
+            // Currently active employees (not soft deleted)
+            $query->whereNull('deleted_at')
+                  // OR employees who were soft deleted after this month (were active during this month)
+                  ->orWhere(function($q) use ($selectedMonth, $selectedYear) {
+                      $q->whereNotNull('deleted_at')
+                        ->where('deleted_at', '>=', \Carbon\Carbon::create($selectedYear, $selectedMonth, 1)->startOfMonth());
+                  });
+        })->orderBy('full_name')->get();
         $months = [
             1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April', 5 => 'Mei', 6 => 'Juni',
             7 => 'Juli', 8 => 'Agustus', 9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember'

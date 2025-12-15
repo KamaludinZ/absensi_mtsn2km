@@ -4,6 +4,34 @@
 @section('page-title', 'Laporan Uang Transport Pegawai')
 @section('container-class', '')
 
+@php
+    // Helper function to generate sortable column header
+    function sortableLink($label, $sortField, $currentSort, $currentDirection) {
+        $newDirection = 'asc';
+        $icon = '';
+
+        if ($currentSort == $sortField) {
+            // If this column is currently sorted
+            $newDirection = $currentDirection == 'asc' ? 'desc' : 'asc';
+            $icon = $currentDirection == 'asc' ? ' ↑' : ' ↓';
+        }
+
+        // Build query string preserving filters
+        $params = request()->except(['sort', 'direction', 'page']);
+        $params['sort'] = $sortField;
+        $params['direction'] = $newDirection;
+
+        $url = request()->url() . '?' . http_build_query($params);
+
+        $class = $currentSort == $sortField ? 'text-blue-600 font-semibold' : 'text-gray-700 hover:text-blue-600';
+
+        return '<a href="' . $url . '" class="' . $class . '">' . $label . $icon . '</a>';
+    }
+
+    $currentSort = request('sort', 'full_name');
+    $currentDirection = request('direction', 'asc');
+@endphp
+
 @section('content')
 <div class="w-full px-4 sm:px-6 py-6">
     @if(session('success'))
@@ -75,15 +103,15 @@
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nama Pegawai</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jabatan</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{!! sortableLink('Nama Pegawai', 'full_name', $currentSort, $currentDirection) !!}</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{!! sortableLink('Jabatan', 'position', $currentSort, $currentDirection) !!}</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hari Aktif (Shift)</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hari Hadir</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tidak Hadir</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sakit</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cuti</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dinas Luar</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Uang Transport</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{!! sortableLink('Total Uang Transport', 'total_transport_allowance', $currentSort, $currentDirection) !!}</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">

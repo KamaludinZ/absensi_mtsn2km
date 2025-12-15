@@ -23,8 +23,17 @@ class EmployeeShiftController extends Controller
         $month = request('month', now()->month);
         $year = request('year', now()->year);
 
-        // Get all active employees
-        $employees = Employee::where('is_active', true)->orderBy('full_name')->get();
+        // Get employees who were active during this month or before
+        // Use soft deletes to determine if employee was inactive during this month
+        $employees = Employee::where(function($query) use ($month, $year) {
+            // Currently active employees (not soft deleted)
+            $query->whereNull('deleted_at')
+                  // OR employees who were soft deleted after this month (were active during this month)
+                  ->orWhere(function($q) use ($month, $year) {
+                      $q->whereNotNull('deleted_at')
+                        ->where('deleted_at', '>=', Carbon::create($year, $month, 1)->startOfMonth());
+                  });
+        })->orderBy('full_name')->get();
 
         // Get all schedules
         $schedules = Schedule::where('type', 'pegawai')->orderBy('shift_type')->orderBy('day_of_week')->get();
@@ -95,8 +104,16 @@ class EmployeeShiftController extends Controller
         // Store disabled dates in session
         session(["disabled_dates_{$year}_{$month}" => $disabledDates->toArray()]);
         
-        // Get all active employees
-        $employees = Employee::where('is_active', true)->pluck('id');
+        // Get employees who were active during this month or before
+        $employees = Employee::where(function($query) use ($month, $year) {
+            // Currently active employees (not soft deleted)
+            $query->whereNull('deleted_at')
+                  // OR employees who were soft deleted after this month (were active during this month)
+                  ->orWhere(function($q) use ($month, $year) {
+                      $q->whereNotNull('deleted_at')
+                        ->where('deleted_at', '>=', Carbon::create($year, $month, 1)->startOfMonth());
+                  });
+        })->pluck('id');
         
         // Delete existing shifts for this month
         $startDate = Carbon::create($year, $month, 1)->startOfMonth();
@@ -165,8 +182,16 @@ class EmployeeShiftController extends Controller
         $month = $request->get('month', now()->month);
         $year = $request->get('year', now()->year);
 
-        // Get all active employees
-        $employees = Employee::where('is_active', true)->orderBy('full_name')->get();
+        // Get employees who were active during this month or before
+        $employees = Employee::where(function($query) use ($month, $year) {
+            // Currently active employees (not soft deleted)
+            $query->whereNull('deleted_at')
+                  // OR employees who were soft deleted after this month (were active during this month)
+                  ->orWhere(function($q) use ($month, $year) {
+                      $q->whereNotNull('deleted_at')
+                        ->where('deleted_at', '>=', Carbon::create($year, $month, 1)->startOfMonth());
+                  });
+        })->orderBy('full_name')->get();
 
         // Generate dates for the selected month
         $startDate = Carbon::create($year, $month, 1)->startOfMonth();
@@ -273,8 +298,16 @@ class EmployeeShiftController extends Controller
                 'file_name' => $file->getClientOriginalName()
             ]);
 
-            // Get all active employees indexed by name (trimmed and lowercase for better matching)
-            $employees = Employee::where('is_active', true)->get();
+            // Get employees who were active during this month or before, indexed by name
+            $employees = Employee::where(function($query) use ($month, $year) {
+                // Currently active employees (not soft deleted)
+                $query->whereNull('deleted_at')
+                      // OR employees who were soft deleted after this month (were active during this month)
+                      ->orWhere(function($q) use ($month, $year) {
+                          $q->whereNotNull('deleted_at')
+                            ->where('deleted_at', '>=', Carbon::create($year, $month, 1)->startOfMonth());
+                      });
+            })->get();
             $employeeMap = [];
             foreach ($employees as $employee) {
                 // Create case-insensitive, whitespace-trimmed mapping

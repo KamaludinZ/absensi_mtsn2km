@@ -22,7 +22,7 @@
     }
 
     $currentSort = $sortField ?? request('sort', 'date');
-    $currentDirection = $sortDirection ?? request('direction', 'desc');
+    $currentDirection = $sortDirection ?? request('direction', 'asc');
 @endphp
 
 @extends('layouts.app')
