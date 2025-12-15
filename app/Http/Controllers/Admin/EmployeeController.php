@@ -435,8 +435,16 @@ class EmployeeController extends Controller
         $month = (int) request('month', now()->month);
         $year = (int) request('year', now()->year);
 
-        // Get all employees with their salary for the selected month/year
-        $employees = Employee::orderBy('full_name')->get();
+        // Get employees who were active during this month or before
+        $employees = Employee::where(function($query) use ($month, $year) {
+            // Currently active employees (not soft deleted)
+            $query->whereNull('deleted_at')
+                  // OR employees who were soft deleted after this month (were active during this month)
+                  ->orWhere(function($q) use ($month, $year) {
+                      $q->whereNotNull('deleted_at')
+                        ->where('deleted_at', '>=', \Carbon\Carbon::create($year, $month, 1)->startOfMonth());
+                  });
+        })->orderBy('full_name')->get();
 
         // Load salary relationship with month/year filter
         $employees->load(['salary' => function($query) use ($month, $year) {
@@ -511,7 +519,16 @@ class EmployeeController extends Controller
             });
 
             if (!empty($filteredBulkUpdates)) {
-                $employees = Employee::all();
+                $employees = Employee::where(function($query) use ($month, $year) {
+                    // Currently active employees (not soft deleted)
+                    $query->whereNull('deleted_at')
+                          // OR employees who were soft deleted after this month (were active during this month)
+                          ->orWhere(function($q) use ($month, $year) {
+                              $q->whereNotNull('deleted_at')
+                                ->where('deleted_at', '>=', \Carbon\Carbon::create($year, $month, 1)->startOfMonth());
+                          });
+                })->get();
+
                 foreach ($employees as $employee) {
                     \App\Models\Salary::updateOrCreate(
                         [

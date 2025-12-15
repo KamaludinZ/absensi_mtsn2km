@@ -6,7 +6,9 @@
     <form action="{{ route('admin.employees.store') }}" method="POST">
         @csrf
         <div class="mb-4">
-
+            <label class="block text-sm font-medium text-gray-700 mb-2">NIP</label>
+            <input type="text" name="nip" value="{{ old('nip') }}" required class="w-full px-4 py-2 border rounded-lg">
+            @error('nip')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
         </div>
         <div class="mb-4">
             <label class="block text-sm font-medium text-gray-700 mb-2">Nama Lengkap</label>

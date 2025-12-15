@@ -29,6 +29,11 @@ class AttendanceController extends Controller
             return redirect()->back()->with('error', 'Data pegawai tidak ditemukan.');
         }
 
+        // Check if employee is active
+        if (!$employee->is_active) {
+            return redirect()->back()->with('error', 'Akun Anda telah dinonaktifkan. Tidak dapat melakukan absensi.');
+        }
+
         $today = Carbon::today();
         $attendance = Attendance::where('attendable_type', Employee::class)
             ->where('attendable_id', $employee->id)
@@ -95,6 +100,14 @@ class AttendanceController extends Controller
                 return response()->json([
                     'success' => false,
                     'message' => 'Data pegawai tidak ditemukan.',
+                ]);
+            }
+
+            // Check if employee is active
+            if (!$employee->is_active) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Akun Anda telah dinonaktifkan. Tidak dapat melakukan absensi.',
                 ]);
             }
 
@@ -280,6 +293,14 @@ class AttendanceController extends Controller
                 ]);
             }
 
+            // Check if employee is active
+            if (!$employee->is_active) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Akun Anda telah dinonaktifkan. Tidak dapat melakukan absensi.',
+                ]);
+            }
+
             // Check location requirements
             $locationSetting = LocationSetting::where('setting_key', 'location_required')->first();
             $locationRequired = $locationSetting ? filter_var($locationSetting->setting_value, FILTER_VALIDATE_BOOLEAN) : false;
@@ -429,6 +450,11 @@ class AttendanceController extends Controller
             return redirect()->back()->with('error', 'Data pegawai tidak ditemukan.');
         }
 
+        // Check if employee is active
+        if (!$employee->is_active) {
+            return redirect()->back()->with('error', 'Akun Anda telah dinonaktifkan. Tidak dapat melihat laporan absensi.');
+        }
+
         $query = Attendance::where('attendable_type', Employee::class)
             ->where('attendable_id', $employee->id);
 
@@ -525,6 +551,11 @@ class AttendanceController extends Controller
 
         if (!$employee) {
             return redirect()->back()->with('error', 'Data pegawai tidak ditemukan.');
+        }
+
+        // Check if employee is active
+        if (!$employee->is_active) {
+            return redirect()->back()->with('error', 'Akun Anda telah dinonaktifkan. Tidak dapat melihat laporan absensi.');
         }
 
         $query = Attendance::where('attendable_type', Employee::class)

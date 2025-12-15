@@ -29,7 +29,7 @@
     }
 
     $currentSort = request('sort', 'date');
-    $currentDirection = request('direction', 'desc');
+    $currentDirection = request('direction', 'asc');
 @endphp
 
 @section('content')

@@ -35,6 +35,12 @@ class ReportController extends Controller
         if ($selectedMonth && $selectedYear) {
             $query->whereMonth('date', $selectedMonth)
                   ->whereYear('date', $selectedYear);
+        } else {
+            // Default to current month and year if not provided
+            $selectedMonth = Carbon::now()->month;
+            $selectedYear = Carbon::now()->year;
+            $query->whereMonth('date', $selectedMonth)
+                  ->whereYear('date', $selectedYear);
         }
 
         // Filter by specific employee if provided
@@ -44,11 +50,11 @@ class ReportController extends Controller
 
         // Sorting
         $sortField = $request->get('sort', 'date');
-        $sortDirection = $request->get('direction', 'desc');
+        $sortDirection = $request->get('direction', 'asc');
 
         // Validate sort direction
         if (!in_array($sortDirection, ['asc', 'desc'])) {
-            $sortDirection = 'desc';
+            $sortDirection = 'asc';
         }
 
         // Apply sorting based on field
@@ -61,45 +67,106 @@ class ReportController extends Controller
                     return strtolower($attendance->attendable->$sortField ?? '');
                 }, SORT_REGULAR, $sortDirection === 'desc');
 
+                // If filtering by employee_id, sort by date ascending; otherwise, sort by name first then date
+                if ($request->filled('employee_id')) {
+                    $attendances = $attendances->sortBy(function($attendance) {
+                        return $attendance->date->format('Y-m-d') . '_' . $attendance->date->format('H:i:s');
+                    }, SORT_REGULAR, false); // Ascending order for date
+                } else {
+                    $attendances = $attendances->sortBy(function($attendance) use ($sortField, $sortDirection) {
+                        $name = strtolower($attendance->attendable->$sortField ?? '');
+                        $date = $attendance->date->format('Y-m-d');
+                        // Group by position for employee grouping
+                        $position = $attendance->attendable->position ?? '';
+                        return [$position, $name, $date];
+                    }, SORT_REGULAR, $sortDirection === 'desc');
+                }
+
                 // Manually paginate
-                $perPage = 20;
-                $currentPage = request()->get('page', 1);
-                $attendances = new \Illuminate\Pagination\LengthAwarePaginator(
-                    $attendances->forPage($currentPage, $perPage),
-                    $attendances->count(),
-                    $perPage,
-                    $currentPage,
-                    ['path' => request()->url(), 'query' => request()->query()]
-                );
+                $perPage = $this->getPerPagePreference();
+                if ($perPage === 'all') {
+                    // Don't paginate, return collection
+                    $paginated = false;
+                } else {
+                    $currentPage = request()->get('page', 1);
+                    $perPage = in_array($perPage, [10, 20, 30, 50, 100]) ? $perPage : 20;
+                    $attendances = new \Illuminate\Pagination\LengthAwarePaginator(
+                        $attendances->forPage($currentPage, $perPage),
+                        $attendances->count(),
+                        $perPage,
+                        $currentPage,
+                        ['path' => request()->url(), 'query' => request()->query()]
+                    );
+                    $paginated = true;
+                }
                 break;
 
             case 'clock_in':
             case 'clock_out':
-                $query->orderBy($sortField, $sortDirection);
-                $perPage = $this->getPerPagePreference();
-                if ($perPage === 'all') {
-                    $attendances = collect($query->orderBy('date', 'desc')->get());
+                if ($request->filled('employee_id')) {
+                    // If filtering by employee, sort by date ascending
+                    $attendances = $query->orderBy($sortField, $sortDirection)
+                                         ->orderBy('date', 'asc')
+                                         ->get();
                 } else {
-                    $attendances = $query->orderBy('date', 'desc')->paginate($perPage);
+                    // Otherwise, sort by employee name first, then by the field, then by date
+                    $attendances = $query->join('employees', 'attendances.attendable_id', '=', 'employees.id')
+                                         ->orderBy('employees.full_name', $sortDirection)
+                                         ->orderBy($sortField, $sortDirection)
+                                         ->orderBy('attendances.date', 'asc')
+                                         ->select('attendances.*')
+                                         ->with('attendable')
+                                         ->get();
                 }
+                $paginated = false; // Handle pagination after sorting
+                $perPage = $this->getPerPagePreference(); // Define perPage for all code paths
                 break;
 
             case 'date':
             default:
-                $query->orderBy('date', $sortDirection);
-                $perPage = $this->getPerPagePreference();
-                if ($perPage === 'all') {
-                    $attendances = collect($query->orderBy('created_at', 'desc')->get());
+                if ($request->filled('employee_id')) {
+                    // If filtering by employee, sort by date ascending
+                    $attendances = $query->orderBy('date', 'asc')->get();
                 } else {
-                    $attendances = $query->orderBy('created_at', 'desc')->paginate($perPage);
+                    // Default grouping by position/name and then by date
+                    $attendances = $query->join('employees', 'attendances.attendable_id', '=', 'employees.id')
+                                         ->orderBy('employees.position')
+                                         ->orderBy('employees.full_name')
+                                         ->orderBy('attendances.date', $sortDirection)
+                                         ->select('attendances.*')
+                                         ->with('attendable')
+                                         ->get();
                 }
+                $paginated = false; // Handle pagination after sorting
+                $perPage = $this->getPerPagePreference(); // Define perPage for all code paths
                 break;
         }
 
-        // Get all active employees for the dropdown (optimized - only load active)
-        $employees = Employee::where('is_active', true)
+        // Apply pagination if needed
+        if (isset($paginated) && !$paginated && $perPage !== 'all') {
+            $currentPage = request()->get('page', 1);
+            $perPage = in_array($perPage, [10, 20, 30, 50, 100]) ? $perPage : 20;
+            $attendances = new \Illuminate\Pagination\LengthAwarePaginator(
+                $attendances->forPage($currentPage, $perPage),
+                $attendances->count(),
+                $perPage,
+                $currentPage,
+                ['path' => request()->url(), 'query' => request()->query()]
+            );
+        }
+
+        // Get employees who were active during this month or before for the dropdown
+        $employees = Employee::where(function($query) use ($selectedMonth, $selectedYear) {
+            // Currently active employees (not soft deleted)
+            $query->whereNull('deleted_at')
+                  // OR employees who were soft deleted after this month (were active during this month)
+                  ->orWhere(function($q) use ($selectedMonth, $selectedYear) {
+                      $q->whereNotNull('deleted_at')
+                        ->where('deleted_at', '>=', Carbon::create($selectedYear, $selectedMonth, 1)->startOfMonth());
+                  });
+        })
             ->orderBy('full_name')
-            ->select('id', 'full_name', 'nip') // Only select needed columns
+            ->select('id', 'full_name', 'nip', 'position') // Include position for grouping
             ->get();
 
         // Get available months/years for the dropdown
@@ -193,7 +260,7 @@ class ReportController extends Controller
             }
         );
 
-        return view('admin.reports.employees', compact('attendances', 'employees', 'months', 'years', 'summary', 'timeDiffFormat', 'selectedMonth', 'selectedYear'));
+        return view('admin.reports.employees', compact('attendances', 'employees', 'months', 'years', 'summary', 'timeDiffFormat', 'selectedMonth', 'selectedYear', 'paginated'));
     }
     
     public function students()
@@ -209,25 +276,21 @@ class ReportController extends Controller
     public function studentReports(Request $request)
     {
         $query = Attendance::with(['attendable.rombel', 'attendable'])
-            ->where('attendable_type', Student::class)
-            ->orderBy('date', 'desc')
-            ->orderBy('clock_in', 'asc');
+            ->where('attendable_type', Student::class);
 
-        // Apply filters - first check for month/year, then fall back to date range
+        // Apply filters - first check for month/year
         if ($request->filled('month') && $request->filled('year')) {
             $selectedMonth = $request->month;
             $selectedYear = $request->year;
             $startDate = Carbon::create($selectedYear, $selectedMonth, 1)->startOfMonth();
             $endDate = Carbon::create($selectedYear, $selectedMonth, 1)->endOfMonth();
             $query->whereBetween('date', [$startDate, $endDate]);
-        } elseif ($request->filled('start_date') && $request->filled('end_date')) {
-            $query->whereBetween('date', [$request->start_date, $request->end_date]);
         } else {
             // Default to current month if no filters are provided
-            $currentMonth = now()->month;
-            $currentYear = now()->year;
-            $startDate = Carbon::create($currentYear, $currentMonth, 1)->startOfMonth();
-            $endDate = Carbon::create($currentYear, $currentMonth, 1)->endOfMonth();
+            $selectedMonth = Carbon::now()->month;
+            $selectedYear = Carbon::now()->year;
+            $startDate = Carbon::create($selectedYear, $selectedMonth, 1)->startOfMonth();
+            $endDate = Carbon::create($selectedYear, $selectedMonth, 1)->endOfMonth();
             $query->whereBetween('date', [$startDate, $endDate]);
         }
 
@@ -244,11 +307,119 @@ class ReportController extends Controller
             });
         }
 
-        $perPage = $this->getPerPagePreference();
-        if ($perPage === 'all') {
-            $attendances = collect($query->get());
-        } else {
-            $attendances = $query->paginate($perPage);
+        // Sorting
+        $sortField = $request->get('sort', 'date');
+        $sortDirection = $request->get('direction', 'asc'); // Default to ascending for better organization
+
+        // Validate sort direction
+        if (!in_array($sortDirection, ['asc', 'desc'])) {
+            $sortDirection = 'asc';
+        }
+
+        // Apply sorting based on field
+        switch ($sortField) {
+            case 'full_name':
+            case 'rombel':
+                // For relationship fields, we need to sort in collection
+                $attendances = $query->get()->sortBy(function($attendance) use ($sortField) {
+                    if ($sortField === 'rombel') {
+                        return strtolower($attendance->attendable->rombel->name ?? '');
+                    }
+                    return strtolower($attendance->attendable->$sortField ?? '');
+                }, SORT_REGULAR, $sortDirection === 'desc');
+
+                // If filtering by student, sort by date ascending; otherwise, sort by name first then date
+                if ($request->filled('student_name')) {
+                    $attendances = $attendances->sortBy(function($attendance) {
+                        return $attendance->date->format('Y-m-d') . '_' . $attendance->date->format('H:i:s');
+                    }, SORT_REGULAR, false); // Ascending order for date
+                } else {
+                    $attendances = $attendances->sortBy(function($attendance) use ($sortField, $sortDirection) {
+                        if ($sortField === 'rombel') {
+                            $group = strtolower($attendance->attendable->rombel->name ?? '');
+                            $name = strtolower($attendance->attendable->full_name ?? '');
+                        } else {
+                            $group = strtolower($attendance->attendable->rombel->name ?? '');
+                            $name = strtolower($attendance->attendable->$sortField ?? '');
+                        }
+                        $date = $attendance->date->format('Y-m-d');
+                        return [$group, $name, $date];
+                    }, SORT_REGULAR, $sortDirection === 'desc');
+                }
+
+                $perPage = $this->getPerPagePreference();
+                if ($perPage === 'all') {
+                    // Don't paginate, return collection
+                    $paginated = false;
+                } else {
+                    $currentPage = request()->get('page', 1);
+                    $perPage = in_array($perPage, [10, 20, 30, 50, 100]) ? $perPage : 20;
+                    $attendances = new \Illuminate\Pagination\LengthAwarePaginator(
+                        $attendances->forPage($currentPage, $perPage),
+                        $attendances->count(),
+                        $perPage,
+                        $currentPage,
+                        ['path' => request()->url(), 'query' => request()->query()]
+                    );
+                    $paginated = true;
+                }
+                break;
+
+            case 'clock_in':
+            case 'clock_out':
+                if ($request->filled('student_name')) {
+                    // If filtering by student, sort by date ascending
+                    $attendances = $query->orderBy($sortField, $sortDirection)
+                                         ->orderBy('date', 'asc')
+                                         ->get();
+                } else {
+                    // Otherwise, sort by student name first, then by the field, then by date
+                    $attendances = $query->join('students', 'attendances.attendable_id', '=', 'students.id')
+                                         ->join('rombels', 'students.rombel_id', '=', 'rombels.id')
+                                         ->orderBy('rombels.name', $sortDirection)
+                                         ->orderBy('students.full_name', $sortDirection)
+                                         ->orderBy($sortField, $sortDirection)
+                                         ->orderBy('attendances.date', 'asc')
+                                         ->select('attendances.*')
+                                         ->with(['attendable.rombel', 'attendable'])
+                                         ->get();
+                }
+                $paginated = false; // Handle pagination after sorting
+                $perPage = $this->getPerPagePreference(); // Define perPage for all code paths
+                break;
+
+            case 'date':
+            default:
+                if ($request->filled('student_name')) {
+                    // If filtering by student, sort by date ascending
+                    $attendances = $query->orderBy('date', 'asc')->get();
+                } else {
+                    // Default grouping by rombel/name and then by date
+                    $attendances = $query->join('students', 'attendances.attendable_id', '=', 'students.id')
+                                         ->join('rombels', 'students.rombel_id', '=', 'rombels.id')
+                                         ->orderBy('rombels.name')
+                                         ->orderBy('students.full_name')
+                                         ->orderBy('attendances.date', $sortDirection)
+                                         ->select('attendances.*')
+                                         ->with(['attendable.rombel', 'attendable'])
+                                         ->get();
+                }
+                $paginated = false; // Handle pagination after sorting
+                $perPage = $this->getPerPagePreference(); // Define perPage for all code paths
+                break;
+        }
+
+        // Apply pagination if needed
+        if (isset($paginated) && !$paginated && $perPage !== 'all') {
+            $currentPage = request()->get('page', 1);
+            $perPage = in_array($perPage, [10, 20, 30, 50, 100]) ? $perPage : 20;
+            $attendances = new \Illuminate\Pagination\LengthAwarePaginator(
+                $attendances->forPage($currentPage, $perPage),
+                $attendances->count(),
+                $perPage,
+                $currentPage,
+                ['path' => request()->url(), 'query' => request()->query()]
+            );
         }
 
         // OPTIMIZED: Only select needed columns for rombels dropdown
@@ -279,7 +450,7 @@ class ReportController extends Controller
             $years = $years->push($currentYear, $currentYear + 1)->unique()->sortDesc();
         }
 
-        return view('admin.reports.student-reports', compact('attendances', 'rombels', 'months', 'years'));
+        return view('admin.reports.student-reports', compact('attendances', 'rombels', 'months', 'years', 'paginated', 'selectedMonth', 'selectedYear'));
     }
 
     public function generate(Request $request)
@@ -519,7 +690,19 @@ class ReportController extends Controller
             $employeeQuery->where('id', $request->employee_id);
         }
 
-        $employees = $employeeQuery->orderBy('full_name')->get();
+        // Sorting functionality - default to alphabetical order by name
+        $sortField = $request->get('sort', 'full_name');
+        $sortDirection = $request->get('direction', 'asc');
+
+        if ($sortField === 'full_name') {
+            $employeeQuery->orderBy('full_name', $sortDirection);
+        } elseif ($sortField === 'position') {
+            $employeeQuery->orderBy('position', $sortDirection);
+        } else {
+            $employeeQuery->orderBy('full_name', $sortDirection);
+        }
+
+        $employees = $employeeQuery->get();
         $employeeIds = $employees->pluck('id');
 
         $startDate = Carbon::create($selectedYear, $selectedMonth, 1)->startOfMonth();
@@ -664,8 +847,34 @@ class ReportController extends Controller
             }
         }
 
-        // Get all employees for dropdown
-        $allEmployees = Employee::orderBy('full_name')->get();
+        // Sort the final data array based on the sort parameters
+        $sortField = $request->get('sort', 'full_name');
+        $sortDirection = $request->get('direction', 'asc');
+
+        $mealAllowanceData = collect($mealAllowanceData)->sortBy(function($data) use ($sortField) {
+            switch ($sortField) {
+                case 'position':
+                    return strtolower($data['employee']->position ?? '');
+                case 'total_meal_allowance':
+                    return $data['total_meal_allowance'];
+                case 'full_name':
+                default:
+                    return strtolower($data['employee']->full_name ?? '');
+            }
+        }, SORT_REGULAR, $sortDirection === 'desc');
+
+        $mealAllowanceData = $mealAllowanceData->values()->all();
+
+        // Get all employees for dropdown - only show employees who were active during this month or before
+        $allEmployees = Employee::where(function($query) use ($selectedMonth, $selectedYear) {
+            // Currently active employees (not soft deleted)
+            $query->whereNull('deleted_at')
+                  // OR employees who were soft deleted after this month (were active during this month)
+                  ->orWhere(function($q) use ($selectedMonth, $selectedYear) {
+                      $q->whereNotNull('deleted_at')
+                        ->where('deleted_at', '>=', Carbon::create($selectedYear, $selectedMonth, 1)->startOfMonth());
+                  });
+        })->orderBy('full_name')->get();
 
         // Get available months/years for dropdown
         $months = [
@@ -730,6 +939,18 @@ class ReportController extends Controller
         }])->where('is_active', true);
         if ($request->filled('employee_id')) {
             $employeeQuery->where('id', $request->employee_id);
+        }
+
+        // Sorting functionality - default to alphabetical order by name
+        $sortField = $request->get('sort', 'full_name');
+        $sortDirection = $request->get('direction', 'asc');
+
+        if ($sortField === 'full_name') {
+            $employeeQuery->orderBy('full_name', $sortDirection);
+        } elseif ($sortField === 'position') {
+            $employeeQuery->orderBy('position', $sortDirection);
+        } else {
+            $employeeQuery->orderBy('full_name', $sortDirection);
         }
         $employees = $employeeQuery->get();
 
@@ -916,8 +1137,38 @@ class ReportController extends Controller
             ];
         }
 
-        // Get all employees for dropdown
-        $employees = Employee::orderBy('full_name')->get();
+        // Sort the final data array based on the sort parameters
+        $sortField = $request->get('sort', 'full_name');
+        $sortDirection = $request->get('direction', 'asc');
+
+        $performanceData = collect($performanceData)->sortBy(function($data) use ($sortField) {
+            switch ($sortField) {
+                case 'position':
+                    return strtolower($data['employee']->position ?? '');
+                case 'total_performance_allowance':
+                    return $data['total_performance_allowance'];
+                case 'total_meal_allowance':
+                    return $data['total_meal_allowance'];
+                case 'on_time_both_days':
+                    return $data['on_time_both_days'];
+                case 'full_name':
+                default:
+                    return strtolower($data['employee']->full_name ?? '');
+            }
+        }, SORT_REGULAR, $sortDirection === 'desc');
+
+        $performanceData = $performanceData->values()->all();
+
+        // Get all employees for dropdown - only show employees who were active during this month or before
+        $employees = Employee::where(function($query) use ($selectedMonth, $selectedYear) {
+            // Currently active employees (not soft deleted)
+            $query->whereNull('deleted_at')
+                  // OR employees who were soft deleted after this month (were active during this month)
+                  ->orWhere(function($q) use ($selectedMonth, $selectedYear) {
+                      $q->whereNotNull('deleted_at')
+                        ->where('deleted_at', '>=', Carbon::create($selectedYear, $selectedMonth, 1)->startOfMonth());
+                  });
+        })->orderBy('full_name')->get();
 
         // Get available months/years for dropdown
         $months = [
@@ -976,11 +1227,22 @@ class ReportController extends Controller
 
         $employeeQuery = Employee::with(['salary' => function($query) {
             $query->latest('created_at');
-        }])->where('is_active', true);
+        }]);
 
         // Filter by specific employee if provided
         if ($request->filled('employee_id')) {
             $employeeQuery->where('id', $request->employee_id);
+        } else {
+            // For general report, only include employees who were active during this month or before
+            $employeeQuery->where(function($query) use ($selectedMonth, $selectedYear) {
+                // Currently active employees (not soft deleted)
+                $query->whereNull('deleted_at')
+                      // OR employees who were soft deleted after this month (were active during this month)
+                      ->orWhere(function($q) use ($selectedMonth, $selectedYear) {
+                          $q->whereNotNull('deleted_at')
+                            ->where('deleted_at', '>=', Carbon::create($selectedYear, $selectedMonth, 1)->startOfMonth());
+                      });
+            });
         }
 
         $employees = $employeeQuery->orderBy('full_name')->get();
@@ -1503,7 +1765,19 @@ class ReportController extends Controller
             $employeeQuery->where('id', $request->employee_id);
         }
 
-        $employees = $employeeQuery->orderBy('full_name')->get();
+        // Sorting functionality - default to alphabetical order by name
+        $sortField = $request->get('sort', 'full_name');
+        $sortDirection = $request->get('direction', 'asc');
+
+        if ($sortField === 'full_name') {
+            $employeeQuery->orderBy('full_name', $sortDirection);
+        } elseif ($sortField === 'position') {
+            $employeeQuery->orderBy('position', $sortDirection);
+        } else {
+            $employeeQuery->orderBy('full_name', $sortDirection);
+        }
+
+        $employees = $employeeQuery->get();
         $employeeIds = $employees->pluck('id');
 
         $startDate = Carbon::create($selectedYear, $selectedMonth, 1)->startOfMonth();
@@ -1648,8 +1922,34 @@ class ReportController extends Controller
             }
         }
 
-        // Get all employees for dropdown
-        $allEmployees = Employee::orderBy('full_name')->get();
+        // Sort the final data array based on the sort parameters
+        $sortField = $request->get('sort', 'full_name');
+        $sortDirection = $request->get('direction', 'asc');
+
+        $transportAllowanceData = collect($transportAllowanceData)->sortBy(function($data) use ($sortField) {
+            switch ($sortField) {
+                case 'position':
+                    return strtolower($data['employee']->position ?? '');
+                case 'total_transport_allowance':
+                    return $data['total_transport_allowance'];
+                case 'full_name':
+                default:
+                    return strtolower($data['employee']->full_name ?? '');
+            }
+        }, SORT_REGULAR, $sortDirection === 'desc');
+
+        $transportAllowanceData = $transportAllowanceData->values()->all();
+
+        // Get all employees for dropdown - only show employees who were active during this month or before
+        $allEmployees = Employee::where(function($query) use ($selectedMonth, $selectedYear) {
+            // Currently active employees (not soft deleted)
+            $query->whereNull('deleted_at')
+                  // OR employees who were soft deleted after this month (were active during this month)
+                  ->orWhere(function($q) use ($selectedMonth, $selectedYear) {
+                      $q->whereNotNull('deleted_at')
+                        ->where('deleted_at', '>=', Carbon::create($selectedYear, $selectedMonth, 1)->startOfMonth());
+                  });
+        })->orderBy('full_name')->get();
 
         // Get available months/years for dropdown
         $months = [
