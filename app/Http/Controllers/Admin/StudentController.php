@@ -167,12 +167,13 @@ class StudentController extends Controller
     public function store(Request $request)
     {
         $request->validate([
+            'nisn' => 'required|string|max:255|unique:students,nisn', // Add NISN validation
             'full_name' => 'required|string|max:255',
             'rombel_id' => 'required|exists:rombels,id',
             'is_active' => 'required|boolean',
         ]);
 
-        Student::create($request->only(['full_name', 'rombel_id', 'is_active']));
+        Student::create($request->only(['nisn', 'full_name', 'rombel_id', 'is_active'])); // Include NISN in creation
 
         return redirect()->route('admin.students.index')
             ->with('success', 'Data siswa berhasil ditambahkan.');
@@ -189,12 +190,13 @@ class StudentController extends Controller
     public function update(Request $request, Student $student)
     {
         $request->validate([
+            'nisn' => 'required|string|max:255|unique:students,nisn,' . $student->id, // Add NISN validation with unique rule excluding current student
             'full_name' => 'required|string|max:255',
             'rombel_id' => 'required|exists:rombels,id',
             'is_active' => 'required|boolean',
         ]);
 
-        $student->update($request->only(['full_name', 'rombel_id', 'is_active']));
+        $student->update($request->only(['nisn', 'full_name', 'rombel_id', 'is_active'])); // Include NISN in update
 
         return redirect()->route('admin.students.index')
             ->with('success', 'Data siswa berhasil diperbarui.');
