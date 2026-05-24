@@ -258,18 +258,18 @@
     <table class="signature-table">
         <tr>
             <td>
+                <p>Mengetahui,</p>
+                <p>{{ $headerSettings['active_signer_title'] ?? 'Kepala Madrasah' }}</p>
+                <div class="signature-space"></div>
+                <p class="signature-name">({{ $headerSettings['active_signer_name'] ?? '................................' }})</p>
+                <p style="font-size: 7pt; margin-top: 2px;">NIP: {{ $headerSettings['active_signer_nip'] ?? '................................' }}</p>
+            </td>
+            <td>
                 <p style="visibility: hidden; margin: 0;">Mengetahui,</p>
                 <p>Pegawai Yang Bersangkutan,</p>
                 <div class="signature-space"></div>
                 <p class="signature-name">({{ $employee->full_name }})</p>
                 <p style="font-size: 7pt; margin-top: 2px;">NIP: {{ $employee->nip ?? '-' }}</p>
-            </td>
-            <td>
-                <p>Mengetahui,</p>
-                <p>Kepala Madrasah</p>
-                <div class="signature-space"></div>
-                <p class="signature-name">({{ $headerSettings['headmaster_name'] ?? '................................' }})</p>
-                <p style="font-size: 7pt; margin-top: 2px;">NIP: {{ $headerSettings['headmaster_nip'] ?? '................................' }}</p>
             </td>
         </tr>
     </table>

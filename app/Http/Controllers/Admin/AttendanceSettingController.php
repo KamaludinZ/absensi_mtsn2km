@@ -25,6 +25,9 @@ class AttendanceSettingController extends Controller
         $rightLogoPath = AttendanceSetting::where('setting_key', 'right_logo_path')->first();
         $headmasterName = AttendanceSetting::where('setting_key', 'headmaster_name')->first();
         $headmasterNip = AttendanceSetting::where('setting_key', 'headmaster_nip')->first();
+        $adminTataUsahaName = AttendanceSetting::where('setting_key', 'admin_tata_usaha_name')->first();
+        $adminTataUsahaNip = AttendanceSetting::where('setting_key', 'admin_tata_usaha_nip')->first();
+        $activeSigner = AttendanceSetting::where('setting_key', 'active_signer')->first();
 
         $settings = [
             'require_selfie_photo' => $requireSelfie ? filter_var($requireSelfie->setting_value, FILTER_VALIDATE_BOOLEAN) : true,
@@ -40,6 +43,9 @@ class AttendanceSettingController extends Controller
             'right_logo_path' => $rightLogoPath ? $rightLogoPath->setting_value : '',
             'headmaster_name' => $headmasterName ? $headmasterName->setting_value : '',
             'headmaster_nip' => $headmasterNip ? $headmasterNip->setting_value : '',
+            'admin_tata_usaha_name' => $adminTataUsahaName ? $adminTataUsahaName->setting_value : '',
+            'admin_tata_usaha_nip' => $adminTataUsahaNip ? $adminTataUsahaNip->setting_value : '',
+            'active_signer' => $activeSigner ? $activeSigner->setting_value : 'headmaster',
         ];
 
         return view('admin.attendance-settings.index', compact('settings'));
@@ -61,6 +67,9 @@ class AttendanceSettingController extends Controller
             'right_logo' => 'nullable|image|mimes:png,jpg,jpeg|max:2048',
             'headmaster_name' => 'nullable|string|max:255',
             'headmaster_nip' => 'nullable|string|max:50',
+            'admin_tata_usaha_name' => 'nullable|string|max:255',
+            'admin_tata_usaha_nip' => 'nullable|string|max:50',
+            'active_signer' => 'required|in:headmaster,tata_usaha',
         ]);
 
         // Update or create attendance settings
@@ -181,6 +190,32 @@ class AttendanceSettingController extends Controller
             [
                 'setting_value' => $request->headmaster_nip,
                 'description' => 'NIP kepala madrasah (untuk tanda tangan PDF)'
+            ]
+        );
+
+        // Update admin tata usaha info
+        AttendanceSetting::updateOrCreate(
+            ['setting_key' => 'admin_tata_usaha_name'],
+            [
+                'setting_value' => $request->admin_tata_usaha_name,
+                'description' => 'Nama kepala tata usaha (untuk tanda tangan PDF)'
+            ]
+        );
+
+        AttendanceSetting::updateOrCreate(
+            ['setting_key' => 'admin_tata_usaha_nip'],
+            [
+                'setting_value' => $request->admin_tata_usaha_nip,
+                'description' => 'NIP kepala tata usaha (untuk tanda tangan PDF)'
+            ]
+        );
+
+        // Update active signer
+        AttendanceSetting::updateOrCreate(
+            ['setting_key' => 'active_signer'],
+            [
+                'setting_value' => $request->active_signer,
+                'description' => 'Pimpinan aktif yang menandatangani laporan: headmaster atau tata_usaha'
             ]
         );
 
