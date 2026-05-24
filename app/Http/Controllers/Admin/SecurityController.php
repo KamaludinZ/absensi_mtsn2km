@@ -7,6 +7,8 @@ use Illuminate\Http\Request;
 use App\Services\SecurityService;
 use App\Models\SecurityLog;
 use App\Models\LoginAttempt;
+use App\Models\Setting;
+use Illuminate\Support\Facades\DB;
 
 class SecurityController extends Controller
 {
@@ -26,7 +28,7 @@ class SecurityController extends Controller
         
         // Calculate active sessions (sessions active in last 30 minutes)
         // The sessions table stores last_activity as Unix timestamp
-        $activeSessions = \DB::table('sessions')
+        $activeSessions = DB::table('sessions')
             ->where('last_activity', '>', now()->subMinutes(30)->timestamp)
             ->count();
         
@@ -49,7 +51,7 @@ class SecurityController extends Controller
         $stats['recent_failed_logins'] = $recentFailedLogins;
         
         // Get most targeted accounts (failed login attempts in last 7 days)
-        $mostTargetedAccounts = \App\Models\LoginAttempt::select('username', \DB::raw('COUNT(*) as attempt_count'))
+        $mostTargetedAccounts = \App\Models\LoginAttempt::select('username', DB::raw('COUNT(*) as attempt_count'))
             ->where('successful', false)
             ->where('attempted_at', '>', now()->subDays(7))
             ->groupBy('username')
@@ -60,7 +62,7 @@ class SecurityController extends Controller
         $stats['most_targeted_accounts'] = $mostTargetedAccounts;
         
         // Get suspicious IPs (failed attempts in last 7 days)
-        $suspiciousIPs = \App\Models\LoginAttempt::select('ip_address', \DB::raw('COUNT(*) as attempt_count'))
+        $suspiciousIPs = \App\Models\LoginAttempt::select('ip_address', DB::raw('COUNT(*) as attempt_count'))
             ->where('successful', false)
             ->where('attempted_at', '>', now()->subDays(7))
             ->groupBy('ip_address')
@@ -141,6 +143,42 @@ class SecurityController extends Controller
         $attempts = $query->paginate(50);
 
         return view('admin.security.login-attempts', compact('attempts'));
+    }
+
+    /**
+     * Update security settings
+     */
+    public function updateSettings(Request $request)
+    {
+        $validated = $request->validate([
+            'max_login_attempts' => 'required|integer|min:3|max:20',
+            'lockout_duration' => 'required|integer|min:1|max:1440',
+            'session_timeout' => 'required|integer|min:5|max:1440',
+            'enforce_strong_password' => 'nullable|boolean',
+            'enable_ip_whitelist' => 'nullable|boolean',
+            'ip_whitelist' => 'nullable|string|max:5000',
+        ]);
+
+        Setting::set('security_max_login_attempts', (string) $validated['max_login_attempts']);
+        Setting::set('security_lockout_duration', (string) $validated['lockout_duration']);
+        Setting::set('security_session_timeout', (string) $validated['session_timeout']);
+        Setting::set('security_enforce_strong_password', $request->boolean('enforce_strong_password') ? '1' : '0');
+        Setting::set('security_enable_ip_whitelist', $request->boolean('enable_ip_whitelist') ? '1' : '0');
+        Setting::set('security_ip_whitelist', trim((string) ($validated['ip_whitelist'] ?? '')));
+
+        $this->securityService->logEvent(
+            'security_settings_updated',
+            'Pengaturan keamanan sistem diperbarui',
+            'warning',
+            [
+                'max_login_attempts' => (int) $validated['max_login_attempts'],
+                'lockout_duration' => (int) $validated['lockout_duration'],
+                'session_timeout' => (int) $validated['session_timeout'],
+            ]
+        );
+
+        return redirect()->route('admin.security.index')
+            ->with('success', 'Pengaturan keamanan berhasil diperbarui.');
     }
 
     /**

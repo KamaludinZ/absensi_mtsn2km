@@ -323,6 +323,7 @@ Route::middleware(['auth', CheckRole::class . ':admin'])->prefix('admin')->name(
     // Security
     Route::prefix('security')->name('security.')->group(function () {
         Route::get('/', [App\Http\Controllers\Admin\SecurityController::class, 'index'])->name('index');
+        Route::post('/', [App\Http\Controllers\Admin\SecurityController::class, 'updateSettings'])->name('update-settings');
         Route::get('/logs', [App\Http\Controllers\Admin\SecurityController::class, 'logs'])->name('logs');
         Route::get('/login-attempts', [App\Http\Controllers\Admin\SecurityController::class, 'loginAttempts'])->name('login-attempts');
         Route::post('/clear-old-logs', [App\Http\Controllers\Admin\SecurityController::class, 'clearOldLogs'])->name('clear-old-logs');

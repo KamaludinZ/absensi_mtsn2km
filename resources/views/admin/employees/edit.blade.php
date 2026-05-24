@@ -31,7 +31,7 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Username</label>
-                        <input type="text" name="username" value="{{ $employee->user->username }}" class="w-full px-4 py-2 border rounded-lg bg-gray-100" readonly>
+                        <input type="text" name="username" value="{{ old('username', $employee->user->username) }}" class="w-full px-4 py-2 border rounded-lg">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Password Baru (kosongkan jika tidak ingin diubah)</label>

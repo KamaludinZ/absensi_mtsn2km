@@ -13,6 +13,7 @@ class Student extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
+        'nisn',
         'full_name',
         'rombel_id',
         'is_active',

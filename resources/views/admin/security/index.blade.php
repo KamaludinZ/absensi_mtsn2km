@@ -183,6 +183,64 @@
     </div>
 </div>
 
+{{-- Security Settings Form --}}
+<div class="bg-white rounded-lg shadow p-6 mb-6">
+    <h3 class="text-lg font-bold text-gray-800 mb-4">Pengaturan Keamanan</h3>
+
+    <form method="POST" action="{{ route('admin.security.update-settings') }}" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        @csrf
+
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Maksimum Percobaan Login</label>
+            <input type="number" min="3" max="20" name="max_login_attempts"
+                   value="{{ old('max_login_attempts', \App\Models\Setting::get('security_max_login_attempts', 5)) }}"
+                   class="w-full border border-gray-300 rounded px-3 py-2" required>
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Durasi Lockout (menit)</label>
+            <input type="number" min="1" max="1440" name="lockout_duration"
+                   value="{{ old('lockout_duration', \App\Models\Setting::get('security_lockout_duration', 15)) }}"
+                   class="w-full border border-gray-300 rounded px-3 py-2" required>
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Session Timeout (menit)</label>
+            <input type="number" min="5" max="1440" name="session_timeout"
+                   value="{{ old('session_timeout', \App\Models\Setting::get('security_session_timeout', 120)) }}"
+                   class="w-full border border-gray-300 rounded px-3 py-2" required>
+        </div>
+
+        <div class="flex items-center space-x-2 mt-6">
+            <input type="hidden" name="enforce_strong_password" value="0">
+            <input type="checkbox" name="enforce_strong_password" value="1"
+                   {{ old('enforce_strong_password', \App\Models\Setting::get('security_enforce_strong_password', '1')) == '1' ? 'checked' : '' }}
+                   class="h-4 w-4 text-blue-600 border-gray-300 rounded">
+            <label class="text-sm text-gray-700">Wajibkan Password Kuat</label>
+        </div>
+
+        <div class="flex items-center space-x-2">
+            <input type="hidden" name="enable_ip_whitelist" value="0">
+            <input type="checkbox" name="enable_ip_whitelist" value="1"
+                   {{ old('enable_ip_whitelist', \App\Models\Setting::get('security_enable_ip_whitelist', '0')) == '1' ? 'checked' : '' }}
+                   class="h-4 w-4 text-blue-600 border-gray-300 rounded">
+            <label class="text-sm text-gray-700">Aktifkan IP Whitelist</label>
+        </div>
+
+        <div class="md:col-span-2">
+            <label class="block text-sm font-medium text-gray-700 mb-1">IP Whitelist (pisahkan koma)</label>
+            <textarea name="ip_whitelist" rows="3" class="w-full border border-gray-300 rounded px-3 py-2"
+                      placeholder="Contoh: 127.0.0.1, 192.168.1.10">{{ old('ip_whitelist', \App\Models\Setting::get('security_ip_whitelist', '')) }}</textarea>
+        </div>
+
+        <div class="md:col-span-2">
+            <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                Simpan Pengaturan Keamanan
+            </button>
+        </div>
+    </form>
+</div>
+
 {{-- Recent Security Events --}}
 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
     <div class="bg-white rounded-lg shadow p-6">
