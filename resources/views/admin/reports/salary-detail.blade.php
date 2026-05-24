@@ -138,14 +138,16 @@
     <div class="bg-white rounded-lg shadow-md p-6 mt-8 print-signature-section">
         <div class="grid grid-cols-2 gap-8 text-center">
             <div>
-                <p class="mb-8">Pegawai Yang Bersangkutan,</p>
-                <p class="mt-16 font-semibold border-b border-gray-400 inline-block px-4">({{ $employee->full_name }})</p>
-                <p class="text-sm text-gray-600 mt-2">NIP: {{ $employee->nip ?? '-' }}</p>
+                <p class="mb-8">Mengetahui,</p>
+                <p class="font-medium">{{ $headerSettings['active_signer_title'] ?? 'Kepala Madrasah' }}</p>
+                <p class="mt-16 font-semibold border-b border-gray-400 inline-block px-4">({{ $headerSettings['active_signer_name'] ?? '................................' }})</p>
+                <p class="text-sm text-gray-600 mt-2">NIP: {{ $headerSettings['active_signer_nip'] ?? '................................' }}</p>
             </div>
             <div>
-                <p class="mb-8">Mengetahui,</p>
-                <p class="mt-16 font-semibold border-b border-gray-400 inline-block px-4">(........................................)</p>
-                <p class="text-sm text-gray-600 mt-2">Nama & Jabatan</p>
+                <p class="mb-8" style="visibility: hidden;">Mengetahui,</p>
+                <p class="font-medium">Pegawai Yang Bersangkutan,</p>
+                <p class="mt-16 font-semibold border-b border-gray-400 inline-block px-4">({{ $employee->full_name }})</p>
+                <p class="text-sm text-gray-600 mt-2">NIP: {{ $employee->nip ?? '-' }}</p>
             </div>
         </div>
     </div>

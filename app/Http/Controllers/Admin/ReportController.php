@@ -1418,6 +1418,7 @@ class ReportController extends Controller
     public function salaryReportDetail(Request $request, Employee $employee, $year, $month)
     {
         $data = $this->getSalaryDetailData($employee, $year, $month);
+        $data['headerSettings'] = $this->getHeaderSettings();
         return view('admin.reports.salary-detail', $data);
     }
 
@@ -2321,6 +2322,9 @@ class ReportController extends Controller
         $rightLogoPath = AttendanceSetting::where('setting_key', 'right_logo_path')->first();
         $headmasterName = AttendanceSetting::where('setting_key', 'headmaster_name')->first();
         $headmasterNip = AttendanceSetting::where('setting_key', 'headmaster_nip')->first();
+        $adminTataUsahaName = AttendanceSetting::where('setting_key', 'admin_tata_usaha_name')->first();
+        $adminTataUsahaNip = AttendanceSetting::where('setting_key', 'admin_tata_usaha_nip')->first();
+        $activeSigner = AttendanceSetting::where('setting_key', 'active_signer')->first();
 
         // Convert logos to base64 for PDF
         $leftLogoBase64 = '';
@@ -2344,6 +2348,23 @@ class ReportController extends Controller
             }
         }
 
+        $activeSignerValue = $activeSigner ? $activeSigner->setting_value : 'headmaster';
+        $headmasterNameVal = $headmasterName ? $headmasterName->setting_value : '';
+        $headmasterNipVal = $headmasterNip ? $headmasterNip->setting_value : '';
+        $tataUsahaNameVal = $adminTataUsahaName ? $adminTataUsahaName->setting_value : '';
+        $tataUsahaNipVal = $adminTataUsahaNip ? $adminTataUsahaNip->setting_value : '';
+
+        // Determine active signer display values
+        if ($activeSignerValue === 'tata_usaha') {
+            $activeSignerName = $tataUsahaNameVal ?: '................................';
+            $activeSignerNip = $tataUsahaNipVal ?: '................................';
+            $activeSignerTitle = 'Kepala Tata Usaha';
+        } else {
+            $activeSignerName = $headmasterNameVal ?: '................................';
+            $activeSignerNip = $headmasterNipVal ?: '................................';
+            $activeSignerTitle = 'Kepala Madrasah';
+        }
+
         return [
             'school_name' => $schoolName ? $schoolName->setting_value : 'MTsN 2 KOTA MALANG',
             'school_full_name' => $schoolFullName ? $schoolFullName->setting_value : 'MADRASAH TSANAWIYAH NEGERI 2 KOTA MALANG',
@@ -2352,8 +2373,14 @@ class ReportController extends Controller
             'school_email' => $schoolEmail ? $schoolEmail->setting_value : 'info@mtsn2kotamalang.sch.id',
             'left_logo' => $leftLogoBase64,
             'right_logo' => $rightLogoBase64,
-            'headmaster_name' => $headmasterName ? $headmasterName->setting_value : '',
-            'headmaster_nip' => $headmasterNip ? $headmasterNip->setting_value : '',
+            'headmaster_name' => $headmasterNameVal,
+            'headmaster_nip' => $headmasterNipVal,
+            'admin_tata_usaha_name' => $tataUsahaNameVal,
+            'admin_tata_usaha_nip' => $tataUsahaNipVal,
+            'active_signer' => $activeSignerValue,
+            'active_signer_name' => $activeSignerName,
+            'active_signer_nip' => $activeSignerNip,
+            'active_signer_title' => $activeSignerTitle,
         ];
     }
 
