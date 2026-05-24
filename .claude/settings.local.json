@@ -33,7 +33,8 @@
       "Bash(timeout:*)",
       "Bash(powershell:*)",
       "Bash(find:*)",
-      "Bash(del fix_duplicate_salaries.php)"
+      "Bash(del fix_duplicate_salaries.php)",
+      "Bash(tree:*)"
     ],
     "deny": [],
     "ask": []

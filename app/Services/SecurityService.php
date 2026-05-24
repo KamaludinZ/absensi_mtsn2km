@@ -6,6 +6,7 @@ use App\Models\SecurityLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 class SecurityService
 {
@@ -84,16 +85,27 @@ class SecurityService
      */
     public static function isIpBlocked(): bool
     {
-        $ipAddress = request()->ip();
-        
-        // Count security violations from the past hour
-        $violationCount = SecurityLog::where('ip_address', $ipAddress)
-            ->where('severity', '>=', 3)
-            ->where('created_at', '>=', now()->subHour())
-            ->count();
-            
-        // Block IP if it has 5 or more high-severity violations in the past hour
-        return $violationCount >= 5;
+        try {
+            if (!Schema::hasTable('security_logs')) {
+                return false;
+            }
+
+            $ipAddress = request()->ip();
+
+            // Count security violations from the past hour
+            $violationCount = SecurityLog::where('ip_address', $ipAddress)
+                ->where('severity', '>=', 3)
+                ->where('created_at', '>=', now()->subHour())
+                ->count();
+
+            // Block IP if it has 5 or more high-severity violations in the past hour
+            return $violationCount >= 5;
+        } catch (\Throwable $e) {
+            Log::warning('SecurityService::isIpBlocked fallback triggered', [
+                'error' => $e->getMessage(),
+            ]);
+            return false;
+        }
     }
 
     /**
@@ -192,6 +204,24 @@ class SecurityService
     public function getDashboardStats()
     {
         try {
+            if (!Schema::hasTable('security_logs')) {
+                return [
+                    'security_health_score' => 100,
+                    'total_security_events_today' => 0,
+                    'failed_logins_today' => 0,
+                    'critical_events_today' => 0,
+                    'security_recommendations' => [
+                        [
+                            'type' => 'info',
+                            'title' => 'Keamanan Sistem',
+                            'message' => 'Tabel log keamanan belum tersedia. Jalankan migrasi untuk mengaktifkan statistik keamanan.',
+                            'action' => null,
+                            'action_url' => null,
+                        ]
+                    ]
+                ];
+            }
+
             // Calculate security health score (0-100)
             $securityHealthScore = 100;
             

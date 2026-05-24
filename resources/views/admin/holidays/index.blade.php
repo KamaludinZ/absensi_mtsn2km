@@ -37,9 +37,9 @@
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Tahun</label>
                     <select name="year" class="border border-gray-300 rounded px-3 py-2">
-                        @for($year = now()->year - 2; $year <= now()->year + 2; $year++)
-                            <option value="{{ $year }}" {{ $year == ($year ?? now()->year) ? 'selected' : '' }}>
-                                {{ $year }}
+                        @for($y = now()->year - 2; $y <= now()->year + 2; $y++)
+                            <option value="{{ $y }}" {{ (int) $y === (int) ($year ?? now()->year) ? 'selected' : '' }}>
+                                {{ $y }}
                             </option>
                         @endfor
                     </select>

@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Hash;
 class EmployeeController extends Controller
 {
     use Paginable;
-    public function index()
+    public function index(Request $request)
     {
         $query = Employee::with('user');
 
@@ -31,6 +31,11 @@ class EmployeeController extends Controller
         })->count();
 
         $staffEmployees = $totalEmployees - $guruEmployees; // Remaining employees are considered staff
+
+        // Filter by status (for E2E and UI consistency)
+        if ($request->filled('is_active')) {
+            $query->where('is_active', (bool) $request->is_active);
+        }
 
         // Sorting logic
         $sortField = request('sort', 'full_name');
