@@ -256,16 +256,16 @@
 
     <div class="signature-section">
         <div class="signature-box">
+            <p class="mb-8">Mengetahui,</p>
+            <p>{{ $headerSettings['active_signer_title'] ?? 'Kepala Madrasah' }}</p>
+            <p class="mt-16 font-bold border-bottom">({{ $headerSettings['active_signer_name'] ?? '................................' }})</p>
+            <p class="text-gray-600">NIP: {{ $headerSettings['active_signer_nip'] ?? '................................' }}</p>
+        </div>
+        <div class="signature-box">
             <p class="mb-8" style="visibility: hidden; margin: 0;">Mengetahui,</p>
             <p class="mb-8">Pegawai Yang Bersangkutan,</p>
             <p class="mt-16 font-bold border-bottom">({{ $employee->full_name }})</p>
             <p class="text-gray-600">NIP: {{ $employee->nip ?? '-' }}</p>
-        </div>
-        <div class="signature-box">
-            <p class="mb-8">Mengetahui,</p>
-            <p>Kepala Madrasah</p>
-            <p class="mt-16 font-bold border-bottom">({{ $headerSettings['headmaster_name'] ?? '................................' }})</p>
-            <p class="text-gray-600">NIP: {{ $headerSettings['headmaster_nip'] ?? '................................' }}</p>
         </div>
     </div>
 </body>

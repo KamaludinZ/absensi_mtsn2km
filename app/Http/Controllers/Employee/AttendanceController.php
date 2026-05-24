@@ -685,6 +685,9 @@ class AttendanceController extends Controller
         $rightLogoPath = \App\Models\AttendanceSetting::where('setting_key', 'right_logo_path')->first();
         $headmasterName = \App\Models\AttendanceSetting::where('setting_key', 'headmaster_name')->first();
         $headmasterNip = \App\Models\AttendanceSetting::where('setting_key', 'headmaster_nip')->first();
+        $adminTataUsahaName = \App\Models\AttendanceSetting::where('setting_key', 'admin_tata_usaha_name')->first();
+        $adminTataUsahaNip = \App\Models\AttendanceSetting::where('setting_key', 'admin_tata_usaha_nip')->first();
+        $activeSigner = \App\Models\AttendanceSetting::where('setting_key', 'active_signer')->first();
 
         // Convert logos to base64 for PDF
         $leftLogoBase64 = '';
@@ -708,6 +711,22 @@ class AttendanceController extends Controller
             }
         }
 
+        $activeSignerValue = $activeSigner ? $activeSigner->setting_value : 'headmaster';
+        $headmasterNameVal = $headmasterName ? $headmasterName->setting_value : '';
+        $headmasterNipVal = $headmasterNip ? $headmasterNip->setting_value : '';
+        $tataUsahaNameVal = $adminTataUsahaName ? $adminTataUsahaName->setting_value : '';
+        $tataUsahaNipVal = $adminTataUsahaNip ? $adminTataUsahaNip->setting_value : '';
+
+        if ($activeSignerValue === 'tata_usaha') {
+            $activeSignerName = $tataUsahaNameVal ?: '................................';
+            $activeSignerNip = $tataUsahaNipVal ?: '................................';
+            $activeSignerTitle = 'Kepala Tata Usaha';
+        } else {
+            $activeSignerName = $headmasterNameVal ?: '................................';
+            $activeSignerNip = $headmasterNipVal ?: '................................';
+            $activeSignerTitle = 'Kepala Madrasah';
+        }
+
         $headerSettings = [
             'school_name' => $schoolName ? $schoolName->setting_value : 'MTsN 2 KOTA MALANG',
             'school_full_name' => $schoolFullName ? $schoolFullName->setting_value : 'MADRASAH TSANAWIYAH NEGERI 2 KOTA MALANG',
@@ -716,8 +735,14 @@ class AttendanceController extends Controller
             'school_email' => $schoolEmail ? $schoolEmail->setting_value : 'info@mtsn2kotamalang.sch.id',
             'left_logo' => $leftLogoBase64,
             'right_logo' => $rightLogoBase64,
-            'headmaster_name' => $headmasterName ? $headmasterName->setting_value : '',
-            'headmaster_nip' => $headmasterNip ? $headmasterNip->setting_value : '',
+            'headmaster_name' => $headmasterNameVal,
+            'headmaster_nip' => $headmasterNipVal,
+            'admin_tata_usaha_name' => $tataUsahaNameVal,
+            'admin_tata_usaha_nip' => $tataUsahaNipVal,
+            'active_signer' => $activeSignerValue,
+            'active_signer_name' => $activeSignerName,
+            'active_signer_nip' => $activeSignerNip,
+            'active_signer_title' => $activeSignerTitle,
         ];
 
         // Pre-compute all data to avoid calling private methods from view
