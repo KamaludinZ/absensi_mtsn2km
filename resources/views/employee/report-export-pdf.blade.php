@@ -212,16 +212,16 @@
 
     <div class="signature-section clearfix">
         <div class="signature-box">
+            <p>Mengetahui,</p>
+            <p>{{ $headerSettings['active_signer_title'] ?? 'Kepala Madrasah' }}</p>
+            <div class="signature-name">({{ $headerSettings['active_signer_name'] ?? '................................' }})</div>
+            <p class="signature-info">NIP: {{ $headerSettings['active_signer_nip'] ?? '................................' }}</p>
+        </div>
+        <div class="signature-box right">
             <p style="visibility: hidden; margin: 0;">Mengetahui,</p>
             <p>Pegawai Yang Bersangkutan,</p>
             <div class="signature-name">({{ $employee->full_name }})</div>
             <p class="signature-info">NIP: {{ $employee->nip ?? '-' }}</p>
-        </div>
-        <div class="signature-box right">
-            <p>Mengetahui,</p>
-            <p>Kepala Madrasah</p>
-            <div class="signature-name">({{ $headerSettings['headmaster_name'] ?? '................................' }})</div>
-            <p class="signature-info">NIP: {{ $headerSettings['headmaster_nip'] ?? '................................' }}</p>
         </div>
     </div>
 </body>

@@ -306,40 +306,120 @@
                             @enderror
                         </div>
 
-                        <!-- Headmaster Name -->
-                        <div>
-                            <label for="headmaster_name" class="block text-sm font-medium text-gray-700 mb-1">
-                                Nama Kepala Madrasah
-                            </label>
-                            <input
-                                type="text"
-                                id="headmaster_name"
-                                name="headmaster_name"
-                                value="{{ old('headmaster_name', $settings['headmaster_name']) }}"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                placeholder="Contoh: Dr. H. Ahmad Fauzi, M.Pd"
-                            >
-                            @error('headmaster_name')
-                                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                            @enderror
-                        </div>
+                        <!-- Pimpinan Section -->
+                        <div class="border-t pt-4">
+                            <h4 class="text-md font-semibold text-gray-700 mb-1">Pengaturan Pimpinan (Tanda Tangan Laporan)</h4>
+                            <p class="text-xs text-gray-500 mb-4">Pilih salah satu pimpinan yang aktif untuk menandatangani laporan PDF</p>
 
-                        <!-- Headmaster NIP -->
-                        <div>
-                            <label for="headmaster_nip" class="block text-sm font-medium text-gray-700 mb-1">
-                                NIP Kepala Madrasah
-                            </label>
-                            <input
-                                type="text"
-                                id="headmaster_nip"
-                                name="headmaster_nip"
-                                value="{{ old('headmaster_nip', $settings['headmaster_nip']) }}"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                placeholder="Contoh: 196801011990031002"
-                            >
-                            @error('headmaster_nip')
-                                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                            @enderror
+                            <!-- Kepala Madrasah -->
+                            <div class="border rounded-lg p-4 mb-4 {{ old('active_signer', $settings['active_signer']) === 'headmaster' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-gray-50' }}" id="headmaster-card">
+                                <div class="flex items-center mb-3">
+                                    <input
+                                        type="radio"
+                                        id="active_signer_headmaster"
+                                        name="active_signer"
+                                        value="headmaster"
+                                        {{ old('active_signer', $settings['active_signer']) === 'headmaster' ? 'checked' : '' }}
+                                        class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                                        onchange="toggleSignerCard()"
+                                    >
+                                    <label for="active_signer_headmaster" class="ml-2 text-sm font-semibold text-gray-800 cursor-pointer">
+                                        Kepala Madrasah
+                                        @if(old('active_signer', $settings['active_signer']) === 'headmaster')
+                                            <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">Aktif</span>
+                                        @endif
+                                    </label>
+                                </div>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 ml-6">
+                                    <div>
+                                        <label for="headmaster_name" class="block text-sm font-medium text-gray-700 mb-1">
+                                            Nama Kepala Madrasah
+                                        </label>
+                                        <input
+                                            type="text"
+                                            id="headmaster_name"
+                                            name="headmaster_name"
+                                            value="{{ old('headmaster_name', $settings['headmaster_name']) }}"
+                                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            placeholder="Contoh: Dr. H. Ahmad Fauzi, M.Pd"
+                                        >
+                                        @error('headmaster_name')
+                                            <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                                        @enderror
+                                    </div>
+                                    <div>
+                                        <label for="headmaster_nip" class="block text-sm font-medium text-gray-700 mb-1">
+                                            NIP Kepala Madrasah
+                                        </label>
+                                        <input
+                                            type="text"
+                                            id="headmaster_nip"
+                                            name="headmaster_nip"
+                                            value="{{ old('headmaster_nip', $settings['headmaster_nip']) }}"
+                                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            placeholder="Contoh: 196801011990031002"
+                                        >
+                                        @error('headmaster_nip')
+                                            <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                                        @enderror
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Kepala Tata Usaha -->
+                            <div class="border rounded-lg p-4 {{ old('active_signer', $settings['active_signer']) === 'tata_usaha' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-gray-50' }}" id="tata-usaha-card">
+                                <div class="flex items-center mb-3">
+                                    <input
+                                        type="radio"
+                                        id="active_signer_tata_usaha"
+                                        name="active_signer"
+                                        value="tata_usaha"
+                                        {{ old('active_signer', $settings['active_signer']) === 'tata_usaha' ? 'checked' : '' }}
+                                        class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                                        onchange="toggleSignerCard()"
+                                    >
+                                    <label for="active_signer_tata_usaha" class="ml-2 text-sm font-semibold text-gray-800 cursor-pointer">
+                                        Kepala Tata Usaha
+                                        @if(old('active_signer', $settings['active_signer']) === 'tata_usaha')
+                                            <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">Aktif</span>
+                                        @endif
+                                    </label>
+                                </div>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 ml-6">
+                                    <div>
+                                        <label for="admin_tata_usaha_name" class="block text-sm font-medium text-gray-700 mb-1">
+                                            Nama Kepala Tata Usaha
+                                        </label>
+                                        <input
+                                            type="text"
+                                            id="admin_tata_usaha_name"
+                                            name="admin_tata_usaha_name"
+                                            value="{{ old('admin_tata_usaha_name', $settings['admin_tata_usaha_name']) }}"
+                                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            placeholder="Contoh: Drs. H. Budi Santoso, M.M"
+                                        >
+                                        @error('admin_tata_usaha_name')
+                                            <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                                        @enderror
+                                    </div>
+                                    <div>
+                                        <label for="admin_tata_usaha_nip" class="block text-sm font-medium text-gray-700 mb-1">
+                                            NIP Kepala Tata Usaha
+                                        </label>
+                                        <input
+                                            type="text"
+                                            id="admin_tata_usaha_nip"
+                                            name="admin_tata_usaha_nip"
+                                            value="{{ old('admin_tata_usaha_nip', $settings['admin_tata_usaha_nip']) }}"
+                                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            placeholder="Contoh: 197005151995031003"
+                                        >
+                                        @error('admin_tata_usaha_nip')
+                                            <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                                        @enderror
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -353,4 +433,26 @@
         </form>
     </div>
 </div>
+@push('scripts')
+<script>
+function toggleSignerCard() {
+    const headmasterRadio = document.getElementById('active_signer_headmaster');
+    const tataUsahaRadio = document.getElementById('active_signer_tata_usaha');
+    const headmasterCard = document.getElementById('headmaster-card');
+    const tataUsahaCard = document.getElementById('tata-usaha-card');
+
+    if (headmasterRadio.checked) {
+        headmasterCard.classList.remove('border-gray-200', 'bg-gray-50');
+        headmasterCard.classList.add('border-blue-500', 'bg-blue-50');
+        tataUsahaCard.classList.remove('border-blue-500', 'bg-blue-50');
+        tataUsahaCard.classList.add('border-gray-200', 'bg-gray-50');
+    } else {
+        tataUsahaCard.classList.remove('border-gray-200', 'bg-gray-50');
+        tataUsahaCard.classList.add('border-blue-500', 'bg-blue-50');
+        headmasterCard.classList.remove('border-blue-500', 'bg-blue-50');
+        headmasterCard.classList.add('border-gray-200', 'bg-gray-50');
+    }
+}
+</script>
+@endpush
 @endsection
