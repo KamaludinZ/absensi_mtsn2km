@@ -34,7 +34,11 @@
       "Bash(powershell:*)",
       "Bash(find:*)",
       "Bash(del fix_duplicate_salaries.php)",
-      "Bash(tree:*)"
+      "Bash(tree:*)",
+      "Bash(git push:*)",
+      "Bash(composer audit:*)",
+      "Bash(npm audit:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []

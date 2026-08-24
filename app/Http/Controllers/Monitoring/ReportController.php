@@ -287,4 +287,22 @@ class ReportController extends Controller
             'selectedYear' => $selectedYear,
         ]);
     }
+
+    public function mealAllowance(Request $request)
+    {
+        // Redirect to admin meal allowance report with same parameters
+        return app(\App\Http\Controllers\Admin\ReportController::class)->mealAllowance($request);
+    }
+
+    public function transportAllowance(Request $request)
+    {
+        // Redirect to admin transport allowance report with same parameters
+        return app(\App\Http\Controllers\Admin\ReportController::class)->transportAllowance($request);
+    }
+
+    public function performanceAllowance(Request $request)
+    {
+        // Redirect to admin performance allowance report with same parameters
+        return app(\App\Http\Controllers\Admin\ReportController::class)->performanceAllowance($request);
+    }
 }

@@ -119,9 +119,12 @@ Route::middleware(['auth', CheckRole::class . ':monitoring'])->prefix('monitorin
         Route::post('/manual', [PermissionMonitorController::class, 'createManual'])->name('manual');
     });
 
-    // Reports routes for monitoring users
+    // Reports routes for monitoring users (view-only access)
     Route::prefix('reports')->name('reports.')->group(function () {
         Route::get('/salary', [App\Http\Controllers\Monitoring\ReportController::class, 'salaryReport'])->name('salary');
+        Route::get('/meal-allowance', [App\Http\Controllers\Monitoring\ReportController::class, 'mealAllowance'])->name('meal-allowance');
+        Route::get('/transport-allowance', [App\Http\Controllers\Monitoring\ReportController::class, 'transportAllowance'])->name('transport-allowance');
+        Route::get('/performance-allowance', [App\Http\Controllers\Monitoring\ReportController::class, 'performanceAllowance'])->name('performance-allowance');
     });
 
     // Profile routes for monitoring users
