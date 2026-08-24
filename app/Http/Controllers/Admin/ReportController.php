@@ -995,6 +995,65 @@ class ReportController extends Controller
         return view('admin.reports.meal-allowance', compact('mealAllowanceData', 'allEmployees', 'months', 'years', 'selectedMonth', 'selectedYear'));
     }
 
+    public function downloadMealAllowancePdf(Request $request)
+    {
+        $selectedMonth = $request->input('month', Carbon::now()->month);
+        $selectedYear = $request->input('year', Carbon::now()->year);
+        $employeeId = $request->input('employee_id');
+
+        // Get meal allowance data (same as in mealAllowance method)
+        $employeeQuery = Employee::with(['salary' => function($query) {
+            $query->latest('created_at');
+        }])->where('is_active', true);
+
+        if ($employeeId) {
+            $employeeQuery->where('id', $employeeId);
+        }
+
+        $employees = $employeeQuery->orderBy('full_name')->get();
+
+        $mealAllowanceData = [];
+        foreach ($employees as $employee) {
+            $salary = $employee->salary;
+            if (!$salary) continue;
+
+            $startDate = Carbon::create($selectedYear, $selectedMonth, 1)->startOfMonth();
+            $endDate = $startDate->copy()->endOfMonth();
+
+            $presentDays = Attendance::where('attendable_type', Employee::class)
+                ->where('attendable_id', $employee->id)
+                ->whereBetween('date', [$startDate, $endDate])
+                ->whereNotNull('clock_in')
+                ->count();
+
+            $mealAllowanceData[] = [
+                'employee' => $employee,
+                'present_days' => $presentDays,
+                'daily_meal_allowance' => $salary->meal_allowance,
+                'total_meal_allowance' => $salary->meal_allowance * $presentDays,
+            ];
+        }
+
+        $months = [
+            1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April', 5 => 'Mei', 6 => 'Juni',
+            7 => 'Juli', 8 => 'Agustus', 9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember'
+        ];
+
+        $data = [
+            'mealAllowanceData' => $mealAllowanceData,
+            'selectedMonth' => $selectedMonth,
+            'selectedYear' => $selectedYear,
+            'monthName' => $months[$selectedMonth],
+            'headerSettings' => $this->getHeaderSettings(),
+        ];
+
+        $pdf = Pdf::loadView('admin.reports.meal-allowance-pdf', $data)
+            ->setPaper('a4', 'landscape');
+
+        $filename = 'laporan_uang_makan_' . $months[$selectedMonth] . '_' . $selectedYear . '.pdf';
+        return $pdf->download($filename);
+    }
+
     public function performanceAllowance(Request $request)
     {
         $selectedMonth = $request->input('month', Carbon::now()->month);

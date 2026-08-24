@@ -179,6 +179,7 @@ Route::middleware(['auth', CheckRole::class . ':admin'])->prefix('admin')->name(
 
         // Meal Allowance and Performance Allowance Reports
         Route::get('/meal-allowance', [ReportController::class, 'mealAllowance'])->name('meal-allowance');
+        Route::get('/meal-allowance/download-pdf', [ReportController::class, 'downloadMealAllowancePdf'])->name('meal-allowance.download-pdf');
         Route::get('/meal-allowance/{employee}/{year}/{month}', [ReportController::class, 'mealAllowanceDetail'])->name('meal-allowance.detail');
         Route::get('/meal-allowance/{employee}/{year}/{month}/pdf', [ReportController::class, 'generateMealAllowancePdf'])->name('meal-allowance.pdf');
         Route::get('/transport-allowance', [ReportController::class, 'transportAllowance'])->name('transport-allowance');
