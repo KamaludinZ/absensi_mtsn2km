@@ -313,7 +313,7 @@
             </div>
 
             <!-- Pengaturan Group -->
-            <div class="nav-group" x-data="{ open: @if(request()->routeIs('admin.users.*') || request()->routeIs('admin.security.*') || request()->routeIs('admin.backup.*') || request()->routeIs('admin.update.*') || request()->routeIs('admin.academic-years.*') || request()->routeIs('admin.holidays.*') || request()->routeIs('admin.location-settings.*') || request()->routeIs('admin.attendance-settings.*') || request()->routeIs('admin.profile.*')) true @else false @endif }">
+            <div class="nav-group" x-data="{ open: @if(request()->routeIs('admin.users.*') || request()->routeIs('admin.security.*') || request()->routeIs('admin.backup.*') || request()->routeIs('admin.update.*') || request()->routeIs('admin.system-update.*') || request()->routeIs('admin.academic-years.*') || request()->routeIs('admin.holidays.*') || request()->routeIs('admin.location-settings.*') || request()->routeIs('admin.attendance-settings.*') || request()->routeIs('admin.profile.*')) true @else false @endif }">
                 <button @click="open = !open" class="nav-group-header" :aria-expanded="open" aria-controls="pengaturan-submenu">
                     <div class="nav-group-title">
                         <div class="nav-icon">
@@ -358,11 +358,17 @@
                         </svg>
                         <span class="nav-text">Backup & Restore</span>
                     </a>
-                    <a href="{{ route('admin.update.index') }}" class="nav-sub-item {{ request()->routeIs('admin.update.*') ? 'active' : '' }}">
+                    <a href="{{ route('admin.update.index') }}" class="nav-sub-item {{ request()->routeIs('admin.update.*') && !request()->routeIs('admin.system-update.*') ? 'active' : '' }}">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                         </svg>
                         <span class="nav-text">Update Aplikasi</span>
+                    </a>
+                    <a href="{{ route('admin.system-update.index') }}" class="nav-sub-item {{ request()->routeIs('admin.system-update.*') ? 'active' : '' }}">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                        </svg>
+                        <span class="nav-text">Update via ZIP</span>
                     </a>
                     <a href="{{ route('admin.academic-years.index') }}" class="nav-sub-item {{ request()->routeIs('admin.academic-years.*') ? 'active' : '' }}">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

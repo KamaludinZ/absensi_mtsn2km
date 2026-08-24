@@ -303,6 +303,14 @@ Route::middleware(['auth', CheckRole::class . ':admin'])->prefix('admin')->name(
         Route::post('/update', [App\Http\Controllers\Admin\UpdateController::class, 'update'])->name('update');
     });
 
+    // System Update (ZIP Upload)
+    Route::prefix('system-update')->name('system-update.')->group(function () {
+        Route::get('/', [App\Http\Controllers\Admin\SystemUpdateController::class, 'index'])->name('index');
+        Route::post('/upload', [App\Http\Controllers\Admin\SystemUpdateController::class, 'upload'])->name('upload');
+        Route::get('/backups', [App\Http\Controllers\Admin\SystemUpdateController::class, 'backups'])->name('backups');
+        Route::get('/download-backup/{filename}', [App\Http\Controllers\Admin\SystemUpdateController::class, 'downloadBackup'])->name('download-backup');
+    });
+
     // Profile routes for admin users
     Route::prefix('profile')->name('profile.')->group(function () {
         Route::get('/change-password', [App\Http\Controllers\Admin\ProfileController::class, 'showChangePasswordForm'])->name('change-password');
