@@ -118,7 +118,19 @@ class EmployeeShiftController extends Controller
         // Delete existing shifts for this month
         $startDate = Carbon::create($year, $month, 1)->startOfMonth();
         $endDate = Carbon::create($year, $month, 1)->endOfMonth();
-        
+
+        // Get all existing shifts to delete their attendance records
+        $existingShifts = EmployeeShift::whereBetween('date', [$startDate, $endDate])->get();
+
+        // Delete attendance records for removed shifts
+        foreach ($existingShifts as $shift) {
+            \App\Models\Attendance::where('attendable_type', \App\Models\Employee::class)
+                ->where('attendable_id', $shift->employee_id)
+                ->whereDate('date', $shift->date)
+                ->delete();
+        }
+
+        // Now delete the shifts
         EmployeeShift::whereBetween('date', [$startDate, $endDate])->delete();
         
         // Save new shifts
