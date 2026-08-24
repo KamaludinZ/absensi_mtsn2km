@@ -100,13 +100,21 @@ class AttendanceExport implements FromCollection, WithHeadings, WithMapping, Wit
             $statusMasuk = '-';
 
             if ($attendance->clock_in && $schedule) {
-                $actualTime = Carbon::parse($attendance->clock_in)->format('H:i:s');
-                $scheduledTime = Carbon::parse($schedule->start_time)->format('H:i:s');
-
-                if ($actualTime > $scheduledTime) {
-                    $statusMasuk = 'Terlambat';
+                // If status is 'corrected' or empty, calculate from times; otherwise use stored status if valid
+                if (in_array($attendance->status_in, ['C', 'S', 'DL'])) {
+                    $statusMap = ['C' => 'Cuti', 'S' => 'Sakit', 'DL' => 'Dinas Luar'];
+                    $statusMasuk = $statusMap[$attendance->status_in];
+                } elseif ($attendance->status_in === 'corrected' || empty($attendance->status_in)) {
+                    $actualTime = Carbon::parse($attendance->clock_in)->format('H:i:s');
+                    $scheduledTime = Carbon::parse($schedule->start_time)->format('H:i:s');
+                    $statusMasuk = ($actualTime > $scheduledTime) ? 'Terlambat' : 'Tepat Waktu';
+                } elseif (in_array($attendance->status_in, ['Tepat Waktu', 'Terlambat'])) {
+                    $statusMasuk = $attendance->status_in;
                 } else {
-                    $statusMasuk = 'Tepat Waktu';
+                    // Fallback: calculate from times
+                    $actualTime = Carbon::parse($attendance->clock_in)->format('H:i:s');
+                    $scheduledTime = Carbon::parse($schedule->start_time)->format('H:i:s');
+                    $statusMasuk = ($actualTime > $scheduledTime) ? 'Terlambat' : 'Tepat Waktu';
                 }
             } elseif (!$attendance->clock_in) {
                 $statusMasuk = 'Tidak Hadir';
@@ -119,13 +127,21 @@ class AttendanceExport implements FromCollection, WithHeadings, WithMapping, Wit
             $statusPulang = '-';
 
             if ($attendance->clock_out && $schedule) {
-                $actualTime = Carbon::parse($attendance->clock_out)->format('H:i:s');
-                $scheduledTime = Carbon::parse($schedule->end_time)->format('H:i:s');
-
-                if ($actualTime < $scheduledTime) {
-                    $statusPulang = 'Pulang Awal';
+                // If status is 'corrected' or empty, calculate from times; otherwise use stored status if valid
+                if (in_array($attendance->status_out, ['C', 'S', 'DL'])) {
+                    $statusMap = ['C' => 'Cuti', 'S' => 'Sakit', 'DL' => 'Dinas Luar'];
+                    $statusPulang = $statusMap[$attendance->status_out];
+                } elseif ($attendance->status_out === 'corrected' || empty($attendance->status_out)) {
+                    $actualTime = Carbon::parse($attendance->clock_out)->format('H:i:s');
+                    $scheduledTime = Carbon::parse($schedule->end_time)->format('H:i:s');
+                    $statusPulang = ($actualTime < $scheduledTime) ? 'Pulang Awal' : 'Tepat Waktu';
+                } elseif (in_array($attendance->status_out, ['Tepat Waktu', 'Pulang Awal', 'Belum Pulang'])) {
+                    $statusPulang = $attendance->status_out;
                 } else {
-                    $statusPulang = 'Tepat Waktu';
+                    // Fallback: calculate from times
+                    $actualTime = Carbon::parse($attendance->clock_out)->format('H:i:s');
+                    $scheduledTime = Carbon::parse($schedule->end_time)->format('H:i:s');
+                    $statusPulang = ($actualTime < $scheduledTime) ? 'Pulang Awal' : 'Tepat Waktu';
                 }
             } elseif (!$attendance->clock_out) {
                 $statusPulang = 'Belum Pulang';
@@ -163,13 +179,21 @@ class AttendanceExport implements FromCollection, WithHeadings, WithMapping, Wit
             $statusMasuk = '-';
 
             if ($attendance->clock_in && $schedule) {
-                $actualTime = Carbon::parse($attendance->clock_in)->format('H:i:s');
-                $scheduledTime = Carbon::parse($schedule->start_time)->format('H:i:s');
-
-                if ($actualTime > $scheduledTime) {
-                    $statusMasuk = 'Terlambat';
+                // If status is 'corrected' or empty, calculate from times; otherwise use stored status if valid
+                if (in_array($attendance->status_in, ['C', 'S', 'DL'])) {
+                    $statusMap = ['C' => 'Cuti', 'S' => 'Sakit', 'DL' => 'Dinas Luar'];
+                    $statusMasuk = $statusMap[$attendance->status_in];
+                } elseif ($attendance->status_in === 'corrected' || empty($attendance->status_in)) {
+                    $actualTime = Carbon::parse($attendance->clock_in)->format('H:i:s');
+                    $scheduledTime = Carbon::parse($schedule->start_time)->format('H:i:s');
+                    $statusMasuk = ($actualTime > $scheduledTime) ? 'Terlambat' : 'Tepat Waktu';
+                } elseif (in_array($attendance->status_in, ['Tepat Waktu', 'Terlambat'])) {
+                    $statusMasuk = $attendance->status_in;
                 } else {
-                    $statusMasuk = 'Tepat Waktu';
+                    // Fallback: calculate from times
+                    $actualTime = Carbon::parse($attendance->clock_in)->format('H:i:s');
+                    $scheduledTime = Carbon::parse($schedule->start_time)->format('H:i:s');
+                    $statusMasuk = ($actualTime > $scheduledTime) ? 'Terlambat' : 'Tepat Waktu';
                 }
             } elseif (!$attendance->clock_in) {
                 $statusMasuk = 'Tidak Hadir';
@@ -182,13 +206,21 @@ class AttendanceExport implements FromCollection, WithHeadings, WithMapping, Wit
             $statusPulang = '-';
 
             if ($attendance->clock_out && $schedule) {
-                $actualTime = Carbon::parse($attendance->clock_out)->format('H:i:s');
-                $scheduledTime = Carbon::parse($schedule->end_time)->format('H:i:s');
-
-                if ($actualTime < $scheduledTime) {
-                    $statusPulang = 'Pulang Awal';
+                // If status is 'corrected' or empty, calculate from times; otherwise use stored status if valid
+                if (in_array($attendance->status_out, ['C', 'S', 'DL'])) {
+                    $statusMap = ['C' => 'Cuti', 'S' => 'Sakit', 'DL' => 'Dinas Luar'];
+                    $statusPulang = $statusMap[$attendance->status_out];
+                } elseif ($attendance->status_out === 'corrected' || empty($attendance->status_out)) {
+                    $actualTime = Carbon::parse($attendance->clock_out)->format('H:i:s');
+                    $scheduledTime = Carbon::parse($schedule->end_time)->format('H:i:s');
+                    $statusPulang = ($actualTime < $scheduledTime) ? 'Pulang Awal' : 'Tepat Waktu';
+                } elseif (in_array($attendance->status_out, ['Tepat Waktu', 'Pulang Awal', 'Belum Pulang'])) {
+                    $statusPulang = $attendance->status_out;
                 } else {
-                    $statusPulang = 'Tepat Waktu';
+                    // Fallback: calculate from times
+                    $actualTime = Carbon::parse($attendance->clock_out)->format('H:i:s');
+                    $scheduledTime = Carbon::parse($schedule->end_time)->format('H:i:s');
+                    $statusPulang = ($actualTime < $scheduledTime) ? 'Pulang Awal' : 'Tepat Waktu';
                 }
             } elseif (!$attendance->clock_out) {
                 $statusPulang = 'Belum Pulang';

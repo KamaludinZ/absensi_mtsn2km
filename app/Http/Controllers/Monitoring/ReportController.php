@@ -12,6 +12,50 @@ use Carbon\Carbon;
 
 class ReportController extends Controller
 {
+    /**
+     * Calculate actual status based on time, even if status is 'corrected'
+     */
+    private function calculateActualStatus($attendance, $schedule, $isClockIn = true)
+    {
+        if (!$attendance || !$schedule) {
+            return null;
+        }
+
+        if ($isClockIn) {
+            // Check clock_in status
+            if (!$attendance->clock_in) {
+                return null;
+            }
+
+            // If status is 'corrected', recalculate the actual status based on time
+            if ($attendance->status_in === 'corrected' || empty($attendance->status_in)) {
+                $clockIn = Carbon::parse($attendance->clock_in);
+                $startTime = Carbon::parse($schedule->start_time)->setDate($clockIn->year, $clockIn->month, $clockIn->day);
+                $diffInSeconds = $clockIn->diffInSeconds($startTime, false);
+                return ($diffInSeconds > 0) ? 'Terlambat' : 'Tepat Waktu';
+            }
+
+            // Return the existing status_in if it's already set
+            return $attendance->status_in;
+        } else {
+            // Check clock_out status
+            if (!$attendance->clock_out) {
+                return null;
+            }
+
+            // If status is 'corrected', recalculate the actual status based on time
+            if ($attendance->status_out === 'corrected' || empty($attendance->status_out)) {
+                $clockOut = Carbon::parse($attendance->clock_out);
+                $endTime = Carbon::parse($schedule->end_time)->setDate($clockOut->year, $clockOut->month, $clockOut->day);
+                $diffInSeconds = $clockOut->diffInSeconds($endTime, false);
+                return ($diffInSeconds < 0) ? 'Pulang Awal' : 'Tepat Waktu';
+            }
+
+            // Return the existing status_out if it's already set
+            return $attendance->status_out;
+        }
+    }
+
     public function salaryReport(Request $request)
     {
         $selectedMonth = $request->input('month', Carbon::now()->month);
@@ -120,8 +164,12 @@ class ReportController extends Controller
                             $dailyTransportAllowance = $salary->transport_allowance;
                         }
 
+                        // Calculate actual status (handles 'corrected' status by recalculating based on time)
+                        $actualStatusIn = $this->calculateActualStatus($attendance, $schedule, true);
+                        $actualStatusOut = $this->calculateActualStatus($attendance, $schedule, false);
+
                         // Check for perfect attendance to grant performance allowance
-                        $isPerfect = $attendance->status_in === 'Tepat Waktu' && $attendance->status_out === 'Tepat Waktu';
+                        $isPerfect = $actualStatusIn === 'Tepat Waktu' && $actualStatusOut === 'Tepat Waktu';
                         if ($isPerfect) {
                             $dailyPerformanceAllowance = $salary->performance_allowance;
                         }

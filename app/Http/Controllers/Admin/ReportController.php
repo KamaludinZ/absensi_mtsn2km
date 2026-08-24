@@ -622,10 +622,21 @@ class ReportController extends Controller
                 $statusMap = ['C' => 'Cuti', 'S' => 'Sakit', 'DL' => 'Dinas Luar'];
                 $statusIn = $statusMap[$attendance->status_in];
             } elseif ($attendance->clock_in && $schedule) {
-                $clockIn = Carbon::parse($attendance->clock_in);
-                $startTime = Carbon::parse($schedule->start_time)->setDate($clockIn->year, $clockIn->month, $clockIn->day);
-                $diffInSeconds = $clockIn->diffInSeconds($startTime, false);
-                $statusIn = ($diffInSeconds > 0) ? 'Terlambat' : 'Tepat Waktu';
+                // If status is 'corrected', recalculate based on time; otherwise use stored status if available
+                if ($attendance->status_in === 'corrected' || empty($attendance->status_in)) {
+                    $clockIn = Carbon::parse($attendance->clock_in);
+                    $startTime = Carbon::parse($schedule->start_time)->setDate($clockIn->year, $clockIn->month, $clockIn->day);
+                    $diffInSeconds = $clockIn->diffInSeconds($startTime, false);
+                    $statusIn = ($diffInSeconds > 0) ? 'Terlambat' : 'Tepat Waktu';
+                } elseif (in_array($attendance->status_in, ['Tepat Waktu', 'Terlambat'])) {
+                    $statusIn = $attendance->status_in;
+                } else {
+                    // Fallback: calculate from times
+                    $clockIn = Carbon::parse($attendance->clock_in);
+                    $startTime = Carbon::parse($schedule->start_time)->setDate($clockIn->year, $clockIn->month, $clockIn->day);
+                    $diffInSeconds = $clockIn->diffInSeconds($startTime, false);
+                    $statusIn = ($diffInSeconds > 0) ? 'Terlambat' : 'Tepat Waktu';
+                }
             } elseif (!$attendance->clock_in) {
                 $statusIn = 'Tidak Hadir';
             }
@@ -636,10 +647,21 @@ class ReportController extends Controller
                 $statusMap = ['C' => 'Cuti', 'S' => 'Sakit', 'DL' => 'Dinas Luar'];
                 $statusOut = $statusMap[$attendance->status_out];
             } elseif ($attendance->clock_out && $schedule) {
-                $clockOut = Carbon::parse($attendance->clock_out);
-                $endTime = Carbon::parse($schedule->end_time)->setDate($clockOut->year, $clockOut->month, $clockOut->day);
-                $diffInSeconds = $clockOut->diffInSeconds($endTime, false);
-                $statusOut = ($diffInSeconds < 0) ? 'Pulang Awal' : 'Tepat Waktu';
+                // If status is 'corrected', recalculate based on time; otherwise use stored status if available
+                if ($attendance->status_out === 'corrected' || empty($attendance->status_out)) {
+                    $clockOut = Carbon::parse($attendance->clock_out);
+                    $endTime = Carbon::parse($schedule->end_time)->setDate($clockOut->year, $clockOut->month, $clockOut->day);
+                    $diffInSeconds = $clockOut->diffInSeconds($endTime, false);
+                    $statusOut = ($diffInSeconds < 0) ? 'Pulang Awal' : 'Tepat Waktu';
+                } elseif (in_array($attendance->status_out, ['Tepat Waktu', 'Pulang Awal', 'Belum Pulang'])) {
+                    $statusOut = $attendance->status_out;
+                } else {
+                    // Fallback: calculate from times
+                    $clockOut = Carbon::parse($attendance->clock_out);
+                    $endTime = Carbon::parse($schedule->end_time)->setDate($clockOut->year, $clockOut->month, $clockOut->day);
+                    $diffInSeconds = $clockOut->diffInSeconds($endTime, false);
+                    $statusOut = ($diffInSeconds < 0) ? 'Pulang Awal' : 'Tepat Waktu';
+                }
             } elseif (!$attendance->clock_out) {
                 $statusOut = 'Belum Pulang';
             }
@@ -675,6 +697,50 @@ class ReportController extends Controller
         return Schedule::where('type', 'pegawai')
             ->where('day_of_week', $dayOfWeek)
             ->first();
+    }
+
+    /**
+     * Calculate actual status based on time, even if status is 'corrected'
+     */
+    private function calculateActualStatus($attendance, $schedule, $isClockIn = true)
+    {
+        if (!$attendance || !$schedule) {
+            return null;
+        }
+
+        if ($isClockIn) {
+            // Check clock_in status
+            if (!$attendance->clock_in) {
+                return null;
+            }
+
+            // If status is 'corrected', recalculate the actual status based on time
+            if ($attendance->status_in === 'corrected' || empty($attendance->status_in)) {
+                $clockIn = Carbon::parse($attendance->clock_in);
+                $startTime = Carbon::parse($schedule->start_time)->setDate($clockIn->year, $clockIn->month, $clockIn->day);
+                $diffInSeconds = $clockIn->diffInSeconds($startTime, false);
+                return ($diffInSeconds > 0) ? 'Terlambat' : 'Tepat Waktu';
+            }
+
+            // Return the existing status_in if it's already set
+            return $attendance->status_in;
+        } else {
+            // Check clock_out status
+            if (!$attendance->clock_out) {
+                return null;
+            }
+
+            // If status is 'corrected', recalculate the actual status based on time
+            if ($attendance->status_out === 'corrected' || empty($attendance->status_out)) {
+                $clockOut = Carbon::parse($attendance->clock_out);
+                $endTime = Carbon::parse($schedule->end_time)->setDate($clockOut->year, $clockOut->month, $clockOut->day);
+                $diffInSeconds = $clockOut->diffInSeconds($endTime, false);
+                return ($diffInSeconds < 0) ? 'Pulang Awal' : 'Tepat Waktu';
+            }
+
+            // Return the existing status_out if it's already set
+            return $attendance->status_out;
+        }
     }
 
     public function mealAllowance(Request $request)
@@ -1072,20 +1138,24 @@ class ReportController extends Controller
                                 $isPresent = true;
                                 $presentDays++;
 
+                                // Calculate actual status (handles 'corrected' status by recalculating based on time)
+                                $actualStatusIn = $this->calculateActualStatus($attendance, $shift->schedule, true);
+                                $actualStatusOut = $this->calculateActualStatus($attendance, $shift->schedule, false);
+
                                 // Tepat Waktu Masuk - melihat dari kolom status absensi masuk "Tepat Waktu" sesuai data di /admin/reports
-                                if ($attendance->status_in === 'Tepat Waktu') {
+                                if ($actualStatusIn === 'Tepat Waktu') {
                                     $isOnTimeArrival = true;
                                     $onTimeArrivalDays++;
-                                } elseif ($attendance->status_in === 'Terlambat') {
+                                } elseif ($actualStatusIn === 'Terlambat') {
                                     // Terlambat Datang - melihat dari kolom status absensi masuk "Terlambat" sesuai data di /admin/reports
                                     $lateArrivalDays++;
                                 }
 
                                 // Tepat Waktu Pulang - melihat dari kolom status absensi pulang "Tepat Waktu" sesuai data di /admin/reports
-                                if ($attendance->status_out === 'Tepat Waktu') {
+                                if ($actualStatusOut === 'Tepat Waktu') {
                                     $isOnTimeDeparture = true;
                                     $onTimeDepartureDays++;
-                                } elseif ($attendance->status_out === 'Pulang Awal') {
+                                } elseif ($actualStatusOut === 'Pulang Awal') {
                                     // Pulang Awal - melihat dari kolom status absensi pulang "Pulang Awal" sesuai data di /admin/reports
                                     $earlyDepartureDays++;
                                 }
@@ -1327,8 +1397,12 @@ class ReportController extends Controller
                             $dailyTransportAllowance = $salary->transport_allowance;
                         }
 
+                        // Calculate actual status (handles 'corrected' status by recalculating based on time)
+                        $actualStatusIn = $this->calculateActualStatus($attendance, $schedule, true);
+                        $actualStatusOut = $this->calculateActualStatus($attendance, $schedule, false);
+
                         // Check for perfect attendance to grant performance allowance
-                        $isPerfect = $attendance->status_in === 'Tepat Waktu' && $attendance->status_out === 'Tepat Waktu';
+                        $isPerfect = $actualStatusIn === 'Tepat Waktu' && $actualStatusOut === 'Tepat Waktu';
                         if ($isPerfect) {
                             $dailyPerformanceAllowance = $salary->performance_allowance;
                         }

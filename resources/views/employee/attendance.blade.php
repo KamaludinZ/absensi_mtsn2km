@@ -96,31 +96,46 @@
 
                 <!-- Attendance Type Selection -->
                 <div class="space-y-4">
-                    <button 
-                        @click="selectAttendanceType('clock-in')" 
-                        :disabled="isDisabled('clock-in') || (locationRequired && !locationInGeofence)"
-                        :class="(isDisabled('clock-in') || (locationRequired && !locationInGeofence)) ? 'bg-gray-300 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'"
+                    <button
+                        @click="selectAttendanceType('clock-in')"
+                        :disabled="isDisabled('clock-in') || (locationRequired && !locationInGeofence) || cooldownActive"
+                        :class="(isDisabled('clock-in') || (locationRequired && !locationInGeofence) || cooldownActive) ? 'bg-gray-300 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'"
                         class="w-full py-4 px-6 rounded-lg text-white font-bold text-lg transition duration-200 disabled:opacity-50">
                         <div class="flex items-center justify-center">
                             <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
-                            Absen Masuk
+                            <span x-show="!cooldownActive">Absen Masuk</span>
+                            <span x-show="cooldownActive" x-text="'Tunggu ' + getCooldownDisplay()"></span>
                         </div>
                     </button>
-                    
-                    <button 
-                        @click="selectAttendanceType('clock-out')" 
-                        :disabled="isDisabled('clock-out') || (locationRequired && !locationInGeofence)"
-                        :class="(isDisabled('clock-out') || (locationRequired && !locationInGeofence)) ? 'bg-gray-300 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'"
+
+                    <button
+                        @click="selectAttendanceType('clock-out')"
+                        :disabled="isDisabled('clock-out') || (locationRequired && !locationInGeofence) || cooldownActive"
+                        :class="(isDisabled('clock-out') || (locationRequired && !locationInGeofence) || cooldownActive) ? 'bg-gray-300 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'"
                         class="w-full py-4 px-6 rounded-lg text-white font-bold text-lg transition duration-200 disabled:opacity-50">
                         <div class="flex items-center justify-center">
                             <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
-                            Absen Pulang
+                            <span x-show="!cooldownActive">Absen Pulang</span>
+                            <span x-show="cooldownActive" x-text="'Tunggu ' + getCooldownDisplay()"></span>
                         </div>
                     </button>
+                </div>
+
+                <!-- Cooldown info message -->
+                <div x-show="cooldownActive" class="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <div class="flex items-center">
+                        <svg class="w-5 h-5 text-yellow-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <p class="text-sm text-yellow-800">
+                            Mohon tunggu <span class="font-semibold" x-text="getCooldownDisplay()"></span> sebelum dapat melakukan absen.
+                            Fitur ini mencegah kesalahan klik tombol yang tidak disengaja.
+                        </p>
+                    </div>
                 </div>
             </div>
 
@@ -280,6 +295,10 @@ function attendanceApp() {
         displayWithMap: {{ isset($locationSettings['display_with_map']) && $locationSettings['display_with_map'] ? 'true' : 'false' }},
         displayWithCoordinates: {{ isset($locationSettings['display_with_coordinates']) && $locationSettings['display_with_coordinates'] ? 'true' : 'false' }},
         requireSelfie: {{ isset($attendanceSettings['require_selfie_photo']) && $attendanceSettings['require_selfie_photo'] ? 'true' : 'false' }},
+        clockInTimestamp: null, // Timestamp when user clicked "Absen Masuk"
+        cooldownActive: false, // Whether cooldown is active
+        cooldownRemainingSeconds: 0, // Remaining seconds for cooldown
+        COOLDOWN_DURATION: 600, // 10 minutes in seconds
 
         init() {
             // Initialize clock and schedule
@@ -290,6 +309,37 @@ function attendanceApp() {
 
             // Initialize location settings
             this.fetchLocationSettings();
+
+            // Check if there's an active cooldown from previous session
+            this.checkCooldownStatus();
+            setInterval(() => this.checkCooldownStatus(), 1000);
+        },
+
+        // Check if cooldown is still active
+        checkCooldownStatus() {
+            const storedTimestamp = localStorage.getItem('clockInTimestamp');
+            if (storedTimestamp) {
+                const timePassed = Math.floor((Date.now() - parseInt(storedTimestamp)) / 1000);
+                if (timePassed < this.COOLDOWN_DURATION) {
+                    this.cooldownActive = true;
+                    this.cooldownRemainingSeconds = this.COOLDOWN_DURATION - timePassed;
+                } else {
+                    // Cooldown expired, clear it
+                    localStorage.removeItem('clockInTimestamp');
+                    this.cooldownActive = false;
+                    this.cooldownRemainingSeconds = 0;
+                }
+            } else {
+                this.cooldownActive = false;
+                this.cooldownRemainingSeconds = 0;
+            }
+        },
+
+        // Format remaining cooldown time as MM:SS
+        getCooldownDisplay() {
+            const minutes = Math.floor(this.cooldownRemainingSeconds / 60);
+            const seconds = this.cooldownRemainingSeconds % 60;
+            return `${minutes}:${seconds.toString().padStart(2, '0')}`;
         },
 
         // Fetch location settings from the server using public API endpoints
@@ -433,6 +483,15 @@ function attendanceApp() {
             if (this.locationRequired && !this.locationInGeofence) {
                 this.error = 'Lokasi Anda tidak berada di area geofence yang ditentukan. Silakan pindah ke area yang sesuai.';
                 return;
+            }
+
+            // If this is clock-in, start the cooldown
+            if (type === 'clock-in') {
+                const timestamp = Date.now();
+                localStorage.setItem('clockInTimestamp', timestamp.toString());
+                this.clockInTimestamp = timestamp;
+                this.cooldownActive = true;
+                this.cooldownRemainingSeconds = this.COOLDOWN_DURATION;
             }
 
             this.attendanceType = type;
