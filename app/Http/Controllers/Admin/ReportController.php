@@ -1349,6 +1349,74 @@ class ReportController extends Controller
         return view('admin.reports.performance-allowance', compact('performanceData', 'employees', 'months', 'years', 'selectedMonth', 'selectedYear'));
     }
 
+    public function downloadPerformanceAllowancePdf(Request $request)
+    {
+        $selectedMonth = $request->input('month', Carbon::now()->month);
+        $selectedYear = $request->input('year', Carbon::now()->year);
+        $employeeId = $request->input('employee_id');
+
+        $employeeQuery = Employee::with(['salary' => function($query) {
+            $query->latest('created_at');
+        }])->where('is_active', true);
+
+        if ($employeeId) {
+            $employeeQuery->where('id', $employeeId);
+        }
+
+        $employees = $employeeQuery->orderBy('full_name')->get();
+
+        $startDate = Carbon::create($selectedYear, $selectedMonth, 1)->startOfMonth();
+        $endDate = $startDate->copy()->endOfMonth();
+
+        $performanceData = [];
+        foreach ($employees as $employee) {
+            $salary = $employee->salary;
+            if (!$salary) continue;
+
+            // Count perfect days (both on-time arrival and on-time departure)
+            $perfectDays = Attendance::where('attendable_type', Employee::class)
+                ->where('attendable_id', $employee->id)
+                ->whereBetween('date', [$startDate, $endDate])
+                ->where(function($q) {
+                    $q->where(function($query) {
+                        // Calculate actual status for 'corrected' status
+                        $query->where('status_in', 'Tepat Waktu')
+                              ->orWhere('status_in', 'corrected');
+                    })->where(function($query) {
+                        $query->where('status_out', 'Tepat Waktu')
+                              ->orWhere('status_out', 'corrected');
+                    });
+                })
+                ->count();
+
+            $performanceData[] = [
+                'employee' => $employee,
+                'perfect_days' => $perfectDays,
+                'daily_performance_allowance' => $salary->performance_allowance,
+                'total_performance_allowance' => $salary->performance_allowance * $perfectDays,
+            ];
+        }
+
+        $months = [
+            1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April', 5 => 'Mei', 6 => 'Juni',
+            7 => 'Juli', 8 => 'Agustus', 9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember'
+        ];
+
+        $data = [
+            'performanceData' => $performanceData,
+            'selectedMonth' => $selectedMonth,
+            'selectedYear' => $selectedYear,
+            'monthName' => $months[$selectedMonth],
+            'headerSettings' => $this->getHeaderSettings(),
+        ];
+
+        $pdf = Pdf::loadView('admin.reports.performance-allowance-pdf', $data)
+            ->setPaper('a4', 'landscape');
+
+        $filename = 'laporan_tunjangan_kinerja_' . $months[$selectedMonth] . '_' . $selectedYear . '.pdf';
+        return $pdf->download($filename);
+    }
+
     public function salaryReport(Request $request)
     {
         $selectedMonth = $request->input('month', Carbon::now()->month);
@@ -2127,6 +2195,65 @@ class ReportController extends Controller
         }
 
         return view('admin.reports.transport-allowance', compact('transportAllowanceData', 'allEmployees', 'months', 'years', 'selectedMonth', 'selectedYear'));
+    }
+
+    public function downloadTransportAllowancePdf(Request $request)
+    {
+        $selectedMonth = $request->input('month', Carbon::now()->month);
+        $selectedYear = $request->input('year', Carbon::now()->year);
+        $employeeId = $request->input('employee_id');
+
+        $employeeQuery = Employee::with(['salary' => function($query) {
+            $query->latest('created_at');
+        }])->where('is_active', true);
+
+        if ($employeeId) {
+            $employeeQuery->where('id', $employeeId);
+        }
+
+        $employees = $employeeQuery->orderBy('full_name')->get();
+        $employeeIds = $employees->pluck('id');
+
+        $startDate = Carbon::create($selectedYear, $selectedMonth, 1)->startOfMonth();
+        $endDate = $startDate->copy()->endOfMonth();
+
+        $transportAllowanceData = [];
+        foreach ($employees as $employee) {
+            $salary = $employee->salary;
+            if (!$salary) continue;
+
+            $presentDays = Attendance::where('attendable_type', Employee::class)
+                ->where('attendable_id', $employee->id)
+                ->whereBetween('date', [$startDate, $endDate])
+                ->whereNotNull('clock_in')
+                ->count();
+
+            $transportAllowanceData[] = [
+                'employee' => $employee,
+                'present_days' => $presentDays,
+                'daily_transport_allowance' => $salary->transport_allowance,
+                'total_transport_allowance' => $salary->transport_allowance * $presentDays,
+            ];
+        }
+
+        $months = [
+            1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April', 5 => 'Mei', 6 => 'Juni',
+            7 => 'Juli', 8 => 'Agustus', 9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember'
+        ];
+
+        $data = [
+            'transportAllowanceData' => $transportAllowanceData,
+            'selectedMonth' => $selectedMonth,
+            'selectedYear' => $selectedYear,
+            'monthName' => $months[$selectedMonth],
+            'headerSettings' => $this->getHeaderSettings(),
+        ];
+
+        $pdf = Pdf::loadView('admin.reports.transport-allowance-pdf', $data)
+            ->setPaper('a4', 'landscape');
+
+        $filename = 'laporan_uang_transport_' . $months[$selectedMonth] . '_' . $selectedYear . '.pdf';
+        return $pdf->download($filename);
     }
 
     public function transportAllowanceDetail(Request $request, Employee $employee, $year, $month)
