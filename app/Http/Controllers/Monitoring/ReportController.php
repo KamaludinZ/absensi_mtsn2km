@@ -305,4 +305,22 @@ class ReportController extends Controller
         // Redirect to admin performance allowance report with same parameters
         return app(\App\Http\Controllers\Admin\ReportController::class)->performanceAllowance($request);
     }
+
+    public function downloadMealAllowancePdf(Request $request)
+    {
+        // Delegate to admin controller for PDF download
+        return app(\App\Http\Controllers\Admin\ReportController::class)->downloadMealAllowancePdf($request);
+    }
+
+    public function downloadTransportAllowancePdf(Request $request)
+    {
+        // Delegate to admin controller for PDF download
+        return app(\App\Http\Controllers\Admin\ReportController::class)->downloadTransportAllowancePdf($request);
+    }
+
+    public function downloadPerformanceAllowancePdf(Request $request)
+    {
+        // Delegate to admin controller for PDF download
+        return app(\App\Http\Controllers\Admin\ReportController::class)->downloadPerformanceAllowancePdf($request);
+    }
 }

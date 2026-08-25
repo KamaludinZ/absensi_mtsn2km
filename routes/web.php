@@ -123,8 +123,11 @@ Route::middleware(['auth', CheckRole::class . ':monitoring'])->prefix('monitorin
     Route::prefix('reports')->name('reports.')->group(function () {
         Route::get('/salary', [App\Http\Controllers\Monitoring\ReportController::class, 'salaryReport'])->name('salary');
         Route::get('/meal-allowance', [App\Http\Controllers\Monitoring\ReportController::class, 'mealAllowance'])->name('meal-allowance');
+        Route::get('/meal-allowance/download-pdf', [App\Http\Controllers\Monitoring\ReportController::class, 'downloadMealAllowancePdf'])->name('meal-allowance.download-pdf');
         Route::get('/transport-allowance', [App\Http\Controllers\Monitoring\ReportController::class, 'transportAllowance'])->name('transport-allowance');
+        Route::get('/transport-allowance/download-pdf', [App\Http\Controllers\Monitoring\ReportController::class, 'downloadTransportAllowancePdf'])->name('transport-allowance.download-pdf');
         Route::get('/performance-allowance', [App\Http\Controllers\Monitoring\ReportController::class, 'performanceAllowance'])->name('performance-allowance');
+        Route::get('/performance-allowance/download-pdf', [App\Http\Controllers\Monitoring\ReportController::class, 'downloadPerformanceAllowancePdf'])->name('performance-allowance.download-pdf');
     });
 
     // Profile routes for monitoring users
