@@ -15,8 +15,10 @@ export default defineConfig({
         minify: 'esbuild',
         rollupOptions: {
             output: {
-                manualChunks: {
-                    'alpine': ['alpinejs'],
+                manualChunks: (id) => {
+                    if (id.includes('alpinejs')) {
+                        return 'alpine';
+                    }
                 },
             },
         },
