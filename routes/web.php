@@ -298,6 +298,7 @@ Route::middleware(['auth', CheckRole::class . ':admin'])->prefix('admin')->name(
         Route::get('/download/{filename}', [BackupController::class, 'download'])->name('download');
         Route::delete('/delete/{filename}', [BackupController::class, 'delete'])->name('delete');
         Route::get('/restore', [BackupController::class, 'showRestore'])->name('restore');
+        Route::post('/upload', [BackupController::class, 'uploadBackup'])->name('upload');
         Route::post('/restore', [BackupController::class, 'restore'])->name('restore.execute');
     });
 
