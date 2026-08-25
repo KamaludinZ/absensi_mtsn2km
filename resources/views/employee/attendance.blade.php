@@ -348,14 +348,23 @@ function attendanceApp() {
                 // Fetch each setting individually with proper error handling
                 // This is more robust than using Promise.all which fails if any request fails
 
+                // Add cache busting and no-cache headers to always get fresh data
+                const fetchOptions = {
+                    signal: AbortSignal.timeout(5000), // 5 second timeout per request
+                    cache: 'no-store', // Don't use cached response
+                    headers: {
+                        'Cache-Control': 'no-cache, no-store, must-revalidate',
+                        'Pragma': 'no-cache',
+                        'Expires': '0'
+                    }
+                };
+
                 // Process geofence center coordinates
                 let latValue = null;
                 let lngValue = null;
 
                 try {
-                    const latResponse = await fetch('/api/location-settings/geofence-center-lat', {
-                        signal: AbortSignal.timeout(5000) // 5 second timeout per request
-                    });
+                    const latResponse = await fetch('/api/location-settings/geofence-center-lat', fetchOptions);
                     if (latResponse.ok) {
                         const latData = await latResponse.json();
                         latValue = latData.value ? parseFloat(latData.value) : null;
@@ -367,9 +376,7 @@ function attendanceApp() {
                 }
 
                 try {
-                    const lngResponse = await fetch('/api/location-settings/geofence-center-lng', {
-                        signal: AbortSignal.timeout(5000)
-                    });
+                    const lngResponse = await fetch('/api/location-settings/geofence-center-lng', fetchOptions);
                     if (lngResponse.ok) {
                         const lngData = await lngResponse.json();
                         lngValue = lngData.value ? parseFloat(lngData.value) : null;
@@ -396,9 +403,7 @@ function attendanceApp() {
 
                 // Process geofence radius
                 try {
-                    const radiusResponse = await fetch('/api/location-settings/geofence-radius', {
-                        signal: AbortSignal.timeout(5000)
-                    });
+                    const radiusResponse = await fetch('/api/location-settings/geofence-radius', fetchOptions);
                     if (radiusResponse.ok) {
                         const radiusData = await radiusResponse.json();
                         const radiusValue = parseFloat(radiusData.value);
@@ -415,9 +420,7 @@ function attendanceApp() {
 
                 // Process location required setting
                 try {
-                    const requiredResponse = await fetch('/api/location-settings/location-required', {
-                        signal: AbortSignal.timeout(5000)
-                    });
+                    const requiredResponse = await fetch('/api/location-settings/location-required', fetchOptions);
                     if (requiredResponse.ok) {
                         const requiredData = await requiredResponse.json();
                         this.locationRequired = requiredData.value === 'true' || requiredData.value === true;
