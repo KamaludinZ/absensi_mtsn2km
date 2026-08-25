@@ -208,9 +208,8 @@ class ReportController extends Controller
 
     private function getSalaryDetailData(Employee $employee, $year, $month)
     {
-        $employee->load(['salary' => function($query) use ($month, $year) {
-            $query->where('month', $month)->where('year', $year);
-        }]);
+        // Load salary relation (hasOne - no month/year filter needed)
+        $employee->load('salary');
         $salary = $employee->salary;
 
         if (!$salary) {
