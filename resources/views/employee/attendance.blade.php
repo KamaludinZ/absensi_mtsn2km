@@ -345,53 +345,49 @@ function attendanceApp() {
         // Fetch location settings from the server using public API endpoints
         async fetchLocationSettings() {
             try {
-                // Use AbortController for timeout handling
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-
-                // Use Promise.all to fetch all settings simultaneously for better performance
-                const [geofenceCenterLat, geofenceCenterLng, geofenceRadius, locationRequired] = await Promise.all([
-                    fetch('/api/location-settings/geofence-center-lat', { signal: controller.signal }).catch(() => null),
-                    fetch('/api/location-settings/geofence-center-lng', { signal: controller.signal }).catch(() => null),
-                    fetch('/api/location-settings/geofence-radius', { signal: controller.signal }).catch(() => null),
-                    fetch('/api/location-settings/location-required', { signal: controller.signal }).catch(() => null)
-                ]);
-
-                clearTimeout(timeoutId);
+                // Fetch each setting individually with proper error handling
+                // This is more robust than using Promise.all which fails if any request fails
 
                 // Process geofence center coordinates
-                // Handle each request individually to be more robust
                 let latValue = null;
                 let lngValue = null;
-                
-                if (geofenceCenterLat && geofenceCenterLat.ok) {
-                    try {
-                        const latData = await geofenceCenterLat.json();
+
+                try {
+                    const latResponse = await fetch('/api/location-settings/geofence-center-lat', {
+                        signal: AbortSignal.timeout(5000) // 5 second timeout per request
+                    });
+                    if (latResponse.ok) {
+                        const latData = await latResponse.json();
                         latValue = latData.value ? parseFloat(latData.value) : null;
-                    } catch (e) {
-                        console.error('Failed to parse geofence center latitude:', e);
+                    }
+                } catch (e) {
+                    if (e.name !== 'TimeoutError' && e.name !== 'AbortError') {
+                        console.warn('Failed to fetch geofence center latitude:', e.message);
                     }
                 }
-                
-                if (geofenceCenterLng && geofenceCenterLng.ok) {
-                    try {
-                        const lngData = await geofenceCenterLng.json();
+
+                try {
+                    const lngResponse = await fetch('/api/location-settings/geofence-center-lng', {
+                        signal: AbortSignal.timeout(5000)
+                    });
+                    if (lngResponse.ok) {
+                        const lngData = await lngResponse.json();
                         lngValue = lngData.value ? parseFloat(lngData.value) : null;
-                    } catch (e) {
-                        console.error('Failed to parse geofence center longitude:', e);
+                    }
+                } catch (e) {
+                    if (e.name !== 'TimeoutError' && e.name !== 'AbortError') {
+                        console.warn('Failed to fetch geofence center longitude:', e.message);
                     }
                 }
-                
+
                 // Only set geofence center if both values are valid
-                if (latValue !== null && lngValue !== null) {
+                if (latValue !== null && lngValue !== null && !isNaN(latValue) && !isNaN(lngValue)) {
                     this.geofenceCenter = {
                         lat: latValue,
                         lng: lngValue
                     };
-                    console.log('Geofence center set:', this.geofenceCenter);
                 } else {
                     // Use default geofence if API values are invalid
-                    console.warn('Using default geofence center due to invalid values');
                     this.geofenceCenter = {
                         lat: -7.99478, // Default to current school location
                         lng: 112.67383
@@ -399,33 +395,39 @@ function attendanceApp() {
                 }
 
                 // Process geofence radius
-                if (geofenceRadius && geofenceRadius.ok) {
-                    try {
-                        const radiusData = await geofenceRadius.json();
+                try {
+                    const radiusResponse = await fetch('/api/location-settings/geofence-radius', {
+                        signal: AbortSignal.timeout(5000)
+                    });
+                    if (radiusResponse.ok) {
+                        const radiusData = await radiusResponse.json();
                         const radiusValue = parseFloat(radiusData.value);
-                        this.geofenceRadius = isNaN(radiusValue) ? 100 : radiusValue; // Default radius of 100m if invalid
-                        console.log('Geofence radius set:', this.geofenceRadius);
-                    } catch (e) {
-                        console.error('Failed to parse geofence radius, using default:', e);
+                        this.geofenceRadius = isNaN(radiusValue) ? 100 : radiusValue;
+                    } else {
                         this.geofenceRadius = 100; // Default radius
                     }
-                } else {
-                    console.warn('Using default geofence radius due to API failure');
+                } catch (e) {
+                    if (e.name !== 'TimeoutError' && e.name !== 'AbortError') {
+                        console.warn('Failed to fetch geofence radius:', e.message);
+                    }
                     this.geofenceRadius = 100; // Default radius
                 }
 
                 // Process location required setting
-                if (locationRequired && locationRequired.ok) {
-                    try {
-                        const requiredData = await locationRequired.json();
+                try {
+                    const requiredResponse = await fetch('/api/location-settings/location-required', {
+                        signal: AbortSignal.timeout(5000)
+                    });
+                    if (requiredResponse.ok) {
+                        const requiredData = await requiredResponse.json();
                         this.locationRequired = requiredData.value === 'true' || requiredData.value === true;
-                        console.log('Location required set:', this.locationRequired);
-                    } catch (e) {
-                        console.error('Failed to parse location required setting, using default:', e);
+                    } else {
                         this.locationRequired = true; // Default to required
                     }
-                } else {
-                    console.warn('Using default location required setting due to API failure');
+                } catch (e) {
+                    if (e.name !== 'TimeoutError' && e.name !== 'AbortError') {
+                        console.warn('Failed to fetch location required setting:', e.message);
+                    }
                     this.locationRequired = true; // Default to required
                 }
 
@@ -441,16 +443,12 @@ function attendanceApp() {
                     }
                 });
             } catch (error) {
-                console.error('Failed to fetch location settings:', error);
-                
-                // Handle different types of errors
-                if (error.name === 'AbortError') {
-                    console.warn('Location settings request timed out');
-                } else if (error.name === 'TypeError' && error.message.includes('fetch')) {
-                    console.warn('Network error while fetching location settings');
+                // Only log non-timeout/abort errors
+                if (error.name !== 'TimeoutError' && error.name !== 'AbortError') {
+                    console.warn('Unexpected error while fetching location settings:', error.message);
                 }
-                
-                // Set default values and continue
+
+                // Set default values and continue - app should work even if settings fetch fails
                 this.geofenceCenter = {
                     lat: -7.99478, // Default to current school location
                     lng: 112.67383
