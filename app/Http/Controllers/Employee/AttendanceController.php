@@ -761,9 +761,12 @@ class AttendanceController extends Controller
             } elseif ($attendance->clock_in && $schedule) {
                 $clockIn = Carbon::parse($attendance->clock_in);
                 $startTime = Carbon::parse($schedule->start_time)->setDate($clockIn->year, $clockIn->month, $clockIn->day);
-                $diffInSeconds = $clockIn->diffInSeconds($startTime, false);
-                // If actual > scheduled (positive seconds), then late
-                $statusIn = ($diffInSeconds > 0) ? 'Terlambat' : 'Tepat Waktu';
+                // Compare: if clock_in is after start_time, then late
+                if ($clockIn->gt($startTime)) {
+                    $statusIn = 'Terlambat';
+                } else {
+                    $statusIn = 'Tepat Waktu';
+                }
             } elseif (!$attendance->clock_in) {
                 $statusIn = 'Tidak Hadir';
             }
@@ -776,9 +779,12 @@ class AttendanceController extends Controller
             } elseif ($attendance->clock_out && $schedule) {
                 $clockOut = Carbon::parse($attendance->clock_out);
                 $endTime = Carbon::parse($schedule->end_time)->setDate($clockOut->year, $clockOut->month, $clockOut->day);
-                $diffInSeconds = $clockOut->diffInSeconds($endTime, false);
-                // If actual < scheduled (negative seconds), then early departure
-                $statusOut = ($diffInSeconds < 0) ? 'Pulang Awal' : 'Tepat Waktu';
+                // Compare: if clock_out is before end_time, then early departure
+                if ($clockOut->lt($endTime)) {
+                    $statusOut = 'Pulang Awal';
+                } else {
+                    $statusOut = 'Tepat Waktu';
+                }
             } elseif (!$attendance->clock_out) {
                 $statusOut = 'Belum Pulang';
             }
