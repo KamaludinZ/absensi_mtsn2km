@@ -350,7 +350,7 @@ function attendanceApp() {
 
                 // Add cache busting and no-cache headers to always get fresh data
                 const fetchOptions = {
-                    signal: AbortSignal.timeout(5000), // 5 second timeout per request
+                    signal: AbortSignal.timeout(15000), // 15 second timeout per request (increased for slow servers)
                     cache: 'no-store', // Don't use cached response
                     headers: {
                         'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -393,11 +393,13 @@ function attendanceApp() {
                         lat: latValue,
                         lng: lngValue
                     };
+                    console.log('Geofence center loaded from API:', this.geofenceCenter);
                 } else {
                     // Use default geofence if API values are invalid
+                    console.warn('Using default geofence center - API values invalid:', { latValue, lngValue });
                     this.geofenceCenter = {
-                        lat: -7.99478, // Default to current school location
-                        lng: 112.67383
+                        lat: -8.170544, // Default coordinates (updated to match current settings)
+                        lng: 112.707610
                     };
                 }
 
@@ -452,11 +454,12 @@ function attendanceApp() {
                 }
 
                 // Set default values and continue - app should work even if settings fetch fails
+                console.warn('Using fallback default geofence settings due to error');
                 this.geofenceCenter = {
-                    lat: -7.99478, // Default to current school location
-                    lng: 112.67383
+                    lat: -8.170544, // Default coordinates (updated to match current settings)
+                    lng: 112.707610
                 };
-                this.geofenceRadius = 100;
+                this.geofenceRadius = 200;
                 this.locationRequired = true; // Default to required
                 
                 // Request location if required
@@ -639,13 +642,24 @@ function attendanceApp() {
         // Check if a location is within the geofence
         isLocationInGeofence(lat, lng, accuracy = 0) {
             if (!this.geofenceCenter) return false;
-            
+
+            // Debug: Log geofence center and user location
+            console.log('Checking geofence:', {
+                userLat: lat,
+                userLng: lng,
+                centerLat: this.geofenceCenter.lat,
+                centerLng: this.geofenceCenter.lng,
+                radius: this.geofenceRadius
+            });
+
             const distance = this.calculateDistance(
-                lat, 
-                lng, 
-                this.geofenceCenter.lat, 
+                lat,
+                lng,
+                this.geofenceCenter.lat,
                 this.geofenceCenter.lng
             );
+
+            console.log('Calculated distance:', distance, 'meters');
             
             // Enhanced validation with accuracy consideration
             // Check if user is within strict radius first
