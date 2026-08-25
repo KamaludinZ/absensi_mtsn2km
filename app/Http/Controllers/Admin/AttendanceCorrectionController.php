@@ -191,6 +191,36 @@ class AttendanceCorrectionController extends Controller
             'date' => $attendanceCorrection->date,
         ]);
 
+        // Get schedule information for this date
+        $correctable = $attendanceCorrection->correctable;
+        $date = $attendanceCorrection->date;
+
+        // Try to get shift assignment first
+        $employeeShift = \App\Models\EmployeeShift::where('employee_id', $correctable->id)
+            ->whereDate('date', $date)
+            ->with('schedule')
+            ->first();
+
+        $schedule = null;
+        if ($employeeShift && $employeeShift->schedule) {
+            $schedule = $employeeShift->schedule;
+        } else {
+            // Use default schedule based on day of week if no specific shift is assigned
+            $dayOfWeek = $date->dayOfWeek;
+            if ($dayOfWeek == 0) $dayOfWeek = 7; // Convert Sunday (0) to 7
+            $schedule = \App\Models\Schedule::where('type', 'pegawai')
+                ->where('day_of_week', $dayOfWeek)
+                ->first();
+        }
+
+        // Populate schedule metadata in attendance record
+        if ($schedule) {
+            $attendance->shift_name = $schedule->name;
+            $attendance->shift_type = $schedule->type;
+            $attendance->scheduled_start_time = Carbon::parse($date->format('Y-m-d') . ' ' . $schedule->start_time);
+            $attendance->scheduled_end_time = Carbon::parse($date->format('Y-m-d') . ' ' . $schedule->end_time);
+        }
+
         if ($attendanceCorrection->corrected_clock_in) {
             // Extract time part regardless if it's a Carbon instance or string
             if ($attendanceCorrection->corrected_clock_in instanceof \Carbon\Carbon) {
