@@ -34,15 +34,15 @@
         }
         th, td {
             border: 1px solid #000;
-            padding: 4px 3px;
+            padding: 3px 2px;
             text-align: left;
-            font-size: 9px;
+            font-size: 7px;
         }
         th {
             background-color: #e0e0e0;
             font-weight: bold;
             text-align: center;
-            font-size: 9px;
+            font-size: 7px;
         }
         .text-right {
             text-align: right;
@@ -85,12 +85,21 @@
     <table>
         <thead>
             <tr>
-                <th width="6%">No</th>
-                <th width="28%">Nama Pegawai</th>
-                <th width="24%">Jabatan</th>
-                <th width="12%">Hari Sempurna</th>
-                <th width="15%">Tunjangan/Hari</th>
-                <th width="15%">Total Tunjangan</th>
+                <th width="2.5%">No</th>
+                <th width="12%">Nama</th>
+                <th width="10%">Jabatan</th>
+                <th width="5.5%">Aktif</th>
+                <th width="5.5%">Hadir</th>
+                <th width="5.5%">Tidak Hadir</th>
+                <th width="5.5%">TW Masuk</th>
+                <th width="5.5%">TW Pulang</th>
+                <th width="5.5%">TW M&P</th>
+                <th width="5.5%">Terlambat</th>
+                <th width="5.5%">P.Awal</th>
+                <th width="5.5%">Sakit</th>
+                <th width="5.5%">Cuti</th>
+                <th width="5.5%">D.Luar</th>
+                <th width="14.5%">Nilai Tunjangan</th>
             </tr>
         </thead>
         <tbody>
@@ -100,25 +109,26 @@
                     <td class="text-center">{{ $index + 1 }}</td>
                     <td>{{ $data['employee']->full_name }}</td>
                     <td>{{ $data['employee']->position }}</td>
-                    <td class="text-center">{{ $data['perfect_days'] }}</td>
-                    <td class="text-right">Rp {{ number_format($data['daily_performance_allowance'], 0, ',', '.') }}</td>
+                    <td class="text-center">{{ $data['active_days'] }}</td>
+                    <td class="text-center">{{ $data['present_days'] }}</td>
+                    <td class="text-center">{{ $data['absent_days'] }}</td>
+                    <td class="text-center">{{ $data['on_time_arrival_days'] ?? 0 }}</td>
+                    <td class="text-center">{{ $data['on_time_departure_days'] ?? 0 }}</td>
+                    <td class="text-center">{{ $data['on_time_both_days'] ?? 0 }}</td>
+                    <td class="text-center">{{ $data['late_arrival_days'] ?? 0 }}</td>
+                    <td class="text-center">{{ $data['early_departure_days'] ?? 0 }}</td>
+                    <td class="text-center">{{ $data['sick_days'] }}</td>
+                    <td class="text-center">{{ $data['leave_days'] }}</td>
+                    <td class="text-center">{{ $data['official_duty_days'] }}</td>
                     <td class="text-right">Rp {{ number_format($data['total_performance_allowance'], 0, ',', '.') }}</td>
                 </tr>
                 @php $totalAllowance += $data['total_performance_allowance']; @endphp
             @endforeach
             <tr class="total-row">
-                <td colspan="5" class="text-right">TOTAL</td>
+                <td colspan="14" class="text-right">TOTAL</td>
                 <td class="text-right">Rp {{ number_format($totalAllowance, 0, ',', '.') }}</td>
             </tr>
         </tbody>
     </table>
-
-    <div class="footer">
-        <p>Malang, {{ \Carbon\Carbon::now()->isoFormat('D MMMM Y') }}</p>
-        <p>Kepala Madrasah,</p>
-        <br><br><br>
-        <p>{{ $headerSettings['headmaster_name'] ?? '____________________' }}</p>
-        <p>NIP. {{ $headerSettings['headmaster_nip'] ?? '____________________' }}</p>
-    </div>
 </body>
 </html>

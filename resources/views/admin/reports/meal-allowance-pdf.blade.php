@@ -85,12 +85,16 @@
     <table>
         <thead>
             <tr>
-                <th width="6%">No</th>
-                <th width="28%">Nama Pegawai</th>
-                <th width="24%">Jabatan</th>
-                <th width="12%">Hari Hadir</th>
-                <th width="15%">Uang Makan/Hari</th>
-                <th width="15%">Total Uang Makan</th>
+                <th width="3%">No</th>
+                <th width="18%">Nama Pegawai</th>
+                <th width="15%">Jabatan</th>
+                <th width="8%">Hari Aktif</th>
+                <th width="8%">Hadir</th>
+                <th width="8%">Tidak Hadir</th>
+                <th width="8%">Sakit</th>
+                <th width="8%">Cuti</th>
+                <th width="8%">Dinas Luar</th>
+                <th width="16%">Total Uang Makan</th>
             </tr>
         </thead>
         <tbody>
@@ -100,25 +104,21 @@
                     <td class="text-center">{{ $index + 1 }}</td>
                     <td>{{ $data['employee']->full_name }}</td>
                     <td>{{ $data['employee']->position }}</td>
+                    <td class="text-center">{{ $data['active_days'] }}</td>
                     <td class="text-center">{{ $data['present_days'] }}</td>
-                    <td class="text-right">Rp {{ number_format($data['daily_meal_allowance'], 0, ',', '.') }}</td>
+                    <td class="text-center">{{ $data['absent_days'] }}</td>
+                    <td class="text-center">{{ $data['sick_days'] }}</td>
+                    <td class="text-center">{{ $data['leave_days'] }}</td>
+                    <td class="text-center">{{ $data['official_duty_days'] }}</td>
                     <td class="text-right">Rp {{ number_format($data['total_meal_allowance'], 0, ',', '.') }}</td>
                 </tr>
                 @php $totalAllowance += $data['total_meal_allowance']; @endphp
             @endforeach
             <tr class="total-row">
-                <td colspan="5" class="text-right">TOTAL</td>
+                <td colspan="9" class="text-right">TOTAL</td>
                 <td class="text-right">Rp {{ number_format($totalAllowance, 0, ',', '.') }}</td>
             </tr>
         </tbody>
     </table>
-
-    <div class="footer">
-        <p>Malang, {{ \Carbon\Carbon::now()->isoFormat('D MMMM Y') }}</p>
-        <p>Kepala Madrasah,</p>
-        <br><br><br>
-        <p>{{ $headerSettings['headmaster_name'] ?? '____________________' }}</p>
-        <p>NIP. {{ $headerSettings['headmaster_nip'] ?? '____________________' }}</p>
-    </div>
 </body>
 </html>
