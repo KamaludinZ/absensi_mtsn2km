@@ -323,4 +323,10 @@ class ReportController extends Controller
         // Delegate to admin controller for PDF download
         return app(\App\Http\Controllers\Admin\ReportController::class)->downloadPerformanceAllowancePdf($request);
     }
+
+    public function downloadSalaryPdf(Request $request)
+    {
+        // Delegate to admin controller for PDF download
+        return app(\App\Http\Controllers\Admin\ReportController::class)->downloadSalaryPdf($request);
+    }
 }

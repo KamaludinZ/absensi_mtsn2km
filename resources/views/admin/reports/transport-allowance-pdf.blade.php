@@ -19,12 +19,36 @@
             border-bottom: 3px solid #000;
             padding-bottom: 8px;
         }
+        .header-content {
+            display: table;
+            width: 100%;
+        }
+        .logo-left, .logo-right {
+            display: table-cell;
+            width: 60px;
+            vertical-align: middle;
+        }
+        .logo-left img, .logo-right img {
+            max-width: 50px;
+            max-height: 50px;
+        }
+        .header-text {
+            display: table-cell;
+            vertical-align: middle;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 11pt;
+            text-transform: uppercase;
+        }
         .header h2 {
-            margin: 4px 0;
-            font-size: 14px;
+            margin: 2px 0;
+            font-size: 10pt;
+            font-weight: normal;
         }
         .header p {
-            margin: 2px 0;
+            margin: 1px 0;
             font-size: 9px;
         }
         table {
@@ -71,15 +95,37 @@
 </head>
 <body>
     <div class="header">
-        @if(isset($headerSettings['logo_path']) && $headerSettings['logo_path'])
-            <img src="{{ public_path('storage/' . $headerSettings['logo_path']) }}" alt="Logo" style="height: 60px; margin-bottom: 10px;">
-        @endif
-        <h2>{{ $headerSettings['institution_name'] ?? 'MTsN 2 Kota Malang' }}</h2>
-        <p>{{ $headerSettings['address'] ?? '' }}</p>
-        <p>{{ $headerSettings['phone'] ?? '' }} | {{ $headerSettings['email'] ?? '' }}</p>
+        <div class="header-content">
+            <div class="logo-left">
+                @if(!empty($headerSettings['left_logo']))
+                    <img src="{{ $headerSettings['left_logo'] }}" alt="Logo Kiri">
+                @endif
+            </div>
+            <div class="header-text">
+                <h1>{{ $headerSettings['school_name'] ?? 'MTsN 2 KOTA MALANG' }}</h1>
+                <h2>{{ $headerSettings['school_full_name'] ?? 'MADRASAH TSANAWIYAH NEGERI 2 KOTA MALANG' }}</h2>
+                <p>{{ $headerSettings['school_address'] ?? 'Jl. KH. Hasyim Asy\'ari No. 1, Kota Malang, Jawa Timur 65144' }}</p>
+                <p>
+                    @if(!empty($headerSettings['school_phone']))
+                        Telp: {{ $headerSettings['school_phone'] }}
+                    @endif
+                    @if(!empty($headerSettings['school_phone']) && !empty($headerSettings['school_email']))
+                        |
+                    @endif
+                    @if(!empty($headerSettings['school_email']))
+                        Email: {{ $headerSettings['school_email'] }}
+                    @endif
+                </p>
+            </div>
+            <div class="logo-right">
+                @if(!empty($headerSettings['right_logo']))
+                    <img src="{{ $headerSettings['right_logo'] }}" alt="Logo Kanan">
+                @endif
+            </div>
+        </div>
     </div>
 
-    <h3 style="text-align: center;">LAPORAN UANG TRANSPORT PEGAWAI</h3>
+    <h3 style="text-align: center; text-transform: uppercase; text-decoration: underline;">LAPORAN UANG TRANSPORT PEGAWAI</h3>
     <p style="text-align: center;">Bulan: {{ $monthName }} {{ $selectedYear }}</p>
 
     <table>

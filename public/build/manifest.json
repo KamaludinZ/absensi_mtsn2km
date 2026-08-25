@@ -1,23 +1,24 @@
 {
-  "_alpine-BGGahNR6.js": {
-    "file": "assets/alpine-BGGahNR6.js",
+  "_alpine-DTGa-4XX.js": {
+    "file": "assets/alpine-DTGa-4XX.js",
     "name": "alpine"
   },
   "resources/css/app.css": {
-    "file": "assets/app-PiADbjSQ.css",
-    "src": "resources/css/app.css",
-    "isEntry": true,
+    "file": "assets/app-OuvG8kjt.css",
+    "name": "app",
     "names": [
       "app.css"
-    ]
+    ],
+    "src": "resources/css/app.css",
+    "isEntry": true
   },
   "resources/js/app.js": {
-    "file": "assets/app-KNSYXkWY.js",
+    "file": "assets/app-BmedknKS.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
     "imports": [
-      "_alpine-BGGahNR6.js"
+      "_alpine-DTGa-4XX.js"
     ]
   }
 }

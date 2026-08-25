@@ -122,6 +122,7 @@ Route::middleware(['auth', CheckRole::class . ':monitoring'])->prefix('monitorin
     // Reports routes for monitoring users (view-only access)
     Route::prefix('reports')->name('reports.')->group(function () {
         Route::get('/salary', [App\Http\Controllers\Monitoring\ReportController::class, 'salaryReport'])->name('salary');
+        Route::get('/salary/download-pdf', [App\Http\Controllers\Monitoring\ReportController::class, 'downloadSalaryPdf'])->name('salary.download-pdf');
         Route::get('/meal-allowance', [App\Http\Controllers\Monitoring\ReportController::class, 'mealAllowance'])->name('meal-allowance');
         Route::get('/meal-allowance/download-pdf', [App\Http\Controllers\Monitoring\ReportController::class, 'downloadMealAllowancePdf'])->name('meal-allowance.download-pdf');
         Route::get('/transport-allowance', [App\Http\Controllers\Monitoring\ReportController::class, 'transportAllowance'])->name('transport-allowance');
@@ -194,6 +195,7 @@ Route::middleware(['auth', CheckRole::class . ':admin'])->prefix('admin')->name(
         Route::get('/performance-allowance/{employee}/{year}/{month}', [ReportController::class, 'performanceAllowanceDetail'])->name('performance-allowance.detail');
         Route::get('/performance-allowance/{employee}/{year}/{month}/pdf', [ReportController::class, 'generatePerformanceAllowancePdf'])->name('performance-allowance.pdf');
         Route::get('/salary', [ReportController::class, 'salaryReport'])->name('salary');
+        Route::get('/salary/download-pdf', [ReportController::class, 'downloadSalaryPdf'])->name('salary.download-pdf');
         Route::get('/salary/{employee}/{year}/{month}', [ReportController::class, 'salaryReportDetail'])->name('salary.detail');
         Route::get('/salary/{employee}/{year}/{month}/pdf', [ReportController::class, 'generateSalaryPdf'])->name('salary.pdf');
         Route::post('/salary/toggle-visibility', [ReportController::class, 'toggleSalaryMenuVisibility'])->name('salary.toggle-visibility');

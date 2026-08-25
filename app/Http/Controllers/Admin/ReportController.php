@@ -1838,6 +1838,174 @@ class ReportController extends Controller
         ]);
     }
 
+    public function downloadSalaryPdf(Request $request)
+    {
+        $selectedMonth = $request->input('month', Carbon::now()->month);
+        $selectedYear = $request->input('year', Carbon::now()->year);
+
+        $employeeQuery = Employee::with(['salary' => function($query) {
+            $query->latest('created_at');
+        }]);
+
+        // Filter by specific employee if provided
+        if ($request->filled('employee_id')) {
+            $employeeQuery->where('id', $request->employee_id);
+        } else {
+            // For general report, only include employees who were active during this month or before
+            $employeeQuery->where(function($query) use ($selectedMonth, $selectedYear) {
+                // Currently active employees (not soft deleted)
+                $query->whereNull('deleted_at')
+                      // OR employees who were soft deleted after this month (were active during this month)
+                      ->orWhere(function($q) use ($selectedMonth, $selectedYear) {
+                          $q->whereNotNull('deleted_at')
+                            ->where('deleted_at', '>=', Carbon::create($selectedYear, $selectedMonth, 1)->startOfMonth());
+                      });
+            });
+        }
+
+        $employees = $employeeQuery->orderBy('full_name')->get();
+        $employeeIds = $employees->pluck('id');
+
+        // Prepare attendance query
+        $attendanceQuery = Attendance::where('attendable_type', Employee::class)
+            ->whereIn('attendable_id', $employeeIds);
+
+        // Filter by month/year
+        $attendanceQuery->whereMonth('date', $selectedMonth)
+                      ->whereYear('date', $selectedYear);
+
+        $attendances = $attendanceQuery->orderBy('date', 'asc')->get()->groupBy('attendable_id');
+
+        $salaryData = [];
+
+        foreach ($employees as $employee) {
+            $employeeId = $employee->id;
+            $salary = $employee->salary;
+
+            // Skip employees without salary settings
+            if (!$salary) {
+                continue;
+            }
+
+            $employeeAttendances = $attendances->get($employeeId, collect());
+
+            // Get employee shifts for the month/year
+            $employeeShifts = \App\Models\EmployeeShift::where('employee_id', $employeeId)
+                ->whereMonth('date', $selectedMonth)
+                ->whereYear('date', $selectedYear)
+                ->with('schedule')
+                ->get()
+                ->keyBy('date');
+
+            // Get default schedules for non-shift assignment days
+            $defaultSchedules = Schedule::where('type', 'pegawai')
+                ->get()
+                ->keyBy('day_of_week');
+
+            $present_days = 0;
+            $perfect_days = 0;
+            $totalMealAllowance = 0;
+            $totalTransportAllowance = 0;
+            $totalPerformanceAllowance = 0;
+
+            // Iterate through each day of the selected month
+            $daysInMonth = Carbon::create($selectedYear, $selectedMonth, 1)->daysInMonth;
+
+            for ($day = 1; $day <= $daysInMonth; $day++) {
+                $currentDate = Carbon::create($selectedYear, $selectedMonth, $day);
+                $dateKey = $currentDate->format('Y-m-d');
+
+                $attendance = $employeeAttendances->firstWhere('date', $currentDate);
+
+                // Get shift schedule for this specific date if available, otherwise use default schedule
+                $shift = $employeeShifts->get($dateKey);
+                $schedule = $shift ? $shift->schedule : null;
+
+                if (!$schedule) {
+                    // Use default schedule based on day of week if no specific shift is assigned
+                    // Convert to 1-7 format (Monday=1, Sunday=7) as typically used in schedules
+                    $dayOfWeek = $currentDate->dayOfWeek;
+                    if ($dayOfWeek == 0) $dayOfWeek = 7; // Convert Sunday (0) to 7
+                    $schedule = $defaultSchedules->get($dayOfWeek);
+                }
+
+                // Calculate daily allowances based on schedule, attendance, and permissions
+                $dailyMealAllowance = 0;
+                $dailyTransportAllowance = 0;
+                $dailyPerformanceAllowance = 0;
+
+                if ($attendance) {
+                    // There is an attendance record
+                    $isPresent = $attendance->clock_in !== null || $attendance->clock_out !== null;
+
+                    if ($isPresent) {
+                        // Grant meal and transport allowances if present and it's a scheduled day
+                        if ($schedule) {
+                            $dailyMealAllowance = $salary->meal_allowance;
+                            $dailyTransportAllowance = $salary->transport_allowance;
+                        }
+
+                        // Calculate actual status (handles 'corrected' status by recalculating based on time)
+                        $actualStatusIn = $this->calculateActualStatus($attendance, $schedule, true);
+                        $actualStatusOut = $this->calculateActualStatus($attendance, $schedule, false);
+
+                        // Check for perfect attendance to grant performance allowance
+                        $isPerfect = $actualStatusIn === 'Tepat Waktu' && $actualStatusOut === 'Tepat Waktu';
+                        if ($isPerfect) {
+                            $dailyPerformanceAllowance = $salary->performance_allowance;
+                        }
+                    }
+                }
+
+                // Accumulate daily allowances
+                $totalMealAllowance += $dailyMealAllowance;
+                $totalTransportAllowance += $dailyTransportAllowance;
+                $totalPerformanceAllowance += $dailyPerformanceAllowance;
+
+                // Count present and perfect days for summary
+                if ($dailyMealAllowance > 0) { // If allowances were granted, it means employee was present on a scheduled day
+                    $present_days++;
+                }
+                if ($dailyPerformanceAllowance > 0) { // If performance allowance was granted, it was a perfect day
+                    $perfect_days++;
+                }
+            }
+
+            // Calculate total salary
+            $totalSalary = $salary->base_salary + $totalMealAllowance + $totalTransportAllowance + $totalPerformanceAllowance;
+
+            $salaryData[] = [
+                'employee' => $employee,
+                'base_salary' => $salary->base_salary,
+                'present_days' => $present_days,
+                'total_meal_allowance' => $totalMealAllowance,
+                'total_transport_allowance' => $totalTransportAllowance,
+                'perfect_days' => $perfect_days,
+                'total_performance_allowance' => $totalPerformanceAllowance,
+                'total_salary' => $totalSalary,
+            ];
+        }
+
+        $months = [
+            1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April', 5 => 'Mei', 6 => 'Juni',
+            7 => 'Juli', 8 => 'Agustus', 9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember'
+        ];
+
+        $data = [
+            'salaryData' => $salaryData,
+            'selectedMonth' => $selectedMonth,
+            'selectedYear' => $selectedYear,
+            'monthName' => $months[$selectedMonth],
+            'headerSettings' => $this->getHeaderSettings(),
+        ];
+
+        $pdf = Pdf::loadView('admin.reports.salary-pdf', $data)
+            ->setPaper('a4', 'portrait');
+
+        $filename = 'laporan_gaji_' . $months[$selectedMonth] . '_' . $selectedYear . '.pdf';
+        return $pdf->download($filename);
+    }
+
     public function salaryReportDetail(Request $request, Employee $employee, $year, $month)
     {
         $data = $this->getSalaryDetailData($employee, $year, $month);

@@ -71,12 +71,23 @@
         <div class="p-4 border-b">
             <div class="flex justify-between items-start">
                 <div>
-                    <h2 class="text-lg font-semibold">Laporan Gaji Pegawai</h2>
+                    <h2 class="text-lg font-semibold">Laporan Gaji Pegawai {{ $months[$selectedMonth] }} {{ $selectedYear }}</h2>
                     <p class="text-sm text-gray-600 mt-1">
                         <span class="font-medium">Tips:</span> Klik nama pegawai pada tabel di bawah untuk melihat rincian gaji harian.
                     </p>
                 </div>
                 <div class="flex items-center gap-3">
+                    @php
+                        $routePrefix = auth()->user()->role->name === 'monitoring' ? 'monitoring' : 'admin';
+                        $downloadRoute = $routePrefix . '.reports.salary.download-pdf';
+                    @endphp
+                    <a href="{{ route($downloadRoute, ['month' => $selectedMonth, 'year' => $selectedYear, 'employee_id' => request('employee_id')]) }}"
+                       class="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 inline-flex items-center">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        Download PDF
+                    </a>
                     <div class="flex items-center">
                         <input type="checkbox" id="showSalaryMenuToggle"
                             {{ $showSalaryMenuInEmployee ? 'checked' : '' }}
