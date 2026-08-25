@@ -1048,7 +1048,7 @@ class ReportController extends Controller
         ];
 
         $pdf = Pdf::loadView('admin.reports.meal-allowance-pdf', $data)
-            ->setPaper('a4', 'landscape');
+            ->setPaper('a4', 'portrait');
 
         $filename = 'laporan_uang_makan_' . $months[$selectedMonth] . '_' . $selectedYear . '.pdf';
         return $pdf->download($filename);
@@ -1411,7 +1411,7 @@ class ReportController extends Controller
         ];
 
         $pdf = Pdf::loadView('admin.reports.performance-allowance-pdf', $data)
-            ->setPaper('a4', 'landscape');
+            ->setPaper('a4', 'portrait');
 
         $filename = 'laporan_tunjangan_kinerja_' . $months[$selectedMonth] . '_' . $selectedYear . '.pdf';
         return $pdf->download($filename);
@@ -2250,7 +2250,7 @@ class ReportController extends Controller
         ];
 
         $pdf = Pdf::loadView('admin.reports.transport-allowance-pdf', $data)
-            ->setPaper('a4', 'landscape');
+            ->setPaper('a4', 'portrait');
 
         $filename = 'laporan_uang_transport_' . $months[$selectedMonth] . '_' . $selectedYear . '.pdf';
         return $pdf->download($filename);
@@ -2563,7 +2563,7 @@ class ReportController extends Controller
         $data['headerSettings'] = $this->getHeaderSettings();
 
         $pdf = Pdf::loadView('admin.reports.performance-allowance-detail-pdf', $data)
-            ->setPaper('a4', 'landscape');
+            ->setPaper('a4', 'portrait');
 
         return $pdf->download("laporan-tunjangan-kinerja-{$employee->id}-{$year}-{$month}.pdf");
     }

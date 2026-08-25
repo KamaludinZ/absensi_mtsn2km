@@ -4,38 +4,45 @@
     <meta charset="utf-8">
     <title>Laporan Tunjangan Kinerja</title>
     <style>
+        @page {
+            margin: 2cm 1.5cm;
+        }
         body {
             font-family: 'DejaVu Sans', Arial, sans-serif;
-            font-size: 11px;
+            font-size: 9px;
+            margin: 0;
+            padding: 0;
         }
         .header {
             text-align: center;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             border-bottom: 3px solid #000;
-            padding-bottom: 10px;
+            padding-bottom: 8px;
         }
         .header h2 {
-            margin: 5px 0;
-            font-size: 16px;
+            margin: 4px 0;
+            font-size: 14px;
         }
         .header p {
-            margin: 3px 0;
-            font-size: 10px;
+            margin: 2px 0;
+            font-size: 9px;
         }
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 10px;
+            margin-top: 8px;
         }
         th, td {
             border: 1px solid #000;
-            padding: 6px;
+            padding: 4px 3px;
             text-align: left;
+            font-size: 9px;
         }
         th {
             background-color: #e0e0e0;
             font-weight: bold;
             text-align: center;
+            font-size: 9px;
         }
         .text-right {
             text-align: right;
@@ -44,12 +51,21 @@
             text-align: center;
         }
         .footer {
-            margin-top: 30px;
+            margin-top: 25px;
             text-align: right;
+            font-size: 9px;
         }
         .total-row {
             font-weight: bold;
             background-color: #f0f0f0;
+        }
+        h3 {
+            font-size: 12px;
+            margin: 5px 0;
+        }
+        p {
+            font-size: 9px;
+            margin: 3px 0;
         }
     </style>
 </head>
@@ -69,12 +85,12 @@
     <table>
         <thead>
             <tr>
-                <th width="5%">No</th>
-                <th width="25%">Nama Pegawai</th>
-                <th width="20%">Jabatan</th>
-                <th width="15%">Hari Sempurna</th>
-                <th width="17.5%">Tunjangan/Hari</th>
-                <th width="17.5%">Total Tunjangan</th>
+                <th width="6%">No</th>
+                <th width="28%">Nama Pegawai</th>
+                <th width="24%">Jabatan</th>
+                <th width="12%">Hari Sempurna</th>
+                <th width="15%">Tunjangan/Hari</th>
+                <th width="15%">Total Tunjangan</th>
             </tr>
         </thead>
         <tbody>
