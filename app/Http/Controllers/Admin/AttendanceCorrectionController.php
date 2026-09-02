@@ -217,8 +217,9 @@ class AttendanceCorrectionController extends Controller
         if ($schedule) {
             $attendance->shift_name = $schedule->name;
             $attendance->shift_type = $schedule->type;
-            $attendance->scheduled_start_time = Carbon::parse($date->format('Y-m-d') . ' ' . $schedule->start_time);
-            $attendance->scheduled_end_time = Carbon::parse($date->format('Y-m-d') . ' ' . $schedule->end_time);
+            // Extract only time portion from schedule start_time and end_time
+            $attendance->scheduled_start_time = Carbon::parse($date->format('Y-m-d') . ' ' . Carbon::parse($schedule->start_time)->format('H:i:s'));
+            $attendance->scheduled_end_time = Carbon::parse($date->format('Y-m-d') . ' ' . Carbon::parse($schedule->end_time)->format('H:i:s'));
         }
 
         if ($attendanceCorrection->corrected_clock_in) {
@@ -231,6 +232,14 @@ class AttendanceCorrectionController extends Controller
                 $timePart = $parsedTime->format('H:i:s');
             }
             $attendance->clock_in = Carbon::parse($attendanceCorrection->date->format('Y-m-d') . ' ' . $timePart);
+
+            // Calculate status_in based on schedule
+            if ($schedule) {
+                $diffIn = $this->calculateTimeDifference($attendance->clock_in, $schedule->start_time);
+                $attendance->status_in = ($diffIn['seconds'] > 0) ? 'Terlambat' : 'Tepat Waktu';
+            } else {
+                $attendance->status_in = 'Hadir';
+            }
         }
 
         if ($attendanceCorrection->corrected_clock_out) {
@@ -243,15 +252,14 @@ class AttendanceCorrectionController extends Controller
                 $timePart = $parsedTime->format('H:i:s');
             }
             $attendance->clock_out = Carbon::parse($attendanceCorrection->date->format('Y-m-d') . ' ' . $timePart);
-        }
 
-        // Only update status_in if corrected_clock_in was provided, and status_out if corrected_clock_out was provided
-        if ($attendanceCorrection->corrected_clock_in) {
-            $attendance->status_in = 'corrected';
-        }
-
-        if ($attendanceCorrection->corrected_clock_out) {
-            $attendance->status_out = 'corrected';
+            // Calculate status_out based on schedule
+            if ($schedule) {
+                $diffOut = $this->calculateTimeDifference($attendance->clock_out, $schedule->end_time);
+                $attendance->status_out = ($diffOut['seconds'] < 0) ? 'Pulang Awal' : 'Tepat Waktu';
+            } else {
+                $attendance->status_out = 'Pulang';
+            }
         }
 
         $attendance->save();
@@ -303,5 +311,18 @@ class AttendanceCorrectionController extends Controller
             'has_attendance' => $attendance !== null,
             'message' => $attendance ? 'Data absensi ditemukan.' : 'Tidak ada data absensi untuk tanggal tersebut.'
         ]);
+    }
+
+    /**
+     * Calculate time difference between actual and scheduled time
+     */
+    private function calculateTimeDifference($actualTime, $scheduleTime)
+    {
+        $actual = Carbon::parse($actualTime);
+        $scheduled = Carbon::parse($scheduleTime)->setDate($actual->year, $actual->month, $actual->day);
+        // Positive = late (actual > scheduled), Negative = early (actual < scheduled)
+        $diffSeconds = $scheduled->diffInSeconds($actual, false);
+
+        return ['seconds' => $diffSeconds];
     }
 }
