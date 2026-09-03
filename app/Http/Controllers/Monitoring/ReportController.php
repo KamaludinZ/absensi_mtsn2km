@@ -83,22 +83,11 @@ class ReportController extends Controller
 
         $employeeQuery = Employee::with(['salary' => function($query) {
             $query->latest('created_at');
-        }]);
+        }])->whereNull('deleted_at');
 
         // Filter by specific employee if provided
         if ($request->filled('employee_id')) {
             $employeeQuery->where('id', $request->employee_id);
-        } else {
-            // For general report, only include employees who were active during this month or before
-            $employeeQuery->where(function($query) use ($selectedMonth, $selectedYear) {
-                // Currently active employees (not soft deleted)
-                $query->whereNull('deleted_at')
-                      // OR employees who were soft deleted after this month (were active during this month)
-                      ->orWhere(function($q) use ($selectedMonth, $selectedYear) {
-                          $q->whereNotNull('deleted_at')
-                            ->where('deleted_at', '>=', Carbon::create($selectedYear, $selectedMonth, 1)->startOfMonth());
-                      });
-            });
         }
 
         $employees = $employeeQuery->orderBy('full_name')->get();
@@ -254,16 +243,8 @@ class ReportController extends Controller
 
         $salaryData = $salaryData->values()->all();
 
-        // Data for filters - only include employees who were active during this month or before
-        $allEmployees = Employee::where(function($query) use ($selectedMonth, $selectedYear) {
-            // Currently active employees (not soft deleted)
-            $query->whereNull('deleted_at')
-                  // OR employees who were soft deleted after this month (were active during this month)
-                  ->orWhere(function($q) use ($selectedMonth, $selectedYear) {
-                      $q->whereNotNull('deleted_at')
-                        ->where('deleted_at', '>=', \Carbon\Carbon::create($selectedYear, $selectedMonth, 1)->startOfMonth());
-                  });
-        })->orderBy('full_name')->get();
+        // Data for filters - only include active employees
+        $allEmployees = Employee::whereNull('deleted_at')->orderBy('full_name')->get();
         $months = [
             1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April', 5 => 'Mei', 6 => 'Juni',
             7 => 'Juli', 8 => 'Agustus', 9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember'

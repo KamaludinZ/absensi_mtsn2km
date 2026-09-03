@@ -5,6 +5,42 @@ Semua perubahan penting pada proyek ini akan didokumentasikan dalam file ini.
 Format ini didasarkan pada [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 dan proyek ini mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.6] - 2026-09-03
+
+### Fixed
+#### Report Filters - Active Employee Status
+- **Fixed**: Bug kritis dimana pegawai non-aktif masih muncul dan pegawai aktif baru tidak muncul di laporan
+- **Impact**: Semua laporan (web & PDF) sekarang hanya menampilkan pegawai dengan status aktif (not soft deleted)
+- **Files Modified**:
+  - `app/Http/Controllers/Admin/ReportController.php` (12 methods)
+  - `app/Http/Controllers/Monitoring/ReportController.php` (2 methods)
+- **Changes**:
+  - Replaced `where('is_active', true)` with `whereNull('deleted_at')`
+  - Simplified complex `deleted_at` logic to consistent active-only filter
+  - Applied filter to both web display and PDF download methods
+- **Affected Pages**:
+  - `/admin/reports/salary` (display + PDF)
+  - `/admin/reports/meal-allowance` (display + PDF)
+  - `/admin/reports/transport-allowance` (display + PDF)
+  - `/admin/reports/performance-allowance` (display + PDF)
+  - `/monitoring/reports/salary` (display + PDF)
+  - `/monitoring/reports/meal-allowance` (display + PDF)
+  - `/monitoring/reports/transport-allowance` (display + PDF)
+  - `/monitoring/reports/performance-allowance` (display + PDF)
+- **Data Integrity**:
+  - Historical data for inactive employees remains stored in database
+  - Inactive employee attendance/salary records are preserved
+  - Employees can be reactivated and their data will be visible again
+  - Soft delete ensures no data loss
+
+### Technical Details
+#### Soft Delete Logic
+- Employee model uses `SoftDeletes` trait
+- Inactive employees: `deleted_at IS NOT NULL`
+- Active employees: `deleted_at IS NULL`
+- All related data (attendance, salary, permissions) remain intact regardless of employee status
+- Reactivating employee (setting `deleted_at = NULL`) restores visibility in all reports
+
 ## [1.1.2] - 2025-11-27
 
 ### Fixed

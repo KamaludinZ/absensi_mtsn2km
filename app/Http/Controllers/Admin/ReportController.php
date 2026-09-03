@@ -770,7 +770,7 @@ class ReportController extends Controller
 
         $employeeQuery = Employee::with(['salary' => function($query) {
             $query->latest('created_at');
-        }])->where('is_active', true);
+        }])->whereNull('deleted_at');
 
         if ($request->filled('employee_id')) {
             $employeeQuery->where('id', $request->employee_id);
@@ -951,16 +951,8 @@ class ReportController extends Controller
 
         $mealAllowanceData = $mealAllowanceData->values()->all();
 
-        // Get all employees for dropdown - only show employees who were active during this month or before
-        $allEmployees = Employee::where(function($query) use ($selectedMonth, $selectedYear) {
-            // Currently active employees (not soft deleted)
-            $query->whereNull('deleted_at')
-                  // OR employees who were soft deleted after this month (were active during this month)
-                  ->orWhere(function($q) use ($selectedMonth, $selectedYear) {
-                      $q->whereNotNull('deleted_at')
-                        ->where('deleted_at', '>=', Carbon::create($selectedYear, $selectedMonth, 1)->startOfMonth());
-                  });
-        })->orderBy('full_name')->get();
+        // Get all employees for dropdown - only show active employees
+        $allEmployees = Employee::whereNull('deleted_at')->orderBy('full_name')->get();
 
         // Get available months/years for dropdown
         $months = [
@@ -1022,7 +1014,7 @@ class ReportController extends Controller
 
         $employeeQuery = Employee::with(['salary' => function($query) {
             $query->latest('created_at');
-        }])->where('is_active', true);
+        }])->whereNull('deleted_at');
 
         if ($request->filled('employee_id')) {
             $employeeQuery->where('id', $request->employee_id);
@@ -1174,7 +1166,7 @@ class ReportController extends Controller
 
         $employeeQuery = Employee::with(['salary' => function($query) {
             $query->latest('created_at');
-        }])->where('is_active', true);
+        }])->whereNull('deleted_at');
         if ($request->filled('employee_id')) {
             $employeeQuery->where('id', $request->employee_id);
         }
@@ -1401,16 +1393,8 @@ class ReportController extends Controller
 
         $performanceData = $performanceData->values()->all();
 
-        // Get all employees for dropdown - only show employees who were active during this month or before
-        $employees = Employee::where(function($query) use ($selectedMonth, $selectedYear) {
-            // Currently active employees (not soft deleted)
-            $query->whereNull('deleted_at')
-                  // OR employees who were soft deleted after this month (were active during this month)
-                  ->orWhere(function($q) use ($selectedMonth, $selectedYear) {
-                      $q->whereNotNull('deleted_at')
-                        ->where('deleted_at', '>=', Carbon::create($selectedYear, $selectedMonth, 1)->startOfMonth());
-                  });
-        })->orderBy('full_name')->get();
+        // Get all employees for dropdown - only show active employees
+        $employees = Employee::whereNull('deleted_at')->orderBy('full_name')->get();
 
         // Get available months/years for dropdown
         $months = [
@@ -1469,7 +1453,7 @@ class ReportController extends Controller
 
         $employeeQuery = Employee::with(['salary' => function($query) {
             $query->latest('created_at');
-        }])->where('is_active', true);
+        }])->whereNull('deleted_at');
         if ($request->filled('employee_id')) {
             $employeeQuery->where('id', $request->employee_id);
         }
@@ -1807,8 +1791,8 @@ class ReportController extends Controller
             ];
         }
 
-        // Data for filters
-        $allEmployees = Employee::orderBy('full_name')->get();
+        // Data for filters - only include active employees
+        $allEmployees = Employee::whereNull('deleted_at')->orderBy('full_name')->get();
         $months = [
             1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April', 5 => 'Mei', 6 => 'Juni',
             7 => 'Juli', 8 => 'Agustus', 9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember'
@@ -1865,22 +1849,11 @@ class ReportController extends Controller
 
         $employeeQuery = Employee::with(['salary' => function($query) {
             $query->latest('created_at');
-        }]);
+        }])->whereNull('deleted_at');
 
         // Filter by specific employee if provided
         if ($request->filled('employee_id')) {
             $employeeQuery->where('id', $request->employee_id);
-        } else {
-            // For general report, only include employees who were active during this month or before
-            $employeeQuery->where(function($query) use ($selectedMonth, $selectedYear) {
-                // Currently active employees (not soft deleted)
-                $query->whereNull('deleted_at')
-                      // OR employees who were soft deleted after this month (were active during this month)
-                      ->orWhere(function($q) use ($selectedMonth, $selectedYear) {
-                          $q->whereNotNull('deleted_at')
-                            ->where('deleted_at', '>=', Carbon::create($selectedYear, $selectedMonth, 1)->startOfMonth());
-                      });
-            });
         }
 
         $employees = $employeeQuery->orderBy('full_name')->get();
@@ -2371,7 +2344,7 @@ class ReportController extends Controller
 
         $employeeQuery = Employee::with(['salary' => function($query) {
             $query->latest('created_at');
-        }])->where('is_active', true);
+        }])->whereNull('deleted_at');
 
         if ($request->filled('employee_id')) {
             $employeeQuery->where('id', $request->employee_id);
@@ -2552,16 +2525,8 @@ class ReportController extends Controller
 
         $transportAllowanceData = $transportAllowanceData->values()->all();
 
-        // Get all employees for dropdown - only show employees who were active during this month or before
-        $allEmployees = Employee::where(function($query) use ($selectedMonth, $selectedYear) {
-            // Currently active employees (not soft deleted)
-            $query->whereNull('deleted_at')
-                  // OR employees who were soft deleted after this month (were active during this month)
-                  ->orWhere(function($q) use ($selectedMonth, $selectedYear) {
-                      $q->whereNotNull('deleted_at')
-                        ->where('deleted_at', '>=', Carbon::create($selectedYear, $selectedMonth, 1)->startOfMonth());
-                  });
-        })->orderBy('full_name')->get();
+        // Get all employees for dropdown - only show active employees
+        $allEmployees = Employee::whereNull('deleted_at')->orderBy('full_name')->get();
 
         // Get available months/years for dropdown
         $months = [
@@ -2614,7 +2579,7 @@ class ReportController extends Controller
 
         $employeeQuery = Employee::with(['salary' => function($query) {
             $query->latest('created_at');
-        }])->where('is_active', true);
+        }])->whereNull('deleted_at');
 
         if ($request->filled('employee_id')) {
             $employeeQuery->where('id', $request->employee_id);
