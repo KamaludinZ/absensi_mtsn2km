@@ -19,7 +19,13 @@
       "Bash(findstr:*)",
       "Bash(cmd //c \"findstr /i /n \"\"gd\"\" \"\"C:\\Users\\MTsN 2 KOTA MALANG\\AppData\\Local\\Microsoft\\WinGet\\Packages\\PHP.PHP.8.4_Microsoft.Winget.Source_8wekyb3d8bbwe\\php.ini\"\"\")",
       "Bash(del \"C:\\absensi_mtsn2km\\ENABLE_PDF_LOGO.md\")",
-      "Bash(cmd //c \"del C:\\absensi_mtsn2km\\ENABLE_PDF_LOGO.md\")"
+      "Bash(cmd //c \"del C:\\absensi_mtsn2km\\ENABLE_PDF_LOGO.md\")",
+      "Bash(php -r:*)",
+      "Bash(del nul 2)",
+      "Bash(cmd //c \"del nul\")",
+      "Bash(curl:*)",
+      "Bash(git push:*)",
+      "Bash(del nul)"
     ],
     "deny": [],
     "ask": []
