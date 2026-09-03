@@ -5,6 +5,49 @@ Semua perubahan penting pada proyek ini akan didokumentasikan dalam file ini.
 Format ini didasarkan pada [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 dan proyek ini mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.8] - 2026-09-03
+
+### Fixed
+#### Report Filters - New Employees Not Showing Due to Missing Salary Filter
+- **Fixed**: Critical bug where new active employees don't appear in reports even though they show in dropdown
+- **Root Cause**: Salary eager loading was using `latest('created_at')` without filtering by month/year
+- **Issue**:
+  - Salary table has `month` and `year` columns (per-month salary settings)
+  - New employees added in July/August had salary set only for those months
+  - When viewing September reports, query returned wrong month's salary or NULL
+  - Employees with NULL salary were skipped by `if (!$salary) { continue; }`
+- **Impact**: New employees added since late July were invisible in all report pages
+- **Fix**: Added month/year filter to salary eager loading across all report methods
+- **Changes Applied**:
+  ```php
+  // Before (WRONG - gets any month's salary)
+  Employee::with(['salary' => function($query) {
+      $query->latest('created_at');
+  }])
+
+  // After (CORRECT - gets specific month/year salary)
+  Employee::with(['salary' => function($query) use ($selectedMonth, $selectedYear) {
+      $query->where('month', $selectedMonth)
+            ->where('year', $selectedYear)
+            ->latest('created_at');
+  }])
+  ```
+- **Files Modified**:
+  - `app/Http/Controllers/Admin/ReportController.php` (8 methods)
+  - `app/Http/Controllers/Monitoring/ReportController.php` (1 method)
+- **Fixed Methods**:
+  - `mealAllowance()` + `downloadMealAllowancePdf()`
+  - `transportAllowance()` + `downloadTransportAllowancePdf()`
+  - `performanceAllowance()` + `downloadPerformanceAllowancePdf()`
+  - `salaryReport()` + `downloadSalaryPdf()`
+  - Monitoring `salaryReport()`
+
+### Technical Details
+- Salary model structure: One salary record per employee per month/year
+- Without month/year filter, `latest('created_at')` returns most recently created salary (could be wrong month)
+- New employees need salary configured for each month separately
+- Historical data preserved: Old months retain their salary settings
+
 ## [1.2.7] - 2026-09-03
 
 ### Fixed - HOTFIX

@@ -768,8 +768,10 @@ class ReportController extends Controller
         $selectedMonth = $request->input('month', Carbon::now()->month);
         $selectedYear = $request->input('year', Carbon::now()->year);
 
-        $employeeQuery = Employee::with(['salary' => function($query) {
-            $query->latest('created_at');
+        $employeeQuery = Employee::with(['salary' => function($query) use ($selectedMonth, $selectedYear) {
+            $query->where('month', $selectedMonth)
+                  ->where('year', $selectedYear)
+                  ->latest('created_at');
         }])->where('is_active', true);
 
         if ($request->filled('employee_id')) {
@@ -1012,8 +1014,10 @@ class ReportController extends Controller
         $selectedMonth = $request->input('month', Carbon::now()->month);
         $selectedYear = $request->input('year', Carbon::now()->year);
 
-        $employeeQuery = Employee::with(['salary' => function($query) {
-            $query->latest('created_at');
+        $employeeQuery = Employee::with(['salary' => function($query) use ($selectedMonth, $selectedYear) {
+            $query->where('month', $selectedMonth)
+                  ->where('year', $selectedYear)
+                  ->latest('created_at');
         }])->where('is_active', true);
 
         if ($request->filled('employee_id')) {
@@ -1164,8 +1168,10 @@ class ReportController extends Controller
         $selectedMonth = $request->input('month', Carbon::now()->month);
         $selectedYear = $request->input('year', Carbon::now()->year);
 
-        $employeeQuery = Employee::with(['salary' => function($query) {
-            $query->latest('created_at');
+        $employeeQuery = Employee::with(['salary' => function($query) use ($selectedMonth, $selectedYear) {
+            $query->where('month', $selectedMonth)
+                  ->where('year', $selectedYear)
+                  ->latest('created_at');
         }])->where('is_active', true);
         if ($request->filled('employee_id')) {
             $employeeQuery->where('id', $request->employee_id);
@@ -1451,8 +1457,10 @@ class ReportController extends Controller
         $selectedMonth = $request->input('month', Carbon::now()->month);
         $selectedYear = $request->input('year', Carbon::now()->year);
 
-        $employeeQuery = Employee::with(['salary' => function($query) {
-            $query->latest('created_at');
+        $employeeQuery = Employee::with(['salary' => function($query) use ($selectedMonth, $selectedYear) {
+            $query->where('month', $selectedMonth)
+                  ->where('year', $selectedYear)
+                  ->latest('created_at');
         }])->where('is_active', true);
         if ($request->filled('employee_id')) {
             $employeeQuery->where('id', $request->employee_id);
@@ -1648,24 +1656,18 @@ class ReportController extends Controller
         $selectedMonth = $request->input('month', Carbon::now()->month);
         $selectedYear = $request->input('year', Carbon::now()->year);
 
-        $employeeQuery = Employee::with(['salary' => function($query) {
-            $query->latest('created_at');
+        $employeeQuery = Employee::with(['salary' => function($query) use ($selectedMonth, $selectedYear) {
+            $query->where('month', $selectedMonth)
+                  ->where('year', $selectedYear)
+                  ->latest('created_at');
         }]);
 
         // Filter by specific employee if provided
         if ($request->filled('employee_id')) {
             $employeeQuery->where('id', $request->employee_id);
         } else {
-            // For general report, only include employees who were active during this month or before
-            $employeeQuery->where(function($query) use ($selectedMonth, $selectedYear) {
-                // Currently active employees (not soft deleted)
-                $query->whereNull('deleted_at')
-                      // OR employees who were soft deleted after this month (were active during this month)
-                      ->orWhere(function($q) use ($selectedMonth, $selectedYear) {
-                          $q->whereNotNull('deleted_at')
-                            ->where('deleted_at', '>=', Carbon::create($selectedYear, $selectedMonth, 1)->startOfMonth());
-                      });
-            });
+            // For general report, only include active employees
+            $employeeQuery->where('is_active', true);
         }
 
         $employees = $employeeQuery->orderBy('full_name')->get();
@@ -1847,8 +1849,10 @@ class ReportController extends Controller
         $selectedMonth = $request->input('month', Carbon::now()->month);
         $selectedYear = $request->input('year', Carbon::now()->year);
 
-        $employeeQuery = Employee::with(['salary' => function($query) {
-            $query->latest('created_at');
+        $employeeQuery = Employee::with(['salary' => function($query) use ($selectedMonth, $selectedYear) {
+            $query->where('month', $selectedMonth)
+                  ->where('year', $selectedYear)
+                  ->latest('created_at');
         }])->where('is_active', true);
 
         // Filter by specific employee if provided
@@ -2342,8 +2346,10 @@ class ReportController extends Controller
         $selectedMonth = $request->input('month', Carbon::now()->month);
         $selectedYear = $request->input('year', Carbon::now()->year);
 
-        $employeeQuery = Employee::with(['salary' => function($query) {
-            $query->latest('created_at');
+        $employeeQuery = Employee::with(['salary' => function($query) use ($selectedMonth, $selectedYear) {
+            $query->where('month', $selectedMonth)
+                  ->where('year', $selectedYear)
+                  ->latest('created_at');
         }])->where('is_active', true);
 
         if ($request->filled('employee_id')) {
@@ -2577,8 +2583,10 @@ class ReportController extends Controller
         $selectedMonth = $request->input('month', Carbon::now()->month);
         $selectedYear = $request->input('year', Carbon::now()->year);
 
-        $employeeQuery = Employee::with(['salary' => function($query) {
-            $query->latest('created_at');
+        $employeeQuery = Employee::with(['salary' => function($query) use ($selectedMonth, $selectedYear) {
+            $query->where('month', $selectedMonth)
+                  ->where('year', $selectedYear)
+                  ->latest('created_at');
         }])->where('is_active', true);
 
         if ($request->filled('employee_id')) {

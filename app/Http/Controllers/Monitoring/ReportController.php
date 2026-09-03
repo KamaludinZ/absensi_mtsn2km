@@ -81,8 +81,10 @@ class ReportController extends Controller
         $selectedMonth = $request->input('month', Carbon::now()->month);
         $selectedYear = $request->input('year', Carbon::now()->year);
 
-        $employeeQuery = Employee::with(['salary' => function($query) {
-            $query->latest('created_at');
+        $employeeQuery = Employee::with(['salary' => function($query) use ($selectedMonth, $selectedYear) {
+            $query->where('month', $selectedMonth)
+                  ->where('year', $selectedYear)
+                  ->latest('created_at');
         }])->where('is_active', true);
 
         // Filter by specific employee if provided
