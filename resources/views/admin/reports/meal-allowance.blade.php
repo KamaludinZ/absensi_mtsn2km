@@ -88,7 +88,11 @@
                     <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 w-full">
                         Filter
                     </button>
-                    <a href="{{ route('admin.reports.meal-allowance') }}" class="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 ml-2 w-full text-center">
+                    @php
+                        $resetRoutePrefix = auth()->user()->role->name === 'monitoring' ? 'monitoring' : 'admin';
+                        $resetRoute = $resetRoutePrefix . '.reports.meal-allowance';
+                    @endphp
+                    <a href="{{ route($resetRoute) }}" class="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 ml-2 w-full text-center">
                         Reset
                     </a>
                 </div>
@@ -129,7 +133,11 @@
                     @forelse($mealAllowanceData as $data)
                         <tr>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                <a href="{{ route('admin.reports.meal-allowance.detail', ['employee' => $data['employee']->id, 'year' => $selectedYear, 'month' => $selectedMonth]) }}" class="text-blue-600 hover:underline">
+                                @php
+                                    $detailRoutePrefix = auth()->user()->role->name === 'monitoring' ? 'monitoring' : 'admin';
+                                    $detailRoute = $detailRoutePrefix . '.reports.meal-allowance.detail';
+                                @endphp
+                                <a href="{{ route($detailRoute, ['employee' => $data['employee']->id, 'year' => $selectedYear, 'month' => $selectedMonth]) }}" class="text-blue-600 hover:underline">
                                     {{ $data['employee']->full_name ?? 'N/A' }}
                                 </a>
                             </td>

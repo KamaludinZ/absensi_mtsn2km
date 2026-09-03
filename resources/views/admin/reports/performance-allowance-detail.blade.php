@@ -5,8 +5,12 @@
 
 @section('content')
 <div class="container mx-auto px-4 py-8">
+    @php
+        $routePrefix = auth()->user()->role->name === 'monitoring' ? 'monitoring' : 'admin';
+        $backRoute = $routePrefix . '.reports.performance-allowance';
+    @endphp
     <div class="flex justify-between items-center mb-6">
-        <a href="{{ route('admin.reports.performance-allowance', ['year' => $year, 'month' => $month]) }}" class="bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300 transition-colors flex items-center">
+        <a href="{{ route($backRoute, ['year' => $year, 'month' => $month]) }}" class="bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300 transition-colors flex items-center">
             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
@@ -123,7 +127,11 @@
                     const employeeId = {{ $employee->id }};
                     const year = {{ $year }};
                     const month = {{ $month }};
-                    const url = `{{ route('admin.reports.performance-allowance.pdf', ['employee' => ':employeeId', 'year' => ':year', 'month' => ':month']) }}`
+                    @php
+                        $pdfRoutePrefix = auth()->user()->role->name === 'monitoring' ? 'monitoring' : 'admin';
+                        $pdfRoute = $pdfRoutePrefix . '.reports.performance-allowance.pdf';
+                    @endphp
+                    const url = `{{ route($pdfRoute, ['employee' => ':employeeId', 'year' => ':year', 'month' => ':month']) }}`
                         .replace(':employeeId', employeeId)
                         .replace(':year', year)
                         .replace(':month', month);

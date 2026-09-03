@@ -17,7 +17,7 @@ class ReportController extends Controller
      */
     private function calculateActualStatus($attendance, $schedule, $isClockIn = true)
     {
-        if (!$attendance || !$schedule) {
+        if (!$attendance) {
             return null;
         }
 
@@ -30,7 +30,17 @@ class ReportController extends Controller
             // If status is 'corrected', recalculate the actual status based on time
             if ($attendance->status_in === 'corrected' || empty($attendance->status_in)) {
                 $clockIn = Carbon::parse($attendance->clock_in);
-                $startTime = Carbon::parse($schedule->start_time)->setDate($clockIn->year, $clockIn->month, $clockIn->day);
+
+                // Try to get schedule time from schedule object first, then fall back to attendance record
+                if ($schedule) {
+                    $startTime = Carbon::parse($schedule->start_time)->setDate($clockIn->year, $clockIn->month, $clockIn->day);
+                } elseif ($attendance->scheduled_start_time) {
+                    $startTime = Carbon::parse($attendance->scheduled_start_time);
+                } else {
+                    // No schedule information available, cannot determine status
+                    return null;
+                }
+
                 $diffInSeconds = $clockIn->diffInSeconds($startTime, false);
                 return ($diffInSeconds > 0) ? 'Terlambat' : 'Tepat Waktu';
             }
@@ -46,7 +56,17 @@ class ReportController extends Controller
             // If status is 'corrected', recalculate the actual status based on time
             if ($attendance->status_out === 'corrected' || empty($attendance->status_out)) {
                 $clockOut = Carbon::parse($attendance->clock_out);
-                $endTime = Carbon::parse($schedule->end_time)->setDate($clockOut->year, $clockOut->month, $clockOut->day);
+
+                // Try to get schedule time from schedule object first, then fall back to attendance record
+                if ($schedule) {
+                    $endTime = Carbon::parse($schedule->end_time)->setDate($clockOut->year, $clockOut->month, $clockOut->day);
+                } elseif ($attendance->scheduled_end_time) {
+                    $endTime = Carbon::parse($attendance->scheduled_end_time);
+                } else {
+                    // No schedule information available, cannot determine status
+                    return null;
+                }
+
                 $diffInSeconds = $clockOut->diffInSeconds($endTime, false);
                 return ($diffInSeconds < 0) ? 'Pulang Awal' : 'Tepat Waktu';
             }
@@ -63,26 +83,25 @@ class ReportController extends Controller
 
         $employeeQuery = Employee::with(['salary' => function($query) {
             $query->latest('created_at');
-        }])->where('is_active', true);
+        }]);
 
         // Filter by specific employee if provided
         if ($request->filled('employee_id')) {
             $employeeQuery->where('id', $request->employee_id);
-        }
-
-        // Sorting functionality - default to alphabetical order by name
-        $sortField = $request->get('sort', 'full_name');
-        $sortDirection = $request->get('direction', 'asc');
-
-        if ($sortField === 'full_name') {
-            $employeeQuery->orderBy('full_name', $sortDirection);
-        } elseif ($sortField === 'position') {
-            $employeeQuery->orderBy('position', $sortDirection);
         } else {
-            $employeeQuery->orderBy('full_name', $sortDirection);
+            // For general report, only include employees who were active during this month or before
+            $employeeQuery->where(function($query) use ($selectedMonth, $selectedYear) {
+                // Currently active employees (not soft deleted)
+                $query->whereNull('deleted_at')
+                      // OR employees who were soft deleted after this month (were active during this month)
+                      ->orWhere(function($q) use ($selectedMonth, $selectedYear) {
+                          $q->whereNotNull('deleted_at')
+                            ->where('deleted_at', '>=', Carbon::create($selectedYear, $selectedMonth, 1)->startOfMonth());
+                      });
+            });
         }
 
-        $employees = $employeeQuery->get();
+        $employees = $employeeQuery->orderBy('full_name')->get();
         $employeeIds = $employees->pluck('id');
 
         // Prepare attendance query
@@ -328,5 +347,41 @@ class ReportController extends Controller
     {
         // Delegate to admin controller for PDF download
         return app(\App\Http\Controllers\Admin\ReportController::class)->downloadSalaryPdf($request);
+    }
+
+    public function mealAllowanceDetail(Request $request, Employee $employee, $year, $month)
+    {
+        // Delegate to admin controller for detail view
+        return app(\App\Http\Controllers\Admin\ReportController::class)->mealAllowanceDetail($request, $employee, $year, $month);
+    }
+
+    public function generateMealAllowancePdf(Request $request, Employee $employee, $year, $month)
+    {
+        // Delegate to admin controller for PDF generation
+        return app(\App\Http\Controllers\Admin\ReportController::class)->generateMealAllowancePdf($request, $employee, $year, $month);
+    }
+
+    public function transportAllowanceDetail(Request $request, Employee $employee, $year, $month)
+    {
+        // Delegate to admin controller for detail view
+        return app(\App\Http\Controllers\Admin\ReportController::class)->transportAllowanceDetail($request, $employee, $year, $month);
+    }
+
+    public function generateTransportAllowancePdf(Request $request, Employee $employee, $year, $month)
+    {
+        // Delegate to admin controller for PDF generation
+        return app(\App\Http\Controllers\Admin\ReportController::class)->generateTransportAllowancePdf($request, $employee, $year, $month);
+    }
+
+    public function performanceAllowanceDetail(Request $request, Employee $employee, $year, $month)
+    {
+        // Delegate to admin controller for detail view
+        return app(\App\Http\Controllers\Admin\ReportController::class)->performanceAllowanceDetail($request, $employee, $year, $month);
+    }
+
+    public function generatePerformanceAllowancePdf(Request $request, Employee $employee, $year, $month)
+    {
+        // Delegate to admin controller for PDF generation
+        return app(\App\Http\Controllers\Admin\ReportController::class)->generatePerformanceAllowancePdf($request, $employee, $year, $month);
     }
 }

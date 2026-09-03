@@ -125,10 +125,16 @@ Route::middleware(['auth', CheckRole::class . ':monitoring'])->prefix('monitorin
         Route::get('/salary/download-pdf', [App\Http\Controllers\Monitoring\ReportController::class, 'downloadSalaryPdf'])->name('salary.download-pdf');
         Route::get('/meal-allowance', [App\Http\Controllers\Monitoring\ReportController::class, 'mealAllowance'])->name('meal-allowance');
         Route::get('/meal-allowance/download-pdf', [App\Http\Controllers\Monitoring\ReportController::class, 'downloadMealAllowancePdf'])->name('meal-allowance.download-pdf');
+        Route::get('/meal-allowance/{employee}/{year}/{month}', [App\Http\Controllers\Monitoring\ReportController::class, 'mealAllowanceDetail'])->name('meal-allowance.detail');
+        Route::get('/meal-allowance/{employee}/{year}/{month}/pdf', [App\Http\Controllers\Monitoring\ReportController::class, 'generateMealAllowancePdf'])->name('meal-allowance.pdf');
         Route::get('/transport-allowance', [App\Http\Controllers\Monitoring\ReportController::class, 'transportAllowance'])->name('transport-allowance');
         Route::get('/transport-allowance/download-pdf', [App\Http\Controllers\Monitoring\ReportController::class, 'downloadTransportAllowancePdf'])->name('transport-allowance.download-pdf');
+        Route::get('/transport-allowance/{employee}/{year}/{month}', [App\Http\Controllers\Monitoring\ReportController::class, 'transportAllowanceDetail'])->name('transport-allowance.detail');
+        Route::get('/transport-allowance/{employee}/{year}/{month}/pdf', [App\Http\Controllers\Monitoring\ReportController::class, 'generateTransportAllowancePdf'])->name('transport-allowance.pdf');
         Route::get('/performance-allowance', [App\Http\Controllers\Monitoring\ReportController::class, 'performanceAllowance'])->name('performance-allowance');
         Route::get('/performance-allowance/download-pdf', [App\Http\Controllers\Monitoring\ReportController::class, 'downloadPerformanceAllowancePdf'])->name('performance-allowance.download-pdf');
+        Route::get('/performance-allowance/{employee}/{year}/{month}', [App\Http\Controllers\Monitoring\ReportController::class, 'performanceAllowanceDetail'])->name('performance-allowance.detail');
+        Route::get('/performance-allowance/{employee}/{year}/{month}/pdf', [App\Http\Controllers\Monitoring\ReportController::class, 'generatePerformanceAllowancePdf'])->name('performance-allowance.pdf');
     });
 
     // Profile routes for monitoring users
