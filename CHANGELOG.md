@@ -5,11 +5,30 @@ Semua perubahan penting pada proyek ini akan didokumentasikan dalam file ini.
 Format ini didasarkan pada [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 dan proyek ini mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.2.6] - 2026-09-03
+## [1.2.7] - 2026-09-03
+
+### Fixed - HOTFIX
+#### Report Filters - Critical Fix for Employee Status Logic
+- **CRITICAL HOTFIX**: Reverted incorrect filter logic from v1.2.6
+- **Issue**: Version 1.2.6 incorrectly used `whereNull('deleted_at')` instead of `where('is_active', true)`
+- **Root Cause**: System uses `is_active` column (boolean) to mark active/inactive employees, NOT soft deletes
+- **Impact**: In production, inactive employees were showing and new active employees were hidden
+- **Fix**: Restored correct filter `where('is_active', true)` across all report methods
+- **Database Facts**:
+  - Total employees: 36
+  - Active (is_active=1): 33 employees
+  - Inactive (is_active=0): 3 employees (Budi Santoso, Guswinayu Pangestuti, Dewi Kusuma)
+  - Soft deleted employees: 0 (system doesn't use soft delete for employee status)
+- **Files Modified**:
+  - `app/Http/Controllers/Admin/ReportController.php` (11 locations)
+  - `app/Http/Controllers/Monitoring/ReportController.php` (2 locations)
+
+## [1.2.6] - 2026-09-03 [REVERTED]
 
 ### Fixed
-#### Report Filters - Active Employee Status
+#### Report Filters - Active Employee Status (INCORRECT - REVERTED IN 1.2.7)
 - **Fixed**: Bug kritis dimana pegawai non-aktif masih muncul dan pegawai aktif baru tidak muncul di laporan
+- **NOTE**: This version had incorrect logic and was immediately fixed in v1.2.7
 - **Impact**: Semua laporan (web & PDF) sekarang hanya menampilkan pegawai dengan status aktif (not soft deleted)
 - **Files Modified**:
   - `app/Http/Controllers/Admin/ReportController.php` (12 methods)

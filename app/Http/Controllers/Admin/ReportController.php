@@ -770,7 +770,7 @@ class ReportController extends Controller
 
         $employeeQuery = Employee::with(['salary' => function($query) {
             $query->latest('created_at');
-        }])->whereNull('deleted_at');
+        }])->where('is_active', true);
 
         if ($request->filled('employee_id')) {
             $employeeQuery->where('id', $request->employee_id);
@@ -952,7 +952,7 @@ class ReportController extends Controller
         $mealAllowanceData = $mealAllowanceData->values()->all();
 
         // Get all employees for dropdown - only show active employees
-        $allEmployees = Employee::whereNull('deleted_at')->orderBy('full_name')->get();
+        $allEmployees = Employee::where('is_active', true)->orderBy('full_name')->get();
 
         // Get available months/years for dropdown
         $months = [
@@ -1014,7 +1014,7 @@ class ReportController extends Controller
 
         $employeeQuery = Employee::with(['salary' => function($query) {
             $query->latest('created_at');
-        }])->whereNull('deleted_at');
+        }])->where('is_active', true);
 
         if ($request->filled('employee_id')) {
             $employeeQuery->where('id', $request->employee_id);
@@ -1166,7 +1166,7 @@ class ReportController extends Controller
 
         $employeeQuery = Employee::with(['salary' => function($query) {
             $query->latest('created_at');
-        }])->whereNull('deleted_at');
+        }])->where('is_active', true);
         if ($request->filled('employee_id')) {
             $employeeQuery->where('id', $request->employee_id);
         }
@@ -1394,7 +1394,7 @@ class ReportController extends Controller
         $performanceData = $performanceData->values()->all();
 
         // Get all employees for dropdown - only show active employees
-        $employees = Employee::whereNull('deleted_at')->orderBy('full_name')->get();
+        $employees = Employee::where('is_active', true)->orderBy('full_name')->get();
 
         // Get available months/years for dropdown
         $months = [
@@ -1453,7 +1453,7 @@ class ReportController extends Controller
 
         $employeeQuery = Employee::with(['salary' => function($query) {
             $query->latest('created_at');
-        }])->whereNull('deleted_at');
+        }])->where('is_active', true);
         if ($request->filled('employee_id')) {
             $employeeQuery->where('id', $request->employee_id);
         }
@@ -1792,7 +1792,7 @@ class ReportController extends Controller
         }
 
         // Data for filters - only include active employees
-        $allEmployees = Employee::whereNull('deleted_at')->orderBy('full_name')->get();
+        $allEmployees = Employee::where('is_active', true)->orderBy('full_name')->get();
         $months = [
             1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April', 5 => 'Mei', 6 => 'Juni',
             7 => 'Juli', 8 => 'Agustus', 9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember'
@@ -1849,7 +1849,7 @@ class ReportController extends Controller
 
         $employeeQuery = Employee::with(['salary' => function($query) {
             $query->latest('created_at');
-        }])->whereNull('deleted_at');
+        }])->where('is_active', true);
 
         // Filter by specific employee if provided
         if ($request->filled('employee_id')) {
@@ -2344,7 +2344,7 @@ class ReportController extends Controller
 
         $employeeQuery = Employee::with(['salary' => function($query) {
             $query->latest('created_at');
-        }])->whereNull('deleted_at');
+        }])->where('is_active', true);
 
         if ($request->filled('employee_id')) {
             $employeeQuery->where('id', $request->employee_id);
@@ -2526,7 +2526,7 @@ class ReportController extends Controller
         $transportAllowanceData = $transportAllowanceData->values()->all();
 
         // Get all employees for dropdown - only show active employees
-        $allEmployees = Employee::whereNull('deleted_at')->orderBy('full_name')->get();
+        $allEmployees = Employee::where('is_active', true)->orderBy('full_name')->get();
 
         // Get available months/years for dropdown
         $months = [
@@ -2579,7 +2579,7 @@ class ReportController extends Controller
 
         $employeeQuery = Employee::with(['salary' => function($query) {
             $query->latest('created_at');
-        }])->whereNull('deleted_at');
+        }])->where('is_active', true);
 
         if ($request->filled('employee_id')) {
             $employeeQuery->where('id', $request->employee_id);
