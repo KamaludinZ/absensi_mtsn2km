@@ -3,198 +3,76 @@
 namespace Database\Seeders;
 
 use App\Models\Employee;
-use App\Models\Student;
+use App\Models\Role;
 use App\Models\Rombel;
-use App\Models\Grade;
-use App\Models\AcademicYear;
+use App\Models\Student;
+use App\Models\User;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash;
 
+/**
+ * Sample employees and students for local development only.
+ * DatabaseSeeder skips this seeder in production.
+ *
+ * Relies on the roles, academic year and rombels created by DatabaseSeeder
+ * and the grades inserted by the grades migration. Safe to run twice.
+ */
 class DummyDataSeeder extends Seeder
 {
-    public function run()
+    public function run(): void
     {
-        // Create academic years
-        $academicYears = [
-            ['name' => '2024/2025', 'status' => 'active'],
-            ['name' => '2025/2026', 'status' => 'inactive'],
-        ];
-        
-        foreach ($academicYears as $year) {
-            AcademicYear::create($year);
-        }
-        
-        // Get academic years for reference
-        $activeYear = AcademicYear::where('status', 'active')->first();
-        
-        // Create grades
-        $grades = [
-            ['name' => 'VII', 'description' => 'Kelas VII'],
-            ['name' => 'VIII', 'description' => 'Kelas VIII'],
-            ['name' => 'IX', 'description' => 'Kelas IX'],
-        ];
-        
-        foreach ($grades as $grade) {
-            Grade::create($grade);
-        }
-        
-        // Get grades for reference
-        $gradeVII = Grade::where('name', 'VII')->first();
-        $gradeVIII = Grade::where('name', 'VIII')->first();
-        $gradeIX = Grade::where('name', 'IX')->first();
-        
-        // Create rombels
-        $rombelsData = [
-            ['name' => 'VII A', 'grade_id' => $gradeVII->id, 'academic_year_id' => $activeYear->id],
-            ['name' => 'VII B', 'grade_id' => $gradeVII->id, 'academic_year_id' => $activeYear->id],
-            ['name' => 'VII C', 'grade_id' => $gradeVII->id, 'academic_year_id' => $activeYear->id],
-            ['name' => 'VIII A', 'grade_id' => $gradeVIII->id, 'academic_year_id' => $activeYear->id],
-            ['name' => 'VIII B', 'grade_id' => $gradeVIII->id, 'academic_year_id' => $activeYear->id],
-            ['name' => 'IX A', 'grade_id' => $gradeIX->id, 'academic_year_id' => $activeYear->id],
-        ];
-        
-        foreach ($rombelsData as $rombel) {
-            Rombel::create($rombel);
-        }
-        
-        // Get all rombels
-        $rombels = Rombel::all();
-        
-        // Create employees
+        $pegawaiRole = Role::firstOrCreate(['name' => 'pegawai']);
+
         $employees = [
-            [
-                'full_name' => 'Ahmad Fauzi',
-                'position' => 'Guru Matematika',
-                'phone' => '081234567890',
-                'email' => 'ahmad.fauzi@mts2malang.sch.id',
-                'is_active' => true,
-            ],
-            [
-                'full_name' => 'Siti Nurhaliza',
-                'position' => 'Guru Bahasa Indonesia',
-                'phone' => '082345678901',
-                'email' => 'siti.nurhaliza@mts2malang.sch.id',
-                'is_active' => true,
-            ],
-            [
-                'full_name' => 'Budi Santoso',
-                'position' => 'Guru IPA',
-                'phone' => '083456789012',
-                'email' => 'budi.santoso@mts2malang.sch.id',
-                'is_active' => true,
-            ],
-            [
-                'full_name' => 'Dewi Kusuma',
-                'position' => 'Guru Bahasa Inggris',
-                'phone' => '084567890123',
-                'email' => 'dewi.kusuma@mts2malang.sch.id',
-                'is_active' => true,
-            ],
-            [
-                'full_name' => 'Rizki Pratama',
-                'position' => 'Guru IPS',
-                'phone' => '085678901234',
-                'email' => 'rizki.pratama@mts2malang.sch.id',
-                'is_active' => true,
-            ],
+            ['username' => 'ahmad.fauzi', 'full_name' => 'Ahmad Fauzi', 'position' => 'Guru Matematika', 'phone' => '081234567890'],
+            ['username' => 'siti.nurhaliza', 'full_name' => 'Siti Nurhaliza', 'position' => 'Guru Bahasa Indonesia', 'phone' => '082345678901'],
+            ['username' => 'budi.santoso', 'full_name' => 'Budi Santoso', 'position' => 'Guru IPA', 'phone' => '083456789012'],
+            ['username' => 'dewi.kusuma', 'full_name' => 'Dewi Kusuma', 'position' => 'Guru Bahasa Inggris', 'phone' => '084567890123'],
+            ['username' => 'rizki.pratama', 'full_name' => 'Rizki Pratama', 'position' => 'Staf Tata Usaha', 'phone' => '085678901234'],
         ];
 
-        foreach ($employees as $employeeData) {
-            $employee = Employee::create($employeeData);
-            
-            // Create a user for each employee
-            $user = \App\Models\User::create([
-                'name' => $employee->full_name,
-                'email' => $employee->email,
-                'password' => bcrypt('password'),
-                'role' => 'employee',
-            ]);
-            
-            $employee->update(['user_id' => $user->id]);
+        foreach ($employees as $data) {
+            $user = User::firstOrCreate(
+                ['username' => $data['username']],
+                [
+                    'name' => $data['full_name'],
+                    'password' => Hash::make('password123'),
+                    'role_id' => $pegawaiRole->id,
+                ]
+            );
+
+            Employee::firstOrCreate(
+                ['user_id' => $user->id],
+                [
+                    'full_name' => $data['full_name'],
+                    'position' => $data['position'],
+                    'phone' => $data['phone'],
+                    'email' => $data['username'] . '@example.com',
+                    'is_active' => true,
+                ]
+            );
         }
-        
-        // Create students
-        $students = [
-            [
-                'full_name' => 'Andi Prasetyo',
-                'rombel_id' => $rombels->where('name', 'VII A')->first()->id ?? null,
-                'is_active' => true,
-            ],
-            [
-                'full_name' => 'Bella Sari',
-                'rombel_id' => $rombels->where('name', 'VII A')->first()->id ?? null,
-                'is_active' => true,
-            ],
-            [
-                'full_name' => 'Cahya Nugroho',
-                'rombel_id' => $rombels->where('name', 'VII B')->first()->id ?? null,
-                'is_active' => true,
-            ],
-            [
-                'full_name' => 'Dian Puspita',
-                'rombel_id' => $rombels->where('name', 'VII B')->first()->id ?? null,
-                'is_active' => true,
-            ],
-            [
-                'full_name' => 'Eko Saputra',
-                'rombel_id' => $rombels->where('name', 'VII C')->first()->id ?? null,
-                'is_active' => true,
-            ],
-            [
-                'full_name' => 'Fitri Lestari',
-                'rombel_id' => $rombels->where('name', 'VII C')->first()->id ?? null,
-                'is_active' => true,
-            ],
-            [
-                'full_name' => 'Guntur Ramadhan',
-                'rombel_id' => $rombels->where('name', 'VIII A')->first()->id ?? null,
-                'is_active' => true,
-            ],
-            [
-                'full_name' => 'Hani Putri',
-                'rombel_id' => $rombels->where('name', 'VIII A')->first()->id ?? null,
-                'is_active' => true,
-            ],
-            [
-                'full_name' => 'Indra Lesmana',
-                'rombel_id' => $rombels->where('name', 'VIII B')->first()->id ?? null,
-                'is_active' => true,
-            ],
-            [
-                'full_name' => 'Juni Astuti',
-                'rombel_id' => $rombels->where('name', 'VIII B')->first()->id ?? null,
-                'is_active' => true,
-            ],
-            [
-                'full_name' => 'Kurnia Wati',
-                'rombel_id' => $rombels->where('name', 'IX A')->first()->id ?? null,
-                'is_active' => true,
-            ],
-            [
-                'full_name' => 'Lukman Hakim',
-                'rombel_id' => $rombels->where('name', 'IX A')->first()->id ?? null,
-                'is_active' => true,
-            ],
-            [
-                'full_name' => 'Maya Sari',
-                'rombel_id' => $rombels->where('name', 'IX A')->first()->id ?? null,
-                'is_active' => true,
-            ],
-            [
-                'full_name' => 'Nur Hidayat',
-                'rombel_id' => $rombels->where('name', 'IX A')->first()->id ?? null,
-                'is_active' => true,
-            ],
-            [
-                'full_name' => 'Oki Prasetya',
-                'rombel_id' => $rombels->where('name', 'IX A')->first()->id ?? null,
-                'is_active' => true,
-            ],
+
+        $rombels = Rombel::orderBy('name')->get();
+        if ($rombels->isEmpty()) {
+            $this->command?->warn('No rombels found; run DatabaseSeeder first. Skipping sample students.');
+            return;
+        }
+
+        $names = [
+            'Andi Prasetyo', 'Bella Sari', 'Cahya Nugroho', 'Dian Puspita', 'Eko Saputra',
+            'Fitri Lestari', 'Guntur Ramadhan', 'Hana Wijaya', 'Indra Kurniawan', 'Joko Susilo',
         ];
 
-        foreach ($students as $studentData) {
-            if ($studentData['rombel_id']) {
-                Student::create($studentData);
-            }
+        foreach ($names as $i => $name) {
+            Student::firstOrCreate(
+                ['nisn' => sprintf('00%08d', $i + 1)],
+                [
+                    'full_name' => $name,
+                    'rombel_id' => $rombels[$i % $rombels->count()]->id,
+                    'is_active' => true,
+                ]
+            );
         }
     }
 }

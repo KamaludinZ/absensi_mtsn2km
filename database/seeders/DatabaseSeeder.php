@@ -95,7 +95,9 @@ class DatabaseSeeder extends Seeder
             'value' => 'Kota Malang, Jawa Timur',
         ]);
         
-        // Call the dummy data seeder
-        $this->call(DummyDataSeeder::class);
+        // Sample employees/students with known passwords: never in production
+        if (app()->environment(['local', 'testing'])) {
+            $this->call(DummyDataSeeder::class);
+        }
     }
 }
