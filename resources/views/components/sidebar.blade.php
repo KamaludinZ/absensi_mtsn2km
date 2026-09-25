@@ -279,7 +279,7 @@
                         </svg>
                         <span class="nav-text">Rombongan Belajar</span>
                     </a>
-                    <a href="{{ route('admin.students.index') }}" class="nav-sub-item {{ request()->routeIs('admin.students.*') && !request()->routeIs('admin.students.rfid.*') ? 'active' : '' }}">
+                    <a href="{{ route('admin.students.index') }}" class="nav-sub-item {{ request()->routeIs('admin.students.*') && !request()->routeIs('admin.students.rfid.*', 'admin.students.promotion.*') ? 'active' : '' }}">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
                         </svg>
@@ -290,6 +290,12 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
                         </svg>
                         <span class="nav-text">Kartu RFID Siswa</span>
+                    </a>
+                    <a href="{{ route('admin.students.promotion.index') }}" class="nav-sub-item {{ request()->routeIs('admin.students.promotion.*') ? 'active' : '' }}">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                        </svg>
+                        <span class="nav-text">Kenaikan Kelas</span>
                     </a>
                     <a href="{{ route('admin.schedules.custom.siswa') }}" class="nav-sub-item {{ request()->routeIs('admin.schedules.custom.siswa') ? 'active' : '' }}">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

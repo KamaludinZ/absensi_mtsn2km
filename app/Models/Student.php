@@ -20,10 +20,12 @@ class Student extends Model
         'full_name',
         'rombel_id',
         'is_active',
+        'graduated_at',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
+        'graduated_at' => 'date',
     ];
 
     protected static function booted(): void

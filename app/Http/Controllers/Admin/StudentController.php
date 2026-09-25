@@ -37,7 +37,9 @@ class StudentController extends Controller
         }
 
         // Filter by status
-        if ($request->filled('is_active')) {
+        if ($request->input('is_active') === 'graduated') {
+            $query->whereNotNull('graduated_at');
+        } elseif ($request->filled('is_active')) {
             $query->where('is_active', $request->is_active);
         }
 
@@ -203,7 +205,12 @@ class StudentController extends Controller
             'is_active' => 'required|boolean',
         ], $this->rfidMessages());
 
-        $student->update($request->only(['nisn', 'rfid_uid', 'full_name', 'rombel_id', 'is_active'])); // Include NISN in update
+        $data = $request->only(['nisn', 'rfid_uid', 'full_name', 'rombel_id', 'is_active']);
+        if ($request->boolean('is_active')) {
+            $data['graduated_at'] = null; // re-activating a student undoes the graduation
+        }
+
+        $student->update($data); // Include NISN in update
 
         return redirect()->route('admin.students.index')
             ->with('success', 'Data siswa berhasil diperbarui.');

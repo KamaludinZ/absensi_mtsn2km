@@ -19,6 +19,7 @@ class StudentRfidController extends Controller
     {
         $activeYear = AcademicYear::where('status', 'active')->first();
         $rombels = Rombel::when($activeYear, fn ($q) => $q->where('academic_year_id', $activeYear->id))
+            ->orderBy('grade_id')
             ->orderBy('name')
             ->get();
 

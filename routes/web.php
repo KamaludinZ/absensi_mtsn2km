@@ -159,6 +159,10 @@ Route::middleware(['auth', CheckRole::class . ':admin'])->prefix('admin')->name(
     // Students
     Route::get('students/import', [StudentController::class, 'importForm'])->name('students.import-form');
     Route::post('students/import', [StudentController::class, 'import'])->name('students.import');
+    // Class promotion / graduation (must be registered before the resource route)
+    Route::get('students/promotion', [App\Http\Controllers\Admin\StudentPromotionController::class, 'index'])->name('students.promotion.index');
+    Route::post('students/promotion', [App\Http\Controllers\Admin\StudentPromotionController::class, 'process'])->name('students.promotion.process');
+
     // Student RFID cards (must be registered before the resource route)
     Route::get('students/rfid', [App\Http\Controllers\Admin\StudentRfidController::class, 'index'])->name('students.rfid.index');
     Route::post('students/{student}/rfid', [App\Http\Controllers\Admin\StudentRfidController::class, 'assign'])->name('students.rfid.assign');
