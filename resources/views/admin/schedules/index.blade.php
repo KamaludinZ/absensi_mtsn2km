@@ -1,26 +1,4 @@
 @php
-    function sortableLink($label, $sortField, $currentSort, $currentDirection) {
-        $newDirection = 'asc';
-        $icon = '';
-
-        if ($currentSort == $sortField) {
-            // If this column is currently sorted
-            $newDirection = $currentDirection == 'asc' ? 'desc' : 'asc';
-            $icon = $currentDirection == 'asc' ? ' ↑' : ' ↓';
-        }
-
-        // Build query string preserving filters
-        $params = request()->except(['sort', 'direction', 'page']);
-        $params['sort'] = $sortField;
-        $params['direction'] = $newDirection;
-
-        $url = request()->url() . '?' . http_build_query($params);
-
-        $class = $currentSort == $sortField ? 'text-blue-600 font-semibold' : 'text-gray-700 hover:text-blue-600';
-
-        return '<a href="' . $url . '" class="' . $class . '">' . $label . $icon . '</a>';
-    }
-
     $currentSort = $sortField ?? request('sort', 'day_of_week');
     $currentDirection = $sortDirection ?? request('direction', 'asc');
 @endphp
