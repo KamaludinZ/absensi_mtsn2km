@@ -17,6 +17,14 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    # composer.lock requires PHP >= 8.4 (Symfony 8.x); ubuntu-latest ships 8.3.
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.4'
+        extensions: mbstring, pdo_sqlite, gd, zip
+        coverage: none
+
     - name: Validate composer.json and composer.lock
       run: composer validate --strict
 
@@ -32,8 +40,10 @@ jobs:
     - name: Install dependencies
       run: composer install --prefer-dist --no-progress
 
-    # Add a test script to composer.json, for instance: "test": "vendor/bin/phpunit"
-    # Docs: https://getcomposer.org/doc/articles/scripts.md
+    - name: Prepare environment
+      run: |
+        cp .env.example .env
+        php artisan key:generate
 
-    # - name: Run test suite
-    #   run: composer run-script test
+    - name: Run test suite
+      run: php artisan test
