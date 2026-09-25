@@ -20,8 +20,11 @@ return new class extends Migration
             $table->unique(['employee_id', 'month', 'year'], 'salaries_employee_month_year_unique');
         });
 
-        // Update existing records to current month/year (PostgreSQL syntax)
-        \DB::statement("UPDATE salaries SET month = EXTRACT(MONTH FROM CURRENT_DATE), year = EXTRACT(YEAR FROM CURRENT_DATE) WHERE month = 1 AND year = 2025");
+        // Update existing records to current month/year (works on any database)
+        \DB::table('salaries')
+            ->where('month', 1)
+            ->where('year', 2025)
+            ->update(['month' => now()->month, 'year' => now()->year]);
     }
 
     /**
