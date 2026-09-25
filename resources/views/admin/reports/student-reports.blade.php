@@ -6,28 +6,6 @@
 
 @php
     // Helper function to generate sortable column header
-    function sortableLink($label, $sortField, $currentSort, $currentDirection) {
-        $newDirection = 'asc';
-        $icon = '';
-
-        if ($currentSort == $sortField) {
-            // If this column is currently sorted
-            $newDirection = $currentDirection == 'asc' ? 'desc' : 'asc';
-            $icon = $currentDirection == 'asc' ? ' ↑' : ' ↓';
-        }
-
-        // Build query string preserving filters
-        $params = request()->except(['sort', 'direction', 'page']);
-        $params['sort'] = $sortField;
-        $params['direction'] = $newDirection;
-
-        $url = request()->url() . '?' . http_build_query($params);
-
-        $class = $currentSort == $sortField ? 'text-blue-600 font-semibold' : 'text-gray-700 hover:text-blue-600';
-
-        return '<a href="' . $url . '" class="' . $class . '">' . $label . $icon . '</a>';
-    }
-
     $currentSort = request('sort', 'date');
     $currentDirection = request('direction', 'asc');
 @endphp
@@ -134,7 +112,7 @@
                         {{ $attendance->attendable->full_name ?? 'N/A' }}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
-                        {{ $attendance->attendable->rombel->name ?? '-' }}
+                        {{ $attendance->rombel_name ?? '-' }}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
                         @php

@@ -303,7 +303,7 @@ class PermissionController extends Controller
         $query = Permission::where('permissible_type', Student::class)
             ->with(['permissible' => function($query) {
                 $query->select('id', 'full_name', 'rombel_id');
-            }, 'permissible.rombel', 'approvedBy']);
+            }, 'permissible.rombel', 'rombel', 'approvedBy']);
 
         // Filter by status
         if ($request->filled('status')) {
@@ -330,8 +330,8 @@ class PermissionController extends Controller
 
         // Filter by rombel
         if ($request->filled('rombel_id')) {
-            $studentIds = Student::where('rombel_id', $request->rombel_id)->pluck('id');
-            $query->whereIn('permissible_id', $studentIds);
+            // Class at the time of the permission, not the student's current class
+            $query->where('permissions.rombel_id', $request->rombel_id);
         }
 
         // Filter by student name

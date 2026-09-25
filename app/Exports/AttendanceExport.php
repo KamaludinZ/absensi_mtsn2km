@@ -232,7 +232,7 @@ class AttendanceExport implements FromCollection, WithHeadings, WithMapping, Wit
                 Carbon::parse($attendance->date)->format('d/m/Y'),
                 $attendance->attendable->nisn ?? '-',
                 $attendance->attendable->full_name ?? '-',
-                $attendance->attendable->rombel->name ?? '-',
+                $attendance->rombel_name ?? '-',
                 $schedule ? Carbon::parse($schedule->start_time)->format('H:i:s') : '-',
                 $attendance->clock_in ? Carbon::parse($attendance->clock_in)->format('H:i:s') : '-',
                 $selisihMasuk,

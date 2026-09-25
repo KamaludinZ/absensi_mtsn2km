@@ -14,6 +14,23 @@ jobs:
 
     runs-on: ubuntu-latest
 
+    # Production runs on PostgreSQL and some reports use PostgreSQL-only SQL,
+    # so the tests run against PostgreSQL too.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: absensi
+          POSTGRES_PASSWORD: absensi
+          POSTGRES_DB: absensi_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U absensi"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
     steps:
     - uses: actions/checkout@v4
 
@@ -22,7 +39,7 @@ jobs:
       uses: shivammathur/setup-php@v2
       with:
         php-version: '8.4'
-        extensions: mbstring, pdo_sqlite, gd, zip
+        extensions: mbstring, pdo_sqlite, pdo_pgsql, gd, zip
         coverage: none
 
     - name: Validate composer.json and composer.lock
@@ -47,3 +64,10 @@ jobs:
 
     - name: Run test suite
       run: php artisan test
+      env:
+        DB_CONNECTION: pgsql
+        DB_HOST: 127.0.0.1
+        DB_PORT: 5432
+        DB_DATABASE: absensi_test
+        DB_USERNAME: absensi
+        DB_PASSWORD: absensi

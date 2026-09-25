@@ -188,7 +188,7 @@ class PermissionMonitorController extends Controller
         $selectedYear = $request->input('year', \Carbon\Carbon::now()->year);
 
         $query = Permission::where('permissible_type', Student::class)
-            ->with(['permissible.rombel']);
+            ->with(['permissible.rombel', 'rombel']);
 
         // Filter by status
         if ($request->filled('status')) {
@@ -210,8 +210,8 @@ class PermissionMonitorController extends Controller
 
         // Filter by rombel
         if ($request->filled('rombel_id')) {
-            $studentIds = Student::where('rombel_id', $request->rombel_id)->pluck('id');
-            $query->whereIn('permissible_id', $studentIds);
+            // Class at the time of the permission, not the student's current class
+            $query->where('permissions.rombel_id', $request->rombel_id);
         }
 
         // Filter by student name
@@ -252,7 +252,7 @@ class PermissionMonitorController extends Controller
             case 'rombel':
                 // For relationship fields, we need to sort in collection
                 $permissions = $query->with(['permissible.rombel'])->get()->sortBy(function($permission) {
-                    return strtolower($permission->permissible->rombel->name ?? '');
+                    return strtolower($permission->rombel_name ?? '');
                 }, SORT_REGULAR, $sortDirection === 'desc');
                 
                 // Manually paginate
