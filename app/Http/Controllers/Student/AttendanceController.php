@@ -238,7 +238,7 @@ class AttendanceController extends Controller
             $now = Carbon::now();
             $schedule = Schedule::where('type', 'siswa')
                 ->where('day_of_week', $now->dayOfWeek)
-                .first();
+                ->first();
 
             $status = 'Tepat Waktu';
             if ($schedule) {
