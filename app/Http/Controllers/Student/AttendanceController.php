@@ -48,15 +48,15 @@ class AttendanceController extends Controller
     public function getStudentInfo(Request $request)
     {
         $request->validate([
-            'nisn' => 'required|string|max:50',
+            'identifier' => 'required|string|max:50', // NISN or RFID card number
         ]);
 
-        $student = StudentKiosk::findStudent($request->nisn);
+        $student = StudentKiosk::findStudent($request->identifier);
 
         if (!$student) {
             return response()->json([
                 'success' => false,
-                'message' => 'NISN tidak ditemukan atau siswa tidak aktif.',
+                'message' => 'NISN/kartu tidak terdaftar atau siswa tidak aktif.',
             ]);
         }
 
@@ -89,7 +89,7 @@ class AttendanceController extends Controller
 
             // Build validation rules dynamically based on settings
             $validationRules = [
-                'nisn' => 'required|string|max:50',
+                'identifier' => 'required|string|max:50', // NISN or RFID card number
                 'location' => 'array|nullable',
                 'location.latitude' => 'required_with:location|numeric|between:-90,90',
                 'location.longitude' => 'required_with:location|numeric|between:-180,180',
@@ -110,12 +110,12 @@ class AttendanceController extends Controller
 
             $request->validate($validationRules);
 
-            $student = StudentKiosk::findStudent($request->nisn);
+            $student = StudentKiosk::findStudent($request->identifier);
 
             if (!$student) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'NISN tidak ditemukan atau siswa tidak aktif.',
+                    'message' => 'NISN/kartu tidak terdaftar atau siswa tidak aktif.',
                 ]);
             }
 
@@ -247,7 +247,7 @@ class AttendanceController extends Controller
             ]);
         } catch (\Exception $e) {
             Log::error('Student clock-in error: ' . $e->getMessage(), [
-                'nisn' => $request->nisn ?? null,
+                'identifier' => $request->identifier ?? null,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
@@ -271,7 +271,7 @@ class AttendanceController extends Controller
 
             // Build validation rules dynamically based on settings
             $validationRules = [
-                'nisn' => 'required|string|max:50',
+                'identifier' => 'required|string|max:50', // NISN or RFID card number
                 'location' => 'array|nullable',
                 'location.latitude' => 'required_with:location|numeric|between:-90,90',
                 'location.longitude' => 'required_with:location|numeric|between:-180,180',
@@ -292,12 +292,12 @@ class AttendanceController extends Controller
 
             $request->validate($validationRules);
 
-            $student = StudentKiosk::findStudent($request->nisn);
+            $student = StudentKiosk::findStudent($request->identifier);
 
             if (!$student) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'NISN tidak ditemukan atau siswa tidak aktif.',
+                    'message' => 'NISN/kartu tidak terdaftar atau siswa tidak aktif.',
                 ]);
             }
 
@@ -429,7 +429,7 @@ class AttendanceController extends Controller
             ]);
         } catch (\Exception $e) {
             Log::error('Student clock-out error: ' . $e->getMessage(), [
-                'nisn' => $request->nisn ?? null,
+                'identifier' => $request->identifier ?? null,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);

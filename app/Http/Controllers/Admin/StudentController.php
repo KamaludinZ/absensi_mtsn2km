@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Services\StudentKiosk;
 use Illuminate\Http\Request;
 use App\Models\Student;
 use App\Models\Rombel;
@@ -166,14 +167,17 @@ class StudentController extends Controller
 
     public function store(Request $request)
     {
+        $request->merge(['rfid_uid' => StudentKiosk::normalizeRfid($request->input('rfid_uid'))]);
+
         $request->validate([
             'nisn' => 'required|string|max:255|unique:students,nisn', // Add NISN validation
+            'rfid_uid' => 'nullable|string|max:50|unique:students,rfid_uid',
             'full_name' => 'required|string|max:255',
             'rombel_id' => 'required|exists:rombels,id',
             'is_active' => 'required|boolean',
-        ]);
+        ], $this->rfidMessages());
 
-        Student::create($request->only(['nisn', 'full_name', 'rombel_id', 'is_active'])); // Include NISN in creation
+        Student::create($request->only(['nisn', 'rfid_uid', 'full_name', 'rombel_id', 'is_active'])); // Include NISN in creation
 
         return redirect()->route('admin.students.index')
             ->with('success', 'Data siswa berhasil ditambahkan.');
@@ -189,14 +193,17 @@ class StudentController extends Controller
 
     public function update(Request $request, Student $student)
     {
+        $request->merge(['rfid_uid' => StudentKiosk::normalizeRfid($request->input('rfid_uid'))]);
+
         $request->validate([
             'nisn' => 'required|string|max:255|unique:students,nisn,' . $student->id, // Add NISN validation with unique rule excluding current student
+            'rfid_uid' => 'nullable|string|max:50|unique:students,rfid_uid,' . $student->id,
             'full_name' => 'required|string|max:255',
             'rombel_id' => 'required|exists:rombels,id',
             'is_active' => 'required|boolean',
-        ]);
+        ], $this->rfidMessages());
 
-        $student->update($request->only(['nisn', 'full_name', 'rombel_id', 'is_active'])); // Include NISN in update
+        $student->update($request->only(['nisn', 'rfid_uid', 'full_name', 'rombel_id', 'is_active'])); // Include NISN in update
 
         return redirect()->route('admin.students.index')
             ->with('success', 'Data siswa berhasil diperbarui.');
@@ -230,5 +237,12 @@ class StudentController extends Controller
             return redirect()->back()
                 ->with('error', 'Gagal mengimpor data: ' . $e->getMessage());
         }
+    }
+
+    private function rfidMessages(): array
+    {
+        return [
+            'rfid_uid.unique' => 'Kartu RFID ini sudah terdaftar untuk siswa lain.',
+        ];
     }
 }

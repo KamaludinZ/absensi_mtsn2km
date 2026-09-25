@@ -24,9 +24,9 @@
          x-transition:leave-end="opacity-0 transform translate-x-full">
         <p x-text="toastMessage"></p>
     </div>
-            <!-- Step 1: Enter NISN (or tap RFID card) -->
+            <!-- Step 1: Enter NISN or tap the RFID student card -->
             <div x-show="step === 1">
-                <h2 class="text-2xl font-bold text-gray-800 mb-6">Masukkan NISN</h2>
+                <h2 class="text-2xl font-bold text-gray-800 mb-6">Masukkan NISN atau Tempel Kartu</h2>
                 
                 <!-- Clock & Date at the top -->
                 <div class="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
@@ -80,18 +80,18 @@
                 </div>
                 
                 <form @submit.prevent="confirmStudent">
-                    <!-- NISN input. USB RFID readers act like a keyboard (card number + Enter),
-                         so the same field will work for student cards later. -->
+                    <!-- NISN / RFID input. USB RFID readers act like a keyboard: they
+                         "type" the card number followed by Enter into the focused field. -->
                     <div class="mb-6">
-                        <label for="nisn" class="block text-sm font-medium text-gray-700 mb-2">NISN</label>
-                        <input id="nisn" x-ref="nisnInput" x-model="nisn" type="text" inputmode="numeric"
+                        <label for="identifier" class="block text-sm font-medium text-gray-700 mb-2">NISN atau Kartu Pelajar</label>
+                        <input id="identifier" x-ref="identifierInput" x-model="identifier" type="text" inputmode="numeric"
                             autocomplete="off" autofocus maxlength="50" required
-                            placeholder="Ketik NISN lalu tekan Enter"
+                            placeholder="NISN / kartu"
                             class="w-full px-4 py-3 text-2xl tracking-widest text-center border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                        <p class="text-sm text-gray-500 mt-2">Ketik NISN Anda, lalu tekan Enter atau tombol Lanjutkan.</p>
+                        <p class="text-sm text-gray-500 mt-2">Ketik NISN lalu tekan Enter, atau tempelkan kartu pelajar ke alat pembaca kartu.</p>
                     </div>
 
-                    <button type="submit" :disabled="!nisn.trim() || submitting || (locationRequired && !locationInGeofence)"
+                    <button type="submit" :disabled="!identifier.trim() || submitting || (locationRequired && !locationInGeofence)"
                         class="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition duration-200 font-semibold disabled:bg-gray-400 disabled:cursor-not-allowed">
                         Lanjutkan
                     </button>
@@ -283,7 +283,7 @@
 function attendanceApp() {
     return {
         step: 1,
-        nisn: '',
+        identifier: '',
         student: {},
         studentSchedule: {},
         clockInAction: true, // true for clock-in, false for clock-out
@@ -323,7 +323,7 @@ function attendanceApp() {
                 }
             });
 
-            this.$nextTick(() => this.$refs.nisnInput.focus());
+            this.$nextTick(() => this.$refs.identifierInput.focus());
         },
 
         // Fetch location settings from the server using a public endpoint with improved error handling
@@ -443,8 +443,8 @@ function attendanceApp() {
         },
 
         async confirmStudent() {
-            if (!this.nisn.trim()) {
-                this.error = 'Silakan masukkan NISN terlebih dahulu.';
+            if (!this.identifier.trim()) {
+                this.error = 'Silakan masukkan NISN atau tempelkan kartu terlebih dahulu.';
                 return;
             }
 
@@ -466,7 +466,7 @@ function attendanceApp() {
                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
                     },
                     body: JSON.stringify({ 
-                        nisn: this.nisn.trim()
+                        identifier: this.identifier.trim()
                     })
                 });
 
@@ -481,8 +481,8 @@ function attendanceApp() {
                     this.step = 2;
                 } else {
                     this.error = data.message || 'Gagal memuat informasi siswa.';
-                    this.nisn = '';
-                    this.$nextTick(() => this.$refs.nisnInput.focus());
+                    this.identifier = '';
+                    this.$nextTick(() => this.$refs.identifierInput.focus());
                 }
             } catch (error) {
                 console.error('Error confirming student:', error);
@@ -739,7 +739,7 @@ function attendanceApp() {
 
         reset() {
             this.step = 1;
-            this.nisn = '';
+            this.identifier = '';
             this.student = {};
             this.capturedImage = null;
             this.message = '';
@@ -748,7 +748,7 @@ function attendanceApp() {
                 this.stream.getTracks().forEach(track => track.stop());
                 this.stream = null;
             }
-            this.$nextTick(() => this.$refs.nisnInput.focus());
+            this.$nextTick(() => this.$refs.identifierInput.focus());
         },
 
         updateClock() {
@@ -812,7 +812,7 @@ function attendanceApp() {
                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
                     },
                     body: JSON.stringify({
-                        nisn: this.nisn.trim(),
+                        identifier: this.identifier.trim(),
                         selfie: this.capturedImage,
                         location: this.currentLocation
                     })
@@ -833,7 +833,7 @@ function attendanceApp() {
                     this.toastType = 'success';
                     this.step = 4;
 
-                    // Kiosk: go back to an empty NISN field for the next student
+                    // Go back to an empty NISN/card field for the next student
                     setTimeout(() => {
                         this.reset();
                     }, 2000);

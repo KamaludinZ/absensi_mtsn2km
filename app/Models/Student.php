@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Services\StudentKiosk;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -14,6 +16,7 @@ class Student extends Model
 
     protected $fillable = [
         'nisn',
+        'rfid_uid',
         'full_name',
         'rombel_id',
         'is_active',
@@ -22,6 +25,28 @@ class Student extends Model
     protected $casts = [
         'is_active' => 'boolean',
     ];
+
+    protected static function booted(): void
+    {
+        // Free the RFID card when a student is (soft) deleted, so the card
+        // can be given to another student.
+        static::deleting(function (Student $student) {
+            if ($student->rfid_uid !== null && !$student->isForceDeleting()) {
+                $student->forceFill(['rfid_uid' => null])->saveQuietly();
+            }
+        });
+    }
+
+    /**
+     * Store card numbers in one form (upper case, no spaces), whatever the
+     * RFID reader sends.
+     */
+    protected function rfidUid(): Attribute
+    {
+        return Attribute::make(
+            set: fn ($value) => StudentKiosk::normalizeRfid($value),
+        );
+    }
 
     public function rombel(): BelongsTo
     {

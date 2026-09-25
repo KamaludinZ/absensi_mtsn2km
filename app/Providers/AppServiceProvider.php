@@ -35,14 +35,19 @@ class AppServiceProvider extends ServiceProvider
             ];
         });
 
-        // Student attendance kiosk: limit per registered device (cookie), not per
-        // IP, because all school tablets share one IP during the morning rush.
+        // Student attendance page (no login): generous per-IP limit because
+        // students on the school WiFi share one IP (this also bounds NISN
+        // guessing), plus a per-NISN/card limit against repeated submissions
+        // for the same student.
         RateLimiter::for('student-kiosk', function (Request $request) {
-            $token = $request->cookie(\App\Services\StudentKiosk::COOKIE);
+            $limits = [Limit::perMinute(300)->by('kiosk-ip|' . $request->ip())];
 
-            return is_string($token) && $token !== ''
-                ? Limit::perMinute(120)->by('kiosk-device|' . sha1($token))
-                : Limit::perMinute(30)->by('kiosk-ip|' . $request->ip());
+            $identifier = $request->input('identifier');
+            if (is_string($identifier) && $identifier !== '') {
+                $limits[] = Limit::perMinute(10)->by('kiosk-id|' . sha1(strtoupper(trim($identifier))));
+            }
+
+            return $limits;
         });
     }
 }

@@ -2,66 +2,22 @@
 
 namespace App\Services;
 
-use App\Models\AttendanceDevice;
 use App\Models\AttendanceSetting;
 use App\Models\Holiday;
 use App\Models\Schedule;
 use App\Models\Setting;
 use App\Models\Student;
 use Carbon\Carbon;
-use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 
 /**
- * Rules for the public student attendance page (kiosk):
- * only registered school devices, and only during the attendance hours.
+ * Rules for the public student attendance page: it has no login, so it is
+ * only open during the attendance hours, and students identify themselves
+ * with their NISN or their RFID student card.
  */
 class StudentKiosk
 {
-    public const COOKIE = 'attendance_device';
-
     public const DEFAULT_OPEN_BEFORE = 60;   // minutes before the earliest start time
     public const DEFAULT_CLOSE_AFTER = 60;   // minutes after the latest end time
-
-    public static function hashToken(string $token): string
-    {
-        return hash('sha256', $token);
-    }
-
-    /**
-     * Register a new device and return the plain token to store in its cookie.
-     */
-    public static function registerDevice(string $name, ?int $userId): array
-    {
-        $token = Str::random(64);
-
-        $device = AttendanceDevice::create([
-            'name' => $name,
-            'token_hash' => self::hashToken($token),
-            'is_active' => true,
-            'created_by' => $userId,
-        ]);
-
-        return [$device, $token];
-    }
-
-    public static function currentDevice(Request $request): ?AttendanceDevice
-    {
-        $token = $request->cookie(self::COOKIE);
-
-        if (!is_string($token) || $token === '') {
-            return null;
-        }
-
-        return AttendanceDevice::where('token_hash', self::hashToken($token))
-            ->where('is_active', true)
-            ->first();
-    }
-
-    public static function requiresRegisteredDevice(): bool
-    {
-        return filter_var(self::setting('student_require_registered_device', 'true'), FILTER_VALIDATE_BOOLEAN);
-    }
 
     public static function openMinutesBefore(): int
     {
@@ -121,10 +77,20 @@ class StudentKiosk
     }
 
     /**
-     * Find an active student by the identifier typed on the kiosk.
-     * Today this is the NISN. When RFID cards are introduced, look up the
-     * card number here as well; the kiosk page does not need to change,
-     * because USB RFID readers "type" the card number followed by Enter.
+     * RFID readers differ in what they send (spaces, lower/upper case hex),
+     * so card numbers are always stored and compared in this form.
+     */
+    public static function normalizeRfid(?string $value): ?string
+    {
+        $value = strtoupper(preg_replace('/\s+/', '', (string) $value));
+
+        return $value === '' ? null : $value;
+    }
+
+    /**
+     * Find an active student by what was typed or tapped on the attendance
+     * page: the NISN, or the student card number from a USB RFID reader
+     * (which "types" the card number followed by Enter).
      */
     public static function findStudent(?string $identifier): ?Student
     {
@@ -134,8 +100,11 @@ class StudentKiosk
             return null;
         }
 
-        return Student::where('nisn', $identifier)
-            ->where('is_active', true)
+        return Student::where('is_active', true)
+            ->where(function ($query) use ($identifier) {
+                $query->where('nisn', $identifier)
+                    ->orWhere('rfid_uid', self::normalizeRfid($identifier));
+            })
             ->with('rombel.grade')
             ->first();
     }

@@ -51,10 +51,9 @@ class AuditFixesTest extends TestCase
 
         // Monday 08:00, inside the attendance hours
         $this->travelTo(\Carbon\Carbon::parse('2026-09-28 08:00:00'));
-        [, $token] = \App\Services\StudentKiosk::registerDevice('Tablet Uji', null);
 
-        $response = $this->withCredentials()->withCookie(\App\Services\StudentKiosk::COOKIE, $token)->postJson('/student/attendance/clock-in', [
-            'nisn' => $student->nisn,
+        $response = $this->postJson('/student/attendance/clock-in', [
+            'identifier' => $student->nisn,
             // Default geofence centre seeded by the location_settings migration
             'location' => ['latitude' => -6.2, 'longitude' => 106.816666, 'accuracy' => 5],
         ]);
@@ -108,7 +107,7 @@ class AuditFixesTest extends TestCase
         // Suspicious input must be rejected before the controller runs,
         // so nothing is saved.
         $this->post('/student/attendance/clock-in', [
-            'nisn' => $student->nisn,
+            'identifier' => $student->nisn,
             'location' => ['latitude' => -6.2, 'longitude' => 106.816666, 'accuracy' => 5],
             'note' => 'x UNION SELECT password FROM users',
         ])->assertForbidden();

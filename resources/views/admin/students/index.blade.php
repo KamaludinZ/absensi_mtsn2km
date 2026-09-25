@@ -31,9 +31,10 @@
 @section('container-class', '')
 @section('content')
 <div class="w-full py-6">
-    <div class="mb-4 flex space-x-2">
+    <div class="mb-4 flex flex-wrap gap-2">
     <a href="{{ route('admin.students.create') }}" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">Tambah Siswa</a>
     <a href="{{ route('admin.students.import-form') }}" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">Import Excel</a>
+    <a href="{{ route('admin.students.rfid.index') }}" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700">Kartu RFID</a>
 </div>
 
 <!-- Filters -->
