@@ -15,12 +15,13 @@ class EnhancedSecurity
      */
     public function handle(Request $request, Closure $next): Response
     {
-        $response = $next($request);
-
-        // Block common attack vectors
+        // Block common attack vectors BEFORE the request is processed,
+        // so a blocked request can never save data first.
         if ($this->detectSuspiciousActivity($request)) {
             abort(403, 'Access Denied - Suspicious Activity Detected');
         }
+
+        $response = $next($request);
 
         // Protect against Clickjacking
         $response->headers->set('X-Frame-Options', 'DENY');
@@ -67,13 +68,14 @@ class EnhancedSecurity
             $request->route()?->parameters() ?? []
         );
 
-        foreach ($inputs as $value) {
+        foreach ($inputs as $key => $value) {
             if (is_string($value)) {
                 foreach ($suspiciousPatterns as $pattern) {
                     if (preg_match($pattern, $value)) {
                         \App\Services\SecurityService::logSuspiciousActivity('Potential SQL injection attempt detected', [
                             'pattern' => $pattern,
-                            'value' => $value,
+                            'field' => $key,
+                            'value' => $this->redact($key, $value),
                             'url' => $request->fullUrl(),
                         ]);
                         return true;
@@ -92,13 +94,14 @@ class EnhancedSecurity
             '/eval\(/i',
         ];
 
-        foreach ($inputs as $value) {
+        foreach ($inputs as $key => $value) {
             if (is_string($value)) {
                 foreach ($xssPatterns as $pattern) {
                     if (preg_match($pattern, $value)) {
                         \App\Services\SecurityService::logSuspiciousActivity('Potential XSS attempt detected', [
                             'pattern' => $pattern,
-                            'value' => $value,
+                            'field' => $key,
+                            'value' => $this->redact($key, $value),
                             'url' => $request->fullUrl(),
                         ]);
                         return true;
@@ -127,5 +130,17 @@ class EnhancedSecurity
         }
 
         return false;
+    }
+
+    /**
+     * Never write secrets (passwords, tokens) to the security log.
+     */
+    private function redact($key, string $value): string
+    {
+        if (is_string($key) && preg_match('/pass|token|secret/i', $key)) {
+            return '[REDACTED]';
+        }
+
+        return $value;
     }
 }
