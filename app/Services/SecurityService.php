@@ -81,34 +81,6 @@ class SecurityService
     }
 
     /**
-     * Check if IP is blocked due to repeated violations
-     */
-    public static function isIpBlocked(): bool
-    {
-        try {
-            if (!Schema::hasTable('security_logs')) {
-                return false;
-            }
-
-            $ipAddress = request()->ip();
-
-            // Count security violations from the past hour
-            $violationCount = SecurityLog::where('ip_address', $ipAddress)
-                ->where('severity', '>=', 3)
-                ->where('created_at', '>=', now()->subHour())
-                ->count();
-
-            // Block IP if it has 5 or more high-severity violations in the past hour
-            return $violationCount >= 5;
-        } catch (\Throwable $e) {
-            Log::warning('SecurityService::isIpBlocked fallback triggered', [
-                'error' => $e->getMessage(),
-            ]);
-            return false;
-        }
-    }
-
-    /**
      * Block an IP address temporarily
      */
     public static function blockIp(string $reason = 'Excessive violations'): void

@@ -39,13 +39,10 @@ class EnhancedSecurity
      */
     private function detectSuspiciousActivity(Request $request): bool
     {
-        // Use SecurityService to check if IP is blocked
-        if (\App\Services\SecurityService::isIpBlocked()) {
-            \App\Services\SecurityService::logSuspiciousActivity('Blocked IP attempted access', [
-                'blocked_reason' => 'Previously detected violations'
-            ]);
-            return true;
-        }
+        // No automatic IP blocking: teachers and students share the school's
+        // public IP, so a few rejected requests from one person would lock
+        // everyone out. Suspicious requests are still rejected and logged
+        // one by one below.
 
         // Check for SQL injection attempts in request parameters
         $suspiciousPatterns = [

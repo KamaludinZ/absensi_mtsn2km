@@ -96,6 +96,18 @@ class AuditFixesTest extends TestCase
         $this->post('/login', ['username' => 'guru2', 'password' => 'salah'])->assertRedirect();
     }
 
+    public function test_suspicious_requests_do_not_block_the_whole_school_ip(): void
+    {
+        // Several rejected requests from one person on the school WiFi...
+        for ($i = 0; $i < 6; $i++) {
+            $this->get('/login?catatan=jam 7--8')->assertForbidden();
+        }
+
+        // ...must not lock out everyone else on the same IP.
+        $this->get('/login')->assertOk();
+        $this->get('/')->assertOk();
+    }
+
     public function test_blocked_request_does_not_save_data_and_hides_password(): void
     {
         $student = $this->makeStudent();
