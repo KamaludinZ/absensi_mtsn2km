@@ -13,8 +13,14 @@
 // CHANGE THIS PASSWORD!
 define('DEPLOY_PASSWORD', 'change_this_to_secure_password');
 
+// Refuse to run with the default password: anyone reading this repository knows it.
+if (DEPLOY_PASSWORD === 'change_this_to_secure_password' || strlen(DEPLOY_PASSWORD) < 12) {
+    http_response_code(403);
+    die('Access denied. Set DEPLOY_PASSWORD in this file to a unique password (min. 12 characters) first.');
+}
+
 // Check password
-if (!isset($_GET['password']) || $_GET['password'] !== DEPLOY_PASSWORD) {
+if (!isset($_GET['password']) || !is_string($_GET['password']) || !hash_equals(DEPLOY_PASSWORD, $_GET['password'])) {
     die('Access denied. Use: ?password=YOUR_PASSWORD');
 }
 

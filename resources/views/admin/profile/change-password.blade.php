@@ -76,7 +76,7 @@
                            placeholder="Masukkan password baru"
                            required>
                 </div>
-                <p class="mt-1 text-xs text-gray-500">Password minimal 6 karakter</p>
+                <p class="mt-1 text-xs text-gray-500">Password minimal 8 karakter</p>
                 @error('password')
                     <p class="mt-1 text-sm text-red-500">{{ $message }}</p>
                 @enderror

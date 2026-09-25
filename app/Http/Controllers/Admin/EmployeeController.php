@@ -151,7 +151,7 @@ class EmployeeController extends Controller
             'is_active' => 'required|boolean',
             'create_user' => 'nullable|boolean',
             'username' => 'required_if:create_user,1|nullable|string|unique:users,username',
-            'password' => 'required_if:create_user,1|nullable|string|min:6',
+            'password' => 'required_if:create_user,1|nullable|string|min:8',
         ]);
 
         $userId = null;
@@ -205,7 +205,7 @@ class EmployeeController extends Controller
 
         // Add password validation if password is provided
         if ($request->filled('password')) {
-            $rules['password'] = 'required|string|min:6';
+            $rules['password'] = 'required|string|min:8';
         }
 
         $request->validate($rules);

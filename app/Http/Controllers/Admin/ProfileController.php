@@ -26,13 +26,13 @@ class ProfileController extends Controller
     {
         $request->validate([
             'current_password' => ['required', 'current_password'],
-            'password' => ['required', 'confirmed', Password::min(6)],
+            'password' => ['required', 'confirmed', Password::min(8)],
         ], [
             'current_password.required' => 'Password saat ini harus diisi',
             'current_password.current_password' => 'Password saat ini tidak sesuai',
             'password.required' => 'Password baru harus diisi',
             'password.confirmed' => 'Konfirmasi password tidak sesuai',
-            'password.min' => 'Password minimal 6 karakter',
+            'password.min' => 'Password minimal 8 karakter',
         ]);
 
         $user = auth()->user();
