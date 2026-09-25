@@ -14,7 +14,13 @@
 define('SYMLINK_PASSWORD', 'change_this_secure_password');
 
 // Check password
-if (!isset($_GET['password']) || $_GET['password'] !== SYMLINK_PASSWORD) {
+// Refuse to run with the default password: anyone reading this repository knows it.
+if (SYMLINK_PASSWORD === 'change_this_secure_password' || strlen(SYMLINK_PASSWORD) < 12) {
+    http_response_code(403);
+    die('Access denied. Set SYMLINK_PASSWORD in this file to a unique password (min. 12 characters) first.');
+}
+
+if (!isset($_GET['password']) || !is_string($_GET['password']) || !hash_equals(SYMLINK_PASSWORD, $_GET['password'])) {
     die('Access denied. Usage: ?password=YOUR_PASSWORD');
 }
 
