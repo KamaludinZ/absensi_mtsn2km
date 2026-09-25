@@ -14,6 +14,11 @@
         height: 400px;
         z-index: 1;
     }
+    @media (max-width: 640px) {
+        #attendance-map {
+            height: 220px;
+        }
+    }
 </style>
 @endpush
 @endif
@@ -81,19 +86,6 @@
                 </div>
                 @endif
 
-                <!-- Map Display -->
-                @if(isset($locationSettings['display_with_map']) && $locationSettings['display_with_map'])
-                <div class="mb-4" x-show="locationEnabled && geofenceCenter">
-                    <h3 class="text-lg font-semibold text-gray-800 mb-2">Peta Lokasi</h3>
-                    <div id="attendance-map" class="w-full bg-gray-200 rounded-md border border-gray-300"></div>
-                    <p class="mt-2 text-xs text-gray-500">
-                        <span class="inline-block w-3 h-3 bg-red-500 rounded-full mr-1"></span> Pusat Geofence
-                        <span class="inline-block w-3 h-3 bg-blue-500 rounded-full mr-1 ml-3"></span> Lokasi Anda
-                        <span class="inline-block w-3 h-3 bg-red-500 bg-opacity-30 border border-red-500 rounded-full mr-1 ml-3"></span> Area Geofence
-                    </p>
-                </div>
-                @endif
-
                 <!-- Attendance Type Selection -->
                 <div class="space-y-4">
                     <button
@@ -124,6 +116,19 @@
                         </div>
                     </button>
                 </div>
+
+                <!-- Map Display -->
+                @if(isset($locationSettings['display_with_map']) && $locationSettings['display_with_map'])
+                <div class="mt-6 mb-4" x-show="locationEnabled && geofenceCenter">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2">Peta Lokasi</h3>
+                    <div id="attendance-map" class="w-full bg-gray-200 rounded-md border border-gray-300"></div>
+                    <p class="mt-2 text-xs text-gray-500">
+                        <span class="inline-block w-3 h-3 bg-red-500 rounded-full mr-1"></span> Pusat Geofence
+                        <span class="inline-block w-3 h-3 bg-blue-500 rounded-full mr-1 ml-3"></span> Lokasi Anda
+                        <span class="inline-block w-3 h-3 bg-red-500 bg-opacity-30 border border-red-500 rounded-full mr-1 ml-3"></span> Area Geofence
+                    </p>
+                </div>
+                @endif
 
                 <!-- Cooldown info message -->
                 <div x-show="cooldownActive" class="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-4">

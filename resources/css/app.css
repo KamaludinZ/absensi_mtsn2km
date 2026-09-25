@@ -682,3 +682,7 @@
 .sidebar-container * {
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
+/* Hide Alpine.js elements until Alpine has initialised */
+[x-cloak] {
+    display: none !important;
+}
