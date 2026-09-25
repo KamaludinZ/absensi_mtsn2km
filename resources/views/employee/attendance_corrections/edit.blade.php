@@ -99,7 +99,7 @@
                     @if($attendanceCorrection->supporting_document)
                         <div class="mt-2">
                             <p class="text-sm text-gray-600">Dokumen saat ini:
-                                <a href="{{ Storage::url($attendanceCorrection->supporting_document) }}"
+                                <a href="{{ route('documents.attendance-correction', $attendanceCorrection) }}"
                                    target="_blank"
                                    class="text-blue-600 hover:text-blue-800">
                                     Lihat Dokumen Pendukung

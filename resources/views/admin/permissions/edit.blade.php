@@ -142,7 +142,7 @@
                 @if($permission->supporting_document)
                     <div class="mt-2">
                         <p class="text-gray-700">Dokumen saat ini:</p>
-                        <a href="{{ asset('storage/' . $permission->supporting_document) }}" target="_blank" 
+                        <a href="{{ route('documents.permission', $permission) }}" target="_blank" 
                            class="text-blue-600 hover:underline">
                             Lihat Dokumen
                         </a>

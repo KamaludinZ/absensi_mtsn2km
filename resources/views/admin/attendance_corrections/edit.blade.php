@@ -160,7 +160,7 @@
                     @if($attendanceCorrection->supporting_document)
                         <div class="mt-2">
                             <p class="text-gray-700">Dokumen saat ini:</p>
-                            <a href="{{ asset('storage/' . $attendanceCorrection->supporting_document) }}" target="_blank"
+                            <a href="{{ route('documents.attendance-correction', $attendanceCorrection) }}" target="_blank"
                                class="text-blue-600 hover:underline">
                                 Lihat Dokumen
                             </a>

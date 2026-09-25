@@ -57,6 +57,12 @@ Route::get('/selfies/{type}/{filename}', [SelfieController::class, 'show'])
     ->where('filename', '.*')
     ->name('selfies.show');
 
+// Supporting documents (doctor's notes etc.) - login + ownership check
+Route::middleware('auth')->prefix('documents')->name('documents.')->group(function () {
+    Route::get('/permissions/{permission}', [App\Http\Controllers\DocumentController::class, 'permission'])->name('permission');
+    Route::get('/attendance-corrections/{attendanceCorrection}', [App\Http\Controllers\DocumentController::class, 'attendanceCorrection'])->name('attendance-correction');
+});
+
 // Employee routes
 Route::middleware(['auth', CheckRole::class . ':pegawai'])->prefix('employee')->name('employee.')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'employeeDashboard'])->name('dashboard');
