@@ -62,8 +62,9 @@ class BackupController extends Controller
                 $zip->addFile($dbBackup, 'database.sql');
             }
 
-            // 2. Backup selfie photos (attendance photos)
-            $selfiePath = storage_path('app/public/selfies');
+            // 2. Backup selfie photos (attendance photos) from the "public" disk,
+            //    the same place the app saves and serves them from
+            $selfiePath = Storage::disk('public')->path('selfies');
             if (File::exists($selfiePath)) {
                 $this->addDirectoryToZip($zip, $selfiePath, 'files/selfies');
             }
@@ -74,13 +75,11 @@ class BackupController extends Controller
                 $this->addDirectoryToZip($zip, $settingsPath, 'files/settings');
             }
 
-            // 4. Backup .env file (configuration)
-            $envFile = base_path('.env');
-            if (File::exists($envFile)) {
-                $zip->addFile($envFile, 'config/.env');
-            }
+            // The .env file is intentionally NOT included: it holds the database
+            // password and APP_KEY, and backup files get downloaded and copied
+            // around. Keep a copy of .env somewhere safe separately.
 
-            // 5. Add backup metadata
+            // 4. Add backup metadata
             $metadata = [
                 'backup_date' => Carbon::now()->toDateTimeString(),
                 'app_name' => config('app.name'),
@@ -204,6 +203,11 @@ class BackupController extends Controller
 
     public function download($filename)
     {
+        if (!$this->isValidBackupName($filename)) {
+            return redirect()->route('admin.backup.index')
+                ->with('error', 'Nama file backup tidak valid.');
+        }
+
         $path = 'backups/' . $filename;
 
         if (!Storage::disk('backups')->exists($path)) {
@@ -219,6 +223,11 @@ class BackupController extends Controller
 
     public function delete($filename)
     {
+        if (!$this->isValidBackupName($filename)) {
+            return redirect()->route('admin.backup.index')
+                ->with('error', 'Nama file backup tidak valid.');
+        }
+
         $path = 'backups/' . $filename;
 
         if (Storage::disk('backups')->exists($path)) {
@@ -286,6 +295,10 @@ class BackupController extends Controller
         ]);
 
         $filename = $request->filename;
+        if (!$this->isValidBackupName($filename)) {
+            return redirect()->route('admin.backup.restore')
+                ->with('error', 'Nama file backup tidak valid.');
+        }
         $backupPath = 'backups/' . $filename;
 
         if (!Storage::disk('backups')->exists($backupPath)) {
@@ -322,12 +335,11 @@ class BackupController extends Controller
                 }
             }
 
-            // 2. Restore Files (selfies/photos)
+            // 2. Restore Files (selfies/photos). The destination is inside the
+            //    web root, so only image files are copied - never scripts.
             $selfiesSource = $tempDir . '/files/selfies';
             if (File::exists($selfiesSource)) {
-                $selfiesDest = storage_path('app/public/selfies');
-                File::ensureDirectoryExists($selfiesDest);
-                File::copyDirectory($selfiesSource, $selfiesDest);
+                $this->restoreImages($selfiesSource, Storage::disk('public')->path('selfies'));
             }
 
             // 3. Restore Settings
@@ -338,11 +350,8 @@ class BackupController extends Controller
                 File::copyDirectory($settingsSource, $settingsDest);
             }
 
-            // 4. Restore .env (optional - with confirmation)
-            $envSource = $tempDir . '/config/.env';
-            if (File::exists($envSource) && $request->input('restore_env') === 'yes') {
-                File::copy($envSource, base_path('.env'));
-            }
+            // .env is never restored from a backup file (older backups may still
+            // contain one); configuration must be restored by hand.
 
             // Clean up
             $this->deleteDirectory($tempDir);
@@ -422,6 +431,28 @@ class BackupController extends Controller
         }
     }
     
+    private function isValidBackupName($filename): bool
+    {
+        return is_string($filename) && preg_match('/^[A-Za-z0-9_\-.]+\.zip$/', $filename) === 1
+            && !str_contains($filename, '..');
+    }
+
+    private function restoreImages(string $source, string $destination): void
+    {
+        $allowed = ['jpg', 'jpeg', 'png'];
+
+        foreach (File::allFiles($source) as $file) {
+            if (!in_array(strtolower($file->getExtension()), $allowed, true)) {
+                Log::warning('Backup restore: skipped non-image file ' . $file->getRelativePathname());
+                continue;
+            }
+
+            $target = $destination . DIRECTORY_SEPARATOR . $file->getRelativePathname();
+            File::ensureDirectoryExists(dirname($target));
+            File::copy($file->getRealPath(), $target);
+        }
+    }
+
     private function deleteDirectory($dir) {
         if (!is_dir($dir)) {
             return;

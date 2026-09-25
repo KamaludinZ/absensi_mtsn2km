@@ -148,9 +148,21 @@ class SystemUpdateController extends Controller
                 ];
             }
 
+            if (!is_array($manifest['files'])) {
+                return ['valid' => false, 'message' => 'Format manifest tidak valid: files harus berupa daftar.'];
+            }
+
             // Check for dangerous files
             $dangerousExtensions = ['.exe', '.bat', '.cmd', '.sh', '.ps1'];
             foreach ($manifest['files'] as $file) {
+                $pathError = $this->unsafePathReason($file);
+                if ($pathError) {
+                    return [
+                        'valid' => false,
+                        'message' => 'Path file tidak diizinkan (' . $pathError . '): ' . (is_string($file) ? $file : '?')
+                    ];
+                }
+
                 $extension = strtolower(pathinfo($file, PATHINFO_EXTENSION));
                 if (in_array('.' . $extension, $dangerousExtensions)) {
                     return [
@@ -168,6 +180,37 @@ class SystemUpdateController extends Controller
                 'message' => 'Error parsing manifest: ' . $e->getMessage()
             ];
         }
+    }
+
+    /**
+     * Update files must stay inside the application and must not touch
+     * secrets, dependencies, runtime data or git metadata.
+     */
+    private function unsafePathReason($file): ?string
+    {
+        if (!is_string($file) || $file === '') {
+            return 'kosong';
+        }
+
+        $normalized = str_replace('\\', '/', $file);
+
+        if (str_starts_with($normalized, '/') || preg_match('/^[A-Za-z]:/', $normalized)) {
+            return 'path absolut';
+        }
+
+        if (in_array('..', explode('/', $normalized), true)) {
+            return 'keluar dari folder aplikasi';
+        }
+
+        $relative = preg_replace('#^(\./)+#', '', $normalized);
+        $protected = ['.env', 'vendor/', 'storage/', '.git/', 'bootstrap/cache/', 'node_modules/'];
+        foreach ($protected as $prefix) {
+            if (str_starts_with($relative, $prefix)) {
+                return 'folder/file dilindungi';
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -365,6 +408,10 @@ class SystemUpdateController extends Controller
      */
     public function downloadBackup($filename)
     {
+        if (!preg_match('/^[A-Za-z0-9_\-.]+\.zip$/', $filename) || str_contains($filename, '..')) {
+            return back()->with('error', 'Nama file backup tidak valid.');
+        }
+
         $backupPath = storage_path('app/backups/' . $filename);
 
         if (!File::exists($backupPath)) {
