@@ -86,33 +86,42 @@
                 </div>
                 @endif
 
+                <!-- Today's status, so it is clear what has already been recorded -->
+                <div x-show="hasClockIn" x-cloak class="mb-4 rounded-lg p-4 border"
+                     :class="hasClockOut ? 'bg-gray-50 border-gray-200' : 'bg-green-50 border-green-200'">
+                    <p class="font-semibold" :class="hasClockOut ? 'text-gray-800' : 'text-green-800'"
+                       x-text="hasClockOut ? 'Absensi hari ini sudah lengkap' : '✅ Anda sudah absen masuk hari ini pukul ' + clockInTime"></p>
+                    <p class="text-sm text-gray-600" x-show="hasClockOut"
+                       x-text="'Masuk pukul ' + clockInTime + ', pulang pukul ' + clockOutTime + '.'"></p>
+                    <p class="text-sm text-gray-600" x-show="!hasClockOut && scheduledEnd"
+                       x-text="'Tekan Absen Pulang saat Anda pulang (jadwal pulang ' + scheduledEnd + ').'"></p>
+                </div>
+
                 <!-- Attendance Type Selection -->
                 <div class="space-y-4">
                     <button
                         @click="selectAttendanceType('clock-in')"
-                        :disabled="isDisabled('clock-in') || (locationRequired && !locationInGeofence) || cooldownActive"
-                        :class="(isDisabled('clock-in') || (locationRequired && !locationInGeofence) || cooldownActive) ? 'bg-gray-300 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'"
+                        :disabled="isDisabled('clock-in') || (locationRequired && !locationInGeofence)"
+                        :class="(isDisabled('clock-in') || (locationRequired && !locationInGeofence)) ? 'bg-gray-300 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'"
                         class="w-full py-4 px-6 rounded-lg text-white font-bold text-lg transition duration-200 disabled:opacity-50">
                         <div class="flex items-center justify-center">
                             <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
-                            <span x-show="!cooldownActive">Absen Masuk</span>
-                            <span x-show="cooldownActive" x-text="'Tunggu ' + getCooldownDisplay()"></span>
+                            <span x-text="hasClockIn ? 'Sudah Absen Masuk (' + clockInTime + ')' : 'Absen Masuk'">Absen Masuk</span>
                         </div>
                     </button>
 
                     <button
                         @click="selectAttendanceType('clock-out')"
-                        :disabled="isDisabled('clock-out') || (locationRequired && !locationInGeofence) || cooldownActive"
-                        :class="(isDisabled('clock-out') || (locationRequired && !locationInGeofence) || cooldownActive) ? 'bg-gray-300 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'"
+                        :disabled="isDisabled('clock-out') || (locationRequired && !locationInGeofence)"
+                        :class="(isDisabled('clock-out') || (locationRequired && !locationInGeofence)) ? 'bg-gray-300 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'"
                         class="w-full py-4 px-6 rounded-lg text-white font-bold text-lg transition duration-200 disabled:opacity-50">
                         <div class="flex items-center justify-center">
                             <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
-                            <span x-show="!cooldownActive">Absen Pulang</span>
-                            <span x-show="cooldownActive" x-text="'Tunggu ' + getCooldownDisplay()"></span>
+                            <span x-text="hasClockOut ? 'Sudah Absen Pulang (' + clockOutTime + ')' : (scheduledEnd ? 'Absen Pulang (jadwal ' + scheduledEnd + ')' : 'Absen Pulang')">Absen Pulang</span>
                         </div>
                     </button>
                 </div>
@@ -130,18 +139,6 @@
                 </div>
                 @endif
 
-                <!-- Cooldown info message -->
-                <div x-show="cooldownActive" class="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                    <div class="flex items-center">
-                        <svg class="w-5 h-5 text-yellow-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                        </svg>
-                        <p class="text-sm text-yellow-800">
-                            Mohon tunggu <span class="font-semibold" x-text="getCooldownDisplay()"></span> sebelum dapat melakukan absen.
-                            Fitur ini mencegah kesalahan klik tombol yang tidak disengaja.
-                        </p>
-                    </div>
-                </div>
             </div>
 
             <!-- Step 2: Capture photo -->
@@ -281,6 +278,10 @@ function attendanceApp() {
         stream: null,
         hasClockIn: {{ $attendance && $attendance->clock_in ? 'true' : 'false' }},
         hasClockOut: {{ $attendance && $attendance->clock_out ? 'true' : 'false' }},
+        clockInTime: @js($attendance && $attendance->clock_in ? $attendance->clock_in->format('H:i') : null),
+        clockOutTime: @js($attendance && $attendance->clock_out ? $attendance->clock_out->format('H:i') : null),
+        scheduledEnd: @js($scheduledEnd ? $scheduledEnd->format('H:i') : null),
+        confirmEarly: false, // user confirmed clocking out before the scheduled end
         currentTime: '',
         currentDate: '',
         formattedDateTime: '',
@@ -300,10 +301,6 @@ function attendanceApp() {
         displayWithMap: {{ isset($locationSettings['display_with_map']) && $locationSettings['display_with_map'] ? 'true' : 'false' }},
         displayWithCoordinates: {{ isset($locationSettings['display_with_coordinates']) && $locationSettings['display_with_coordinates'] ? 'true' : 'false' }},
         requireSelfie: {{ isset($attendanceSettings['require_selfie_photo']) && $attendanceSettings['require_selfie_photo'] ? 'true' : 'false' }},
-        clockInTimestamp: null, // Timestamp when user clicked "Absen Masuk"
-        cooldownActive: false, // Whether cooldown is active
-        cooldownRemainingSeconds: 0, // Remaining seconds for cooldown
-        COOLDOWN_DURATION: 600, // 10 minutes in seconds
 
         init() {
             // Initialize clock and schedule
@@ -315,36 +312,9 @@ function attendanceApp() {
             // Initialize location settings
             this.fetchLocationSettings();
 
-            // Check if there's an active cooldown from previous session
-            this.checkCooldownStatus();
-            setInterval(() => this.checkCooldownStatus(), 1000);
-        },
-
-        // Check if cooldown is still active
-        checkCooldownStatus() {
-            const storedTimestamp = localStorage.getItem('clockInTimestamp');
-            if (storedTimestamp) {
-                const timePassed = Math.floor((Date.now() - parseInt(storedTimestamp)) / 1000);
-                if (timePassed < this.COOLDOWN_DURATION) {
-                    this.cooldownActive = true;
-                    this.cooldownRemainingSeconds = this.COOLDOWN_DURATION - timePassed;
-                } else {
-                    // Cooldown expired, clear it
-                    localStorage.removeItem('clockInTimestamp');
-                    this.cooldownActive = false;
-                    this.cooldownRemainingSeconds = 0;
-                }
-            } else {
-                this.cooldownActive = false;
-                this.cooldownRemainingSeconds = 0;
-            }
-        },
-
-        // Format remaining cooldown time as MM:SS
-        getCooldownDisplay() {
-            const minutes = Math.floor(this.cooldownRemainingSeconds / 60);
-            const seconds = this.cooldownRemainingSeconds % 60;
-            return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            // The old 10-minute cooldown is replaced by a confirmation before an
+            // early clock-out; remove its leftover timestamp.
+            try { localStorage.removeItem('clockInTimestamp'); } catch (e) {}
         },
 
         // Fetch location settings from the server using public API endpoints
@@ -477,8 +447,8 @@ function attendanceApp() {
         // Check if the attendance type is disabled based on current status
         isDisabled(type) {
             if (type === 'clock-in') {
-                // Can't clock in if already clocked in today and haven't clocked out yet
-                return this.hasClockIn && !this.hasClockOut;
+                // Only one clock-in per day
+                return this.hasClockIn;
             } else if (type === 'clock-out') {
                 // Can't clock out if hasn't clocked in yet
                 return !this.hasClockIn || this.hasClockOut;
@@ -494,13 +464,16 @@ function attendanceApp() {
                 return;
             }
 
-            // If this is clock-in, start the cooldown
-            if (type === 'clock-in') {
-                const timestamp = Date.now();
-                localStorage.setItem('clockInTimestamp', timestamp.toString());
-                this.clockInTimestamp = timestamp;
-                this.cooldownActive = true;
-                this.cooldownRemainingSeconds = this.COOLDOWN_DURATION;
+            // Clocking out before the scheduled end must be confirmed, so an
+            // accidental tap right after clocking in is not recorded.
+            this.confirmEarly = false;
+            if (type === 'clock-out' && this.isBeforeScheduledEnd()) {
+                const since = this.clockInTime ? ' (Anda absen masuk pukul ' + this.clockInTime + ')' : '';
+                if (!confirm('Jadwal pulang Anda hari ini pukul ' + this.scheduledEnd + since
+                        + '.\n\nYakin ingin absen PULANG sekarang, sebelum jadwal pulang?')) {
+                    return;
+                }
+                this.confirmEarly = true;
             }
 
             this.attendanceType = type;
@@ -509,6 +482,13 @@ function attendanceApp() {
             if (this.requireSelfie) {
                 this.startCamera();
             }
+        },
+
+        isBeforeScheduledEnd() {
+            if (!this.scheduledEnd) return false;
+            const now = new Date();
+            const [h, m] = this.scheduledEnd.split(':').map(Number);
+            return now.getHours() * 60 + now.getMinutes() < h * 60 + m;
         },
 
         // Request location access with improved cross-browser support
@@ -908,7 +888,8 @@ function attendanceApp() {
                     },
                     body: JSON.stringify({ 
                         selfie: this.capturedImage,
-                        location: this.currentLocation  // Include location data
+                        location: this.currentLocation,  // Include location data
+                        confirm_early: this.confirmEarly
                     })
                 });
 
@@ -944,15 +925,41 @@ function attendanceApp() {
 
                 this.submitting = false;
 
+                // Server asks to confirm an early clock-out (e.g. schedule not loaded here)
+                if (data.needs_confirmation) {
+                    if (confirm(data.message)) {
+                        this.confirmEarly = true;
+                        return this.submitAttendance();
+                    }
+                    this.step = 1;
+                    this.resetCamera();
+                    return;
+                }
+
+                // Clock-in was already recorded (e.g. a retry after a lost connection)
+                if (data.already_clocked_in) {
+                    this.hasClockIn = true;
+                    this.message = data.message;
+                    this.step = 3;
+                    setTimeout(() => {
+                        window.location.href = '{{ route("employee.attendance.report") }}';
+                    }, 2000);
+                    return;
+                }
+
                 if (data.success) {
                     this.message = data.message;
                     this.step = 3; // Success step
 
                     // Update the status flags based on what was submitted
+                    const now = new Date();
+                    const nowText = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
                     if (this.attendanceType === 'clock-in') {
                         this.hasClockIn = true;
+                        this.clockInTime = nowText;
                     } else if (this.attendanceType === 'clock-out') {
                         this.hasClockOut = true;
+                        this.clockOutTime = nowText;
                     }
 
                     // Auto-redirect to attendance report after 2 seconds
