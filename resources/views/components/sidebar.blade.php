@@ -238,7 +238,7 @@
             </div>
 
             <!-- Data Siswa Group -->
-            <div class="nav-group" x-data="{ open: @if(request()->routeIs('admin.grades.*') || request()->routeIs('admin.rombels.*') || request()->routeIs('admin.students.*') || request()->routeIs('admin.schedules.custom.siswa') || request()->routeIs('admin.reports.students') || request()->routeIs('admin.permissions.students') || request()->routeIs('admin.exports.students')) true @else false @endif }">
+            <div class="nav-group" x-data="{ open: @if(request()->routeIs('admin.grades.*') || request()->routeIs('admin.rombels.*') || request()->routeIs('admin.students.*') || request()->routeIs('admin.schedules.custom.siswa') || request()->routeIs('admin.student-kiosk.*') || request()->routeIs('admin.reports.students') || request()->routeIs('admin.permissions.students') || request()->routeIs('admin.exports.students')) true @else false @endif }">
                 <button @click="open = !open" class="nav-group-header" :aria-expanded="open" aria-controls="siswa-submenu">
                     <div class="nav-group-title">
                         <div class="nav-icon">
@@ -290,6 +290,12 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
                         </svg>
                         <span class="nav-text">Pengaturan Absen Siswa</span>
+                    </a>
+                    <a href="{{ route('admin.student-kiosk.index') }}" class="nav-sub-item {{ request()->routeIs('admin.student-kiosk.*') ? 'active' : '' }}">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                        </svg>
+                        <span class="nav-text">Kiosk Absensi Siswa</span>
                     </a>
                     <a href="{{ route('admin.reports.students') }}" class="nav-sub-item {{ request()->routeIs('admin.reports.students') ? 'active' : '' }}">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

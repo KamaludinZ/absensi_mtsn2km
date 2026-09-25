@@ -29,8 +29,6 @@ Route::get('/', [WelcomeController::class, 'index'])->name('welcome');
 
 // Public API endpoints
 Route::get('/api/schedules/current-status', [ApiScheduleController::class, 'getCurrentStatus'])->middleware('throttle:30,1');
-Route::get('/api/rombels/by-grade/{grade}', [RombelController::class, 'getByGrade'])->middleware('throttle:30,1');
-Route::get('/api/students/by-rombel/{rombelId}', [StudentController::class, 'getByRombel'])->middleware('throttle:30,1');
 
 // Public location settings API
 Route::get('/api/location-settings/geofence-center-lat', [\App\Http\Controllers\API\LocationSettingController::class, 'getGeofenceCenterLat']);
@@ -38,12 +36,10 @@ Route::get('/api/location-settings/geofence-center-lng', [\App\Http\Controllers\
 Route::get('/api/location-settings/geofence-radius', [\App\Http\Controllers\API\LocationSettingController::class, 'getGeofenceRadius']);
 Route::get('/api/location-settings/location-required', [\App\Http\Controllers\API\LocationSettingController::class, 'getLocationRequired']);
 
-// Student attendance (public with rate limiting)
-Route::prefix('student/attendance')->name('student.attendance.')->middleware('throttle:60,1')->group(function () {
+// Student attendance kiosk: no login (NISN / RFID card), but only from registered
+// school devices and only during attendance hours (see EnsureStudentKioskAccess)
+Route::prefix('student/attendance')->name('student.attendance.')->middleware(['throttle:student-kiosk', \App\Http\Middleware\EnsureStudentKioskAccess::class])->group(function () {
     Route::get('/', [StudentAttendanceController::class, 'index'])->name('index');
-    Route::get('/get-grades', [StudentAttendanceController::class, 'getGrades'])->name('get-grades');
-    Route::get('/get-rombels/{grade}', [StudentAttendanceController::class, 'getRombels'])->name('get-rombels');
-    Route::get('/get-students/{rombelId}', [StudentAttendanceController::class, 'getStudents'])->name('get-students');
     Route::post('/get-student-info', [StudentAttendanceController::class, 'getStudentInfo'])->name('get-student-info');
     Route::post('/clock-in', [StudentAttendanceController::class, 'clockIn'])->name('clock-in');
     Route::post('/clock-out', [StudentAttendanceController::class, 'clockOut'])->name('clock-out');
@@ -363,6 +359,15 @@ Route::middleware(['auth', CheckRole::class . ':admin'])->prefix('admin')->name(
         Route::get('/geofence-center-lng', [App\Http\Controllers\Admin\LocationSettingsController::class, 'getGeofenceCenterLng'])->name('geofence-center-lng');
         Route::get('/geofence-radius', [App\Http\Controllers\Admin\LocationSettingsController::class, 'getGeofenceRadius'])->name('geofence-radius');
         Route::get('/location-required', [App\Http\Controllers\Admin\LocationSettingsController::class, 'getLocationRequired'])->name('location-required');
+    });
+
+    // Student attendance kiosk (registered devices + opening hours)
+    Route::prefix('student-kiosk')->name('student-kiosk.')->group(function () {
+        Route::get('/', [App\Http\Controllers\Admin\StudentKioskController::class, 'index'])->name('index');
+        Route::post('/settings', [App\Http\Controllers\Admin\StudentKioskController::class, 'updateSettings'])->name('settings');
+        Route::post('/devices', [App\Http\Controllers\Admin\StudentKioskController::class, 'registerDevice'])->name('devices.register');
+        Route::post('/devices/{device}/toggle', [App\Http\Controllers\Admin\StudentKioskController::class, 'toggleDevice'])->name('devices.toggle');
+        Route::delete('/devices/{device}', [App\Http\Controllers\Admin\StudentKioskController::class, 'destroyDevice'])->name('devices.destroy');
     });
 
     // Attendance Settings

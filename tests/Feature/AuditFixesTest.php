@@ -40,7 +40,7 @@ class AuditFixesTest extends TestCase
         $student = $this->makeStudent();
         Schedule::create([
             'type' => 'siswa',
-            'day_of_week' => now()->dayOfWeek,
+            'day_of_week' => 1, // Monday
             'start_time' => '07:30:00',
             'end_time' => '14:00:00',
         ]);
@@ -49,8 +49,12 @@ class AuditFixesTest extends TestCase
             ['setting_value' => 'false']
         );
 
-        $response = $this->postJson('/student/attendance/clock-in', [
-            'student_id' => $student->id,
+        // Monday 08:00, inside the attendance hours
+        $this->travelTo(\Carbon\Carbon::parse('2026-09-28 08:00:00'));
+        [, $token] = \App\Services\StudentKiosk::registerDevice('Tablet Uji', null);
+
+        $response = $this->withCredentials()->withCookie(\App\Services\StudentKiosk::COOKIE, $token)->postJson('/student/attendance/clock-in', [
+            'nisn' => $student->nisn,
             // Default geofence centre seeded by the location_settings migration
             'location' => ['latitude' => -6.2, 'longitude' => 106.816666, 'accuracy' => 5],
         ]);
@@ -104,7 +108,7 @@ class AuditFixesTest extends TestCase
         // Suspicious input must be rejected before the controller runs,
         // so nothing is saved.
         $this->post('/student/attendance/clock-in', [
-            'student_id' => $student->id,
+            'nisn' => $student->nisn,
             'location' => ['latitude' => -6.2, 'longitude' => 106.816666, 'accuracy' => 5],
             'note' => 'x UNION SELECT password FROM users',
         ])->assertForbidden();

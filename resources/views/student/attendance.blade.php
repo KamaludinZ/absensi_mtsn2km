@@ -24,14 +24,17 @@
          x-transition:leave-end="opacity-0 transform translate-x-full">
         <p x-text="toastMessage"></p>
     </div>
-            <!-- Main Section: Select Grade, Rombel, and Student with Current Time Display -->
+            <!-- Step 1: Enter NISN (or tap RFID card) -->
             <div x-show="step === 1">
-                <h2 class="text-2xl font-bold text-gray-800 mb-6">Pilih Data Siswa</h2>
+                <h2 class="text-2xl font-bold text-gray-800 mb-6">Masukkan NISN</h2>
                 
                 <!-- Clock & Date at the top -->
                 <div class="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
                     <p class="text-2xl font-bold text-gray-800" x-text="currentTime"></p>
                     <p class="text-sm text-gray-600 mt-1" x-text="currentDate"></p>
+                    @if(!empty($kioskWindow['opens_at']))
+                        <p class="text-xs text-gray-500 mt-1">Absensi dibuka {{ $kioskWindow['opens_at']->format('H:i') }} – {{ $kioskWindow['closes_at']->format('H:i') }}</p>
+                    @endif
                 </div>
                 
                 <!-- Location Information -->
@@ -77,74 +80,18 @@
                 </div>
                 
                 <form @submit.prevent="confirmStudent">
-                    <!-- Grade Selection -->
-                    <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Tingkat Kelas</label>
-                        <div x-show="loadingGrades" class="text-center text-gray-600 mb-2">
-                            <svg class="animate-spin mx-auto mb-2 text-blue-600" style="width: 1.5rem; height: 1.5rem;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            <div>Memuat data kelas...</div>
-                        </div>
-                        <select x-model="selectedGrade" @change="loadRombels" required
-                            class="w-full px-4 py-3 text-lg border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                            :disabled="loadingGrades">
-                            <option value="">-- Pilih Tingkat Kelas --</option>
-                            <template x-for="grade in grades" :key="grade.id">
-                                <option :value="grade.id" x-text="grade.name + ' - ' + grade.description"></option>
-                            </template>
-                        </select>
+                    <!-- NISN input. USB RFID readers act like a keyboard (card number + Enter),
+                         so the same field will work for student cards later. -->
+                    <div class="mb-6">
+                        <label for="nisn" class="block text-sm font-medium text-gray-700 mb-2">NISN</label>
+                        <input id="nisn" x-ref="nisnInput" x-model="nisn" type="text" inputmode="numeric"
+                            autocomplete="off" autofocus maxlength="50" required
+                            placeholder="Ketik NISN lalu tekan Enter"
+                            class="w-full px-4 py-3 text-2xl tracking-widest text-center border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                        <p class="text-sm text-gray-500 mt-2">Ketik NISN Anda, lalu tekan Enter atau tombol Lanjutkan.</p>
                     </div>
 
-                    <!-- Rombel Selection -->
-                    <div class="mb-4" x-show="rombels.length > 0">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Rombel</label>
-                        <div x-show="loadingRombels" class="text-center text-gray-600 mb-2">
-                            <svg class="animate-spin mx-auto mb-2 text-blue-600" style="width: 1.5rem; height: 1.5rem;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            <div>Memuat data rombel...</div>
-                        </div>
-                        <select x-model="selectedRombel" @change="loadStudents" required
-                            class="w-full px-4 py-3 text-lg border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                            :disabled="loadingRombels">
-                            <option value="">-- Pilih Rombel --</option>
-                            <template x-for="rombel in rombels" :key="rombel.id">
-                                <option :value="rombel.id" x-text="rombel.name"></option>
-                            </template>
-                        </select>
-                    </div>
-
-                    <!-- Student Selection -->
-                    <div class="mb-4" x-show="students.length > 0">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Nama Siswa</label>
-                        <div x-show="loadingStudents" class="text-center text-gray-600 mb-2">
-                            <svg class="animate-spin mx-auto mb-2 text-blue-600" style="width: 1.5rem; height: 1.5rem;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            <div>Memuat data siswa...</div>
-                        </div>
-                        <select x-model="selectedStudent" required
-                            class="w-full px-4 py-3 text-lg border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                            :disabled="loadingStudents">
-                            <option value="">-- Pilih Nama --</option>
-                            <template x-for="student in students" :key="student.id">
-                                <option :value="student.id" x-text="student.full_name"></option>
-                            </template>
-                        </select>
-                    </div>
-
-                    <!-- Showing selected information when student is selected -->
-                    <div class="mb-6 p-4 bg-gray-50 rounded-lg" x-show="selectedStudent">
-                        <p class="text-lg"><strong>Nama:</strong> <span x-text="getSelectedStudentName()"></span></p>
-                        <p class="text-lg"><strong>Rombel:</strong> <span x-text="getSelectedRombelName()"></span></p>
-                        <p class="text-lg"><strong>Kelas:</strong> <span x-text="getSelectedGradeName()"></span></p>
-                    </div>
-
-                    <button type="submit" :disabled="!selectedStudent || (locationRequired && !locationInGeofence)"
+                    <button type="submit" :disabled="!nisn.trim() || submitting || (locationRequired && !locationInGeofence)"
                         class="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition duration-200 font-semibold disabled:bg-gray-400 disabled:cursor-not-allowed">
                         Lanjutkan
                     </button>
@@ -175,7 +122,7 @@
                         </svg>
                         <div>
                             <p class="text-sm text-gray-700">Koordinat: 
-                                <span x-text="currentLocation.latitude + ', ' + currentLocation.longitude"></span>
+                                <span x-text="currentLocation ? currentLocation.latitude + ', ' + currentLocation.longitude : 'Mengambil lokasi...'"></span>
                             </p>
                             <p class="text-sm text-gray-600" x-text="currentLocation ? 'Akurasi: ' + Math.round(currentLocation.accuracy) + ' meter' : 'Akurasi: -'"></p>
                             <template x-if="lastLocationCheck">
@@ -223,7 +170,7 @@
                 <div x-show="student.has_clocked_in && student.has_clocked_out" class="text-center">
                     <p class="text-lg text-green-600 font-semibold">Sudah Absen Masuk dan Pulang</p>
                     <button @click="reset" class="mt-4 bg-gray-500 text-white py-3 rounded-lg hover:bg-gray-600 transition duration-200 font-semibold">
-                        Pilih Siswa Lain
+                        Kembali
                     </button>
                 </div>
             </div>
@@ -309,7 +256,7 @@
                 </svg>
                 <h2 class="text-2xl font-bold text-gray-800 mb-4" x-text="clockInAction ? 'Absen Datang Berhasil!' : 'Absen Pulang Berhasil!'"></h2>
                 <p class="text-lg text-gray-600 mb-6" x-text="message"></p>
-                <p class="text-sm text-gray-500">Mengarahkan ke halaman utama...</p>
+                <p class="text-sm text-gray-500">Kembali ke halaman absensi untuk siswa berikutnya...</p>
             </div>
 
             <!-- Error State with Retry -->
@@ -336,12 +283,7 @@
 function attendanceApp() {
     return {
         step: 1,
-        selectedGrade: '',
-        selectedRombel: '',
-        selectedStudent: '',
-        grades: [],
-        rombels: [],
-        students: [],
+        nisn: '',
         student: {},
         studentSchedule: {},
         clockInAction: true, // true for clock-in, false for clock-out
@@ -357,9 +299,6 @@ function attendanceApp() {
         showToast: false,
         toastMessage: '',
         toastType: 'success', // 'success' or 'error'
-        loadingGrades: false,
-        loadingRombels: false,
-        loadingStudents: false,
         locationEnabled: false,
         locationRequired: false, // Default to false for public access
         currentLocation: null,
@@ -372,24 +311,6 @@ function attendanceApp() {
             // Load location settings first
             await this.fetchLocationSettings();
             
-            // Load grades initially
-            this.loadingGrades = true;
-            try {
-                const response = await fetch('{{ route("student.attendance.get-grades") }}');
-                
-                if (!response.ok) {
-                    throw new Error(`Gagal memuat kelas: ${response.status} ${response.statusText}`);
-                }
-                
-                const data = await response.json();
-                this.grades = data.grades;
-            } catch (error) {
-                console.error('Failed to load grades:', error);
-                this.error = `Gagal memuat data kelas: ${error.message}`;
-            } finally {
-                this.loadingGrades = false;
-            }
-
             // Initialize clock and schedule
             this.updateClock();
             this.fetchScheduleStatus();
@@ -401,6 +322,8 @@ function attendanceApp() {
                     this.startCamera();
                 }
             });
+
+            this.$nextTick(() => this.$refs.nisnInput.focus());
         },
 
         // Fetch location settings from the server using a public endpoint with improved error handling
@@ -519,91 +442,9 @@ function attendanceApp() {
             }
         },
 
-        async loadRombels() {
-            if (!this.selectedGrade) {
-                this.rombels = [];
-                this.selectedRombel = '';
-                this.students = [];
-                this.selectedStudent = '';
-                return;
-            }
-
-            this.loadingRombels = true;
-            this.error = '';
-            this.selectedRombel = '';
-            this.selectedStudent = '';
-            this.rombels = [];
-            this.students = [];
-
-            try {
-                const url = `{{ route("student.attendance.get-rombels", ":grade") }}`;
-                const response = await fetch(url.replace(':grade', encodeURIComponent(this.selectedGrade)));
-                
-                if (!response.ok) {
-                    throw new Error(`Gagal memuat rombel: ${response.status} ${response.statusText}`);
-                }
-                
-                const data = await response.json();
-                this.rombels = data.rombels || [];
-                
-                // Show appropriate message if no rombels found
-                if (this.rombels.length === 0) {
-                    this.error = 'Tidak ada rombel yang ditemukan untuk kelas ini.';
-                } else {
-                    this.error = ''; // Clear any previous error
-                }
-            } catch (error) {
-                console.error('Error loading rombels:', error);
-                this.error = `Gagal memuat data rombel: ${error.message}`;
-                this.rombels = [];
-                this.selectedRombel = '';
-            } finally {
-                this.loadingRombels = false;
-            }
-        },
-
-        async loadStudents() {
-            if (!this.selectedRombel) {
-                this.students = [];
-                this.selectedStudent = '';
-                return;
-            }
-
-            this.loadingStudents = true;
-            this.error = '';
-            this.selectedStudent = '';
-            this.students = [];
-
-            try {
-                const url = `{{ route("student.attendance.get-students", ":rombelId") }}`;
-                const response = await fetch(url.replace(':rombelId', encodeURIComponent(this.selectedRombel)));
-                
-                if (!response.ok) {
-                    throw new Error(`Gagal memuat siswa: ${response.status} ${response.statusText}`);
-                }
-                
-                const data = await response.json();
-                this.students = data.students || [];
-                
-                // Show appropriate message if no students found
-                if (this.students.length === 0) {
-                    this.error = 'Tidak ada siswa yang ditemukan di rombel ini.';
-                } else {
-                    this.error = ''; // Clear any previous error
-                }
-            } catch (error) {
-                console.error('Error loading students:', error);
-                this.error = `Gagal memuat data siswa: ${error.message}`;
-                this.students = [];
-                this.selectedStudent = '';
-            } finally {
-                this.loadingStudents = false;
-            }
-        },
-
         async confirmStudent() {
-            if (!this.selectedStudent) {
-                this.error = 'Silakan pilih siswa terlebih dahulu.';
+            if (!this.nisn.trim()) {
+                this.error = 'Silakan masukkan NISN terlebih dahulu.';
                 return;
             }
 
@@ -617,31 +458,31 @@ function attendanceApp() {
             this.submitting = true;
 
             try {
-                // Check attendance status using new endpoint
                 const response = await fetch('{{ route("student.attendance.get-student-info") }}', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        'Accept': 'application/json',
                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
                     },
                     body: JSON.stringify({ 
-                        student_id: this.selectedStudent
+                        nisn: this.nisn.trim()
                     })
                 });
 
-                if (!response.ok) {
+                const data = await response.json().catch(() => ({}));
+
+                if (!response.ok && !data.message) {
                     throw new Error(`Gagal memuat info siswa: ${response.status} ${response.statusText}`);
                 }
 
-                const data = await response.json();
-
                 if (data.success) {
-                    // Add grade information to student object
-                    data.student.grade_info = this.getSelectedGradeName();
                     this.student = data.student;
                     this.step = 2;
                 } else {
                     this.error = data.message || 'Gagal memuat informasi siswa.';
+                    this.nisn = '';
+                    this.$nextTick(() => this.$refs.nisnInput.focus());
                 }
             } catch (error) {
                 console.error('Error confirming student:', error);
@@ -649,24 +490,6 @@ function attendanceApp() {
             } finally {
                 this.submitting = false;
             }
-        },
-
-        getSelectedGradeName() {
-            if (!this.selectedGrade || !this.grades.length) return '';
-            const grade = this.grades.find(g => g.id == this.selectedGrade);
-            return grade ? grade.name + ' - ' + grade.description : '';
-        },
-
-        getSelectedStudentName() {
-            if (!this.selectedStudent || !this.students.length) return '';
-            const student = this.students.find(s => s.id == this.selectedStudent);
-            return student ? student.full_name : '';
-        },
-
-        getSelectedRombelName() {
-            if (!this.selectedStudent || !this.students.length) return '';
-            const student = this.students.find(s => s.id == this.selectedStudent);
-            return student ? student.rombel_name : '';
         },
 
         // Request location access with improved cross-browser support
@@ -916,18 +739,16 @@ function attendanceApp() {
 
         reset() {
             this.step = 1;
-            this.selectedGrade = '';
-            this.selectedRombel = '';
-            this.selectedStudent = '';
-            this.rombels = [];
-            this.students = [];
+            this.nisn = '';
             this.student = {};
             this.capturedImage = null;
             this.message = '';
             this.error = '';
             if (this.stream) {
                 this.stream.getTracks().forEach(track => track.stop());
+                this.stream = null;
             }
+            this.$nextTick(() => this.$refs.nisnInput.focus());
         },
 
         updateClock() {
@@ -987,20 +808,21 @@ function attendanceApp() {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        'Accept': 'application/json',
                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
                     },
                     body: JSON.stringify({
-                        student_id: this.student.id,
+                        nisn: this.nisn.trim(),
                         selfie: this.capturedImage,
                         location: this.currentLocation
                     })
                 });
 
-                if (!response.ok) {
+                const data = await response.json().catch(() => ({}));
+
+                if (!response.ok && !data.message) {
                     throw new Error(`Gagal mengirim absensi: ${response.status} ${response.statusText}`);
                 }
-
-                const data = await response.json();
 
                 this.submitting = false;
 
@@ -1011,9 +833,9 @@ function attendanceApp() {
                     this.toastType = 'success';
                     this.step = 4;
 
-                    // Auto-redirect to welcome page after 2 seconds
+                    // Kiosk: go back to an empty NISN field for the next student
                     setTimeout(() => {
-                        window.location.href = '{{ route("welcome") }}';
+                        this.reset();
                     }, 2000);
                     
                     // Hide toast after 3 seconds

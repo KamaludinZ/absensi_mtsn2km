@@ -231,18 +231,4 @@ class StudentController extends Controller
                 ->with('error', 'Gagal mengimpor data: ' . $e->getMessage());
         }
     }
-
-    /**
-     * Get students by rombel for student attendance selection
-     * Only returns active students
-     */
-    public function getByRombel($rombelId)
-    {
-        $students = Student::where('rombel_id', $rombelId)
-            ->where('is_active', true)
-            ->orderBy('full_name')
-            ->get(['id', 'full_name']);
-
-        return response()->json($students);
-    }
 }

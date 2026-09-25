@@ -34,5 +34,15 @@ class AppServiceProvider extends ServiceProvider
                 Limit::perMinute(60)->by('login-ip|' . $request->ip()),
             ];
         });
+
+        // Student attendance kiosk: limit per registered device (cookie), not per
+        // IP, because all school tablets share one IP during the morning rush.
+        RateLimiter::for('student-kiosk', function (Request $request) {
+            $token = $request->cookie(\App\Services\StudentKiosk::COOKIE);
+
+            return is_string($token) && $token !== ''
+                ? Limit::perMinute(120)->by('kiosk-device|' . sha1($token))
+                : Limit::perMinute(30)->by('kiosk-ip|' . $request->ip());
+        });
     }
 }

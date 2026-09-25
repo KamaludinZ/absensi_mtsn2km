@@ -7,10 +7,9 @@ use Illuminate\Http\Request;
 use App\Models\Attendance;
 use App\Models\Student;
 use App\Models\Schedule;
-use App\Models\Rombel;
-use App\Models\Grade;
 use App\Models\LocationSetting;
 use App\Models\AttendanceSetting;
+use App\Services\StudentKiosk;
 use Carbon\Carbon;
 use Intervention\Image\Laravel\Facades\Image;
 use Illuminate\Support\Facades\Storage;
@@ -41,84 +40,23 @@ class AttendanceController extends Controller
             'display_with_map' => $displayWithMap ? filter_var($displayWithMap->setting_value, FILTER_VALIDATE_BOOLEAN) : true,
         ];
 
-        return view('student.attendance', compact('attendanceSettings', 'locationSettings'));
-    }
+        $kioskWindow = request()->attributes->get('kiosk_window') ?? StudentKiosk::window();
 
-    public function getGrades()
-    {
-        $grades = Grade::where('is_active', true)
-            ->orderBy('name')
-            ->select('id', 'name', 'description')
-            ->get();
-        
-        return response()->json([
-            'grades' => $grades
-        ]);
-    }
-
-    public function getRombels($grade)
-    {
-        $rombels = Rombel::where('grade_id', $grade)
-            ->orderBy('name', 'asc')
-            ->get(['id', 'name']);
-        
-        return response()->json([
-            'rombels' => $rombels
-        ]);
-    }
-
-    public function getStudents($rombelId)
-    {
-        // Validate the rombelId
-        if (!$rombelId || !is_numeric($rombelId)) {
-            return response()->json([
-                'students' => [],
-                'message' => 'Invalid rombel ID provided'
-            ]);
-        }
-
-        $students = Student::where('rombel_id', $rombelId)
-            ->where('is_active', true)
-            ->with('rombel') // Load rombel relationship
-            ->select('id', 'full_name', 'rombel_id')
-            ->orderBy('full_name', 'asc')
-            ->get();
-        
-        // Format the data to include rombel name
-        $formattedStudents = $students->map(function ($student) {
-            return [
-                'id' => $student->id,
-                'full_name' => $student->full_name,
-                'rombel_name' => $student->rombel ? $student->rombel->name : ''
-            ];
-        });
-        
-        // Log for debugging purposes
-        Log::info('getStudents called', [
-            'rombelId' => $rombelId,
-            'studentCount' => count($formattedStudents)
-        ]);
-        
-        return response()->json([
-            'students' => $formattedStudents
-        ]);
+        return view('student.attendance', compact('attendanceSettings', 'locationSettings', 'kioskWindow'));
     }
 
     public function getStudentInfo(Request $request)
     {
         $request->validate([
-            'student_id' => 'required|exists:students,id',
+            'nisn' => 'required|string|max:50',
         ]);
 
-        $student = Student::where('id', $request->student_id)
-            ->where('is_active', true)
-            ->with('rombel')
-            ->first();
+        $student = StudentKiosk::findStudent($request->nisn);
 
         if (!$student) {
             return response()->json([
                 'success' => false,
-                'message' => 'Siswa tidak ditemukan atau tidak aktif.',
+                'message' => 'NISN tidak ditemukan atau siswa tidak aktif.',
             ]);
         }
 
@@ -132,10 +70,9 @@ class AttendanceController extends Controller
         return response()->json([
             'success' => true,
             'student' => [
-                'id' => $student->id,
                 'full_name' => $student->full_name,
                 'rombel' => $student->rombel ? $student->rombel->name : 'N/A',
-                'grade_info' => $student->rombel && $student->rombel->grade ? 
+                'grade_info' => $student->rombel && $student->rombel->grade ?
                     ($student->rombel->grade->name . ' - ' . $student->rombel->grade->description) : 'N/A',
                 'has_clocked_in' => $attendance && $attendance->clock_in !== null,
                 'has_clocked_out' => $attendance && $attendance->clock_out !== null,
@@ -152,7 +89,7 @@ class AttendanceController extends Controller
 
             // Build validation rules dynamically based on settings
             $validationRules = [
-                'student_id' => 'required|exists:students,id',
+                'nisn' => 'required|string|max:50',
                 'location' => 'array|nullable',
                 'location.latitude' => 'required_with:location|numeric|between:-90,90',
                 'location.longitude' => 'required_with:location|numeric|between:-180,180',
@@ -173,7 +110,14 @@ class AttendanceController extends Controller
 
             $request->validate($validationRules);
 
-            $student = Student::findOrFail($request->student_id);
+            $student = StudentKiosk::findStudent($request->nisn);
+
+            if (!$student) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'NISN tidak ditemukan atau siswa tidak aktif.',
+                ]);
+            }
 
             // Check location requirements
             $locationSetting = \App\Models\LocationSetting::where('setting_key', 'location_required')->first();
@@ -303,7 +247,7 @@ class AttendanceController extends Controller
             ]);
         } catch (\Exception $e) {
             Log::error('Student clock-in error: ' . $e->getMessage(), [
-                'student_id' => $request->student_id ?? null,
+                'nisn' => $request->nisn ?? null,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
@@ -327,7 +271,7 @@ class AttendanceController extends Controller
 
             // Build validation rules dynamically based on settings
             $validationRules = [
-                'student_id' => 'required|exists:students,id',
+                'nisn' => 'required|string|max:50',
                 'location' => 'array|nullable',
                 'location.latitude' => 'required_with:location|numeric|between:-90,90',
                 'location.longitude' => 'required_with:location|numeric|between:-180,180',
@@ -348,7 +292,14 @@ class AttendanceController extends Controller
 
             $request->validate($validationRules);
 
-            $student = Student::findOrFail($request->student_id);
+            $student = StudentKiosk::findStudent($request->nisn);
+
+            if (!$student) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'NISN tidak ditemukan atau siswa tidak aktif.',
+                ]);
+            }
 
             // Check location requirements
             $locationSetting = \App\Models\LocationSetting::where('setting_key', 'location_required')->first();
@@ -478,7 +429,7 @@ class AttendanceController extends Controller
             ]);
         } catch (\Exception $e) {
             Log::error('Student clock-out error: ' . $e->getMessage(), [
-                'student_id' => $request->student_id ?? null,
+                'nisn' => $request->nisn ?? null,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
