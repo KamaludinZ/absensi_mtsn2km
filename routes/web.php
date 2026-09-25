@@ -51,7 +51,7 @@ Route::prefix('student/attendance')->name('student.attendance.')->middleware('th
 
 // Authentication routes (with rate limiting)
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
-Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1'); // 5 attempts per minute
+Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login'); // see AppServiceProvider
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middleware('auth');
 
 // Secure selfie access route - requires authentication
@@ -71,8 +71,6 @@ Route::middleware(['auth', CheckRole::class . ':pegawai'])->prefix('employee')->
         Route::post('/clock-out', [EmployeeAttendanceController::class, 'clockOut'])->name('clock-out');
         Route::get('/report', [EmployeeAttendanceController::class, 'report'])->name('report');
         Route::get('/report/export', [EmployeeAttendanceController::class, 'export'])->name('report.export');
-        // Test route for geofence validation (temporary)
-        Route::get('/test-geofence', [EmployeeAttendanceController::class, 'testGeofence'])->name('test-geofence');
     });
 
     Route::prefix('permission')->name('permission.')->group(function () {
@@ -378,13 +376,6 @@ Route::middleware(['auth', CheckRole::class . ':admin'])->prefix('admin')->name(
         Route::get('/', [App\Http\Controllers\Admin\SystemMonitorController::class, 'index'])->name('index');
     });
 });
-
-// Additional student permissions CRUD routes
-Route::get('/admin/permissions/students/create', [App\Http\Controllers\Admin\PermissionController::class, 'createStudent'])->name('admin.permissions.students.create');
-Route::post('/admin/permissions/students', [App\Http\Controllers\Admin\PermissionController::class, 'storeStudent'])->name('admin.permissions.students.store');
-Route::get('/admin/permissions/students/{permission}/edit', [App\Http\Controllers\Admin\PermissionController::class, 'editStudent'])->name('admin.permissions.students.edit');
-Route::put('/admin/permissions/students/{permission}', [App\Http\Controllers\Admin\PermissionController::class, 'updateStudent'])->name('admin.permissions.students.update');
-Route::delete('/admin/permissions/students/{permission}', [App\Http\Controllers\Admin\PermissionController::class, 'destroyStudent'])->name('admin.permissions.students.destroy');
 
 // API route for schedule information
 Route::post('/api/schedule-info', [App\Http\Controllers\API\ScheduleController::class, 'getScheduleInfo'])->middleware('auth');
