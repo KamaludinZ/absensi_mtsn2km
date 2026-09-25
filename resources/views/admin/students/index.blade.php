@@ -1,26 +1,4 @@
 @php
-    function sortableLink($label, $sortField, $currentSort, $currentDirection) {
-        $newDirection = 'asc';
-        $icon = '';
-
-        if ($currentSort == $sortField) {
-            // If this column is currently sorted
-            $newDirection = $currentDirection == 'asc' ? 'desc' : 'asc';
-            $icon = $currentDirection == 'asc' ? ' ↑' : ' ↓';
-        }
-
-        // Build query string preserving filters
-        $params = request()->except(['sort', 'direction', 'page']);
-        $params['sort'] = $sortField;
-        $params['direction'] = $newDirection;
-
-        $url = request()->url() . '?' . http_build_query($params);
-
-        $class = $currentSort == $sortField ? 'text-blue-600 font-semibold' : 'text-gray-700 hover:text-blue-600';
-
-        return '<a href="' . $url . '" class="' . $class . '">' . $label . $icon . '</a>';
-    }
-
     $currentSort = $sortField ?? request('sort', 'full_name');
     $currentDirection = $sortDirection ?? request('direction', 'asc');
 @endphp
@@ -31,9 +9,11 @@
 @section('container-class', '')
 @section('content')
 <div class="w-full py-6">
-    <div class="mb-4 flex space-x-2">
+    <div class="mb-4 flex flex-wrap gap-2">
     <a href="{{ route('admin.students.create') }}" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">Tambah Siswa</a>
     <a href="{{ route('admin.students.import-form') }}" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">Import Excel</a>
+    <a href="{{ route('admin.students.rfid.index') }}" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700">Kartu RFID</a>
+    <a href="{{ route('admin.students.promotion.index') }}" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700">Kenaikan Kelas</a>
 </div>
 
 <!-- Filters -->
@@ -75,6 +55,7 @@
                 <option value="">Semua Status</option>
                 <option value="1" {{ request('is_active') === '1' ? 'selected' : '' }}>Aktif</option>
                 <option value="0" {{ request('is_active') === '0' ? 'selected' : '' }}>Tidak Aktif</option>
+                <option value="graduated" {{ request('is_active') === 'graduated' ? 'selected' : '' }}>Lulus</option>
             </select>
         </div>
         
@@ -108,9 +89,7 @@
                             Rombel: {{ $student->rombel->name }}
                         </div>
                         <div class="mt-1">
-                            <span class="px-2 py-1 text-xs rounded {{ $student->is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">
-                                {{ $student->is_active ? 'Aktif' : 'Tidak Aktif' }}
-                            </span>
+                            @include('admin.students.partials.status-badge')
                         </div>
                     </div>
                     <div class="ml-4 flex-shrink-0">
@@ -153,9 +132,7 @@
                     <td class="px-6 py-4">{{ $student->rombel->grade->description }}</td>
                     <td class="px-6 py-4">{{ $student->rombel->name }}</td>
                     <td class="px-6 py-4">
-                        <span class="px-2 py-1 text-xs rounded {{ $student->is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">
-                            {{ $student->is_active ? 'Aktif' : 'Tidak Aktif' }}
-                        </span>
+                        @include('admin.students.partials.status-badge')
                     </td>
                     <td class="px-6 py-4">
                         <a href="{{ route('admin.students.edit', $student) }}" class="text-blue-600 hover:text-blue-800">Edit</a>

@@ -57,7 +57,7 @@
                             <td class="px-6 py-4">{{ Str::limit($correction->reason, 100) }}</td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 @if($correction->supporting_document)
-                                    <a href="{{ asset('storage/' . $correction->supporting_document) }}"
+                                    <a href="{{ route('documents.attendance-correction', $correction) }}"
                                        target="_blank"
                                        class="text-blue-600 hover:text-blue-900 inline-flex items-center"
                                        title="Lihat Dokumen">

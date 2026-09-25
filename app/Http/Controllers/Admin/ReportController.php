@@ -275,7 +275,7 @@ class ReportController extends Controller
 
     public function studentReports(Request $request)
     {
-        $query = Attendance::with(['attendable.rombel', 'attendable'])
+        $query = Attendance::with(['rombel', 'attendable.rombel'])
             ->where('attendable_type', Student::class);
 
         // Apply filters - first check for month/year
@@ -296,9 +296,8 @@ class ReportController extends Controller
 
         // OPTIMIZED: Use whereHas instead of whereIn with pluck (reduces queries)
         if ($request->filled('rombel_id')) {
-            $query->whereHasMorph('attendable', [Student::class], function ($q) use ($request) {
-                $q->where('rombel_id', $request->rombel_id);
-            });
+            // Class at the time of attendance, not the student's current class
+            $query->where('attendances.rombel_id', $request->rombel_id);
         }
 
         if ($request->filled('student_name')) {
@@ -323,7 +322,7 @@ class ReportController extends Controller
                 // For relationship fields, we need to sort in collection
                 $attendances = $query->get()->sortBy(function($attendance) use ($sortField) {
                     if ($sortField === 'rombel') {
-                        return strtolower($attendance->attendable->rombel->name ?? '');
+                        return strtolower($attendance->rombel_name ?? '');
                     }
                     return strtolower($attendance->attendable->$sortField ?? '');
                 }, SORT_REGULAR, $sortDirection === 'desc');
@@ -336,10 +335,10 @@ class ReportController extends Controller
                 } else {
                     $attendances = $attendances->sortBy(function($attendance) use ($sortField, $sortDirection) {
                         if ($sortField === 'rombel') {
-                            $group = strtolower($attendance->attendable->rombel->name ?? '');
+                            $group = strtolower($attendance->rombel_name ?? '');
                             $name = strtolower($attendance->attendable->full_name ?? '');
                         } else {
-                            $group = strtolower($attendance->attendable->rombel->name ?? '');
+                            $group = strtolower($attendance->rombel_name ?? '');
                             $name = strtolower($attendance->attendable->$sortField ?? '');
                         }
                         $date = $attendance->date->format('Y-m-d');
@@ -375,13 +374,13 @@ class ReportController extends Controller
                 } else {
                     // Otherwise, sort by student name first, then by the field, then by date
                     $attendances = $query->join('students', 'attendances.attendable_id', '=', 'students.id')
-                                         ->join('rombels', 'students.rombel_id', '=', 'rombels.id')
+                                         ->leftJoin('rombels', 'attendances.rombel_id', '=', 'rombels.id')
                                          ->orderBy('rombels.name', $sortDirection)
                                          ->orderBy('students.full_name', $sortDirection)
                                          ->orderBy($sortField, $sortDirection)
                                          ->orderBy('attendances.date', 'asc')
                                          ->select('attendances.*')
-                                         ->with(['attendable.rombel', 'attendable'])
+                                         ->with(['rombel', 'attendable.rombel'])
                                          ->get();
                 }
                 $paginated = false; // Handle pagination after sorting
@@ -396,12 +395,12 @@ class ReportController extends Controller
                 } else {
                     // Default grouping by rombel/name and then by date
                     $attendances = $query->join('students', 'attendances.attendable_id', '=', 'students.id')
-                                         ->join('rombels', 'students.rombel_id', '=', 'rombels.id')
+                                         ->leftJoin('rombels', 'attendances.rombel_id', '=', 'rombels.id')
                                          ->orderBy('rombels.name')
                                          ->orderBy('students.full_name')
                                          ->orderBy('attendances.date', $sortDirection)
                                          ->select('attendances.*')
-                                         ->with(['attendable.rombel', 'attendable'])
+                                         ->with(['rombel', 'attendable.rombel'])
                                          ->get();
                 }
                 $paginated = false; // Handle pagination after sorting
@@ -491,8 +490,7 @@ class ReportController extends Controller
         } else { // student
             $query->where('attendable_type', Student::class);
             if ($request->filled('rombel_id')) {
-                $studentIds = Student::where('rombel_id', $request->rombel_id)->pluck('id');
-                $query->whereIn('attendable_id', $studentIds);
+                $query->where('attendances.rombel_id', $request->rombel_id);
             }
         }
 
@@ -588,7 +586,7 @@ class ReportController extends Controller
                 'clock_in_time' => $attendance->clock_in ? $attendance->clock_in->format('H:i:s') : '-',
                 'clock_out_time' => $attendance->clock_out ? $attendance->clock_out->format('H:i:s') : '-',
                 'nisn' => $attendance->attendable->nisn ?? '-',
-                'rombel' => $attendance->attendable->rombel->name ?? '-',
+                'rombel' => $attendance->rombel_name ?? '-',
                 'schedule_start' => $schedule ? Carbon::parse($schedule->start_time)->format('H:i:s') : '-',
                 'schedule_end' => $schedule ? Carbon::parse($schedule->end_time)->format('H:i:s') : '-',
                 'clock_in_status' => $attendance->status_in,

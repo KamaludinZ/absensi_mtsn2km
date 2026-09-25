@@ -60,7 +60,7 @@
                         </div>
                         <div class="mt-2">
                             @if($permission->supporting_document)
-                                <a href="{{ asset('storage/' . $permission->supporting_document) }}" target="_blank" class="text-blue-600 hover:underline text-sm">
+                                <a href="{{ route('documents.permission', $permission) }}" target="_blank" class="text-blue-600 hover:underline text-sm">
                                     Lihat Dokumen
                                 </a>
                             @else
@@ -113,7 +113,7 @@
                     <td class="px-6 py-4">{{ Str::limit($permission->reason, 50) }}</td>
                     <td class="px-6 py-4 whitespace-nowrap">
                         @if($permission->supporting_document)
-                            <a href="{{ asset('storage/' . $permission->supporting_document) }}" target="_blank" class="text-blue-600 hover:underline">
+                            <a href="{{ route('documents.permission', $permission) }}" target="_blank" class="text-blue-600 hover:underline">
                                 Lihat Dokumen
                             </a>
                         @else

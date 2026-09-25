@@ -14,9 +14,12 @@
                     <li>Database (semua tabel dan data)</li>
                     <li>Foto selfie absensi pegawai dan siswa</li>
                     <li>File pengaturan aplikasi</li>
-                    <li>Konfigurasi environment (.env)</li>
                     <li>Metadata backup (tanggal, versi app, dll)</li>
                 </ul>
+                <p class="text-sm text-blue-700 mt-2">
+                    File <code>.env</code> (password database &amp; kunci aplikasi) sengaja tidak ikut dibackup demi keamanan.
+                    Simpan salinan <code>.env</code> di tempat aman secara terpisah.
+                </p>
             </div>
         </div>
     </div>

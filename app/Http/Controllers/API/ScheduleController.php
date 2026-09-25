@@ -135,7 +135,7 @@ class ScheduleController extends Controller
 
             return [
                 'current_time' => $now->format('H:i:s'),
-                'current_date' => $now->translatedFormat('l, d F Y'),
+                'current_date' => $now->copy()->locale('id')->translatedFormat('l, d F Y'),
                 'formatted_datetime' => $now->translatedFormat('l, d F Y H:i'),
                 'badge' => $badge, // Will be Jam Datang, Jam Pulang or null
                 'employee_schedule' => $responseEmployeeSchedule ? [

@@ -84,7 +84,7 @@
                 <label class="block text-gray-700 font-bold mb-2">Dokumen Pendukung</label>
                 <div class="px-3 py-2 border border-gray-300 rounded-md bg-gray-100">
                     @if($attendanceCorrection->supporting_document)
-                        <a href="{{ Storage::url($attendanceCorrection->supporting_document) }}" 
+                        <a href="{{ route('documents.attendance-correction', $attendanceCorrection) }}" 
                            target="_blank" 
                            class="text-blue-600 hover:text-blue-800">
                             Lihat Dokumen Pendukung (PDF)

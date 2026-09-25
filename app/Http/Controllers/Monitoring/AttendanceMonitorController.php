@@ -221,7 +221,7 @@ class AttendanceMonitorController extends Controller
 
     public function students(Request $request)
     {
-        $query = Attendance::with(['attendable.rombel'])
+        $query = Attendance::with(['rombel', 'attendable.rombel'])
             ->where('attendable_type', Student::class);
 
         $selectedMonth = $request->input('month', Carbon::now()->month);
@@ -241,8 +241,8 @@ class AttendanceMonitorController extends Controller
 
         // Filter by rombel
         if ($request->filled('rombel_id')) {
-            $studentIds = Student::where('rombel_id', $request->rombel_id)->pluck('id');
-            $query->whereIn('attendable_id', $studentIds);
+            // Class at the time of attendance, not the student's current class
+            $query->where('attendances.rombel_id', $request->rombel_id);
         }
 
         // Filter by student name
@@ -270,7 +270,7 @@ class AttendanceMonitorController extends Controller
                 // For relationship fields, we need to sort the collection
                 $attendances = $query->get()->sortBy(function($attendance) use ($sortField) {
                     if ($sortField === 'rombel') {
-                        return strtolower($attendance->attendable->rombel->name ?? '');
+                        return strtolower($attendance->rombel_name ?? '');
                     }
                     return strtolower($attendance->attendable->$sortField ?? '');
                 }, SORT_REGULAR, $sortDirection === 'desc');
@@ -283,10 +283,10 @@ class AttendanceMonitorController extends Controller
                 } else {
                     $attendances = $attendances->sortBy(function($attendance) use ($sortField, $sortDirection) {
                         if ($sortField === 'rombel') {
-                            $group = strtolower($attendance->attendable->rombel->name ?? '');
+                            $group = strtolower($attendance->rombel_name ?? '');
                             $name = strtolower($attendance->attendable->full_name ?? '');
                         } else {
-                            $group = strtolower($attendance->attendable->rombel->name ?? '');
+                            $group = strtolower($attendance->rombel_name ?? '');
                             $name = strtolower($attendance->attendable->$sortField ?? '');
                         }
                         $date = $attendance->date->format('Y-m-d');
@@ -323,13 +323,13 @@ class AttendanceMonitorController extends Controller
                 } else {
                     // Otherwise, sort by student name first, then by the field, then by date
                     $attendances = $query->join('students', 'attendances.attendable_id', '=', 'students.id')
-                                         ->join('rombels', 'students.rombel_id', '=', 'rombels.id')
+                                         ->leftJoin('rombels', 'attendances.rombel_id', '=', 'rombels.id')
                                          ->orderBy('rombels.name', $sortDirection)
                                          ->orderBy('students.full_name', $sortDirection)
                                          ->orderBy($sortField, $sortDirection)
                                          ->orderBy('attendances.date', 'asc')
                                          ->select('attendances.*')
-                                         ->with(['attendable.rombel'])
+                                         ->with(['rombel', 'attendable.rombel'])
                                          ->get();
                 }
 
@@ -359,12 +359,12 @@ class AttendanceMonitorController extends Controller
                 } else {
                     // Default grouping by rombel/name and then by date
                     $attendances = $query->join('students', 'attendances.attendable_id', '=', 'students.id')
-                                         ->join('rombels', 'students.rombel_id', '=', 'rombels.id')
+                                         ->leftJoin('rombels', 'attendances.rombel_id', '=', 'rombels.id')
                                          ->orderBy('rombels.name')
                                          ->orderBy('students.full_name')
                                          ->orderBy('attendances.date', $sortDirection)
                                          ->select('attendances.*')
-                                         ->with(['attendable.rombel'])
+                                         ->with(['rombel', 'attendable.rombel'])
                                          ->get();
                 }
 

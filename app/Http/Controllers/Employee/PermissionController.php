@@ -49,8 +49,7 @@ class PermissionController extends Controller
         $supportingDocumentPath = null;
         if ($request->hasFile('supporting_document')) {
             $file = $request->file('supporting_document');
-            $filename = time() . '_' . $file->getClientOriginalName();
-            $supportingDocumentPath = $file->storeAs('permissions', $filename, 'public');
+            $supportingDocumentPath = $file->store('permissions', 'public');
         }
 
         Permission::create([

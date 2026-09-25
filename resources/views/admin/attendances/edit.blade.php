@@ -48,7 +48,7 @@
                                 </div>
                                 <div>
                                     <label class="block text-sm font-medium text-gray-600">Rombel</label>
-                                    <p class="text-gray-900">{{ $attendance->attendable->rombel->name ?? 'N/A' }}</p>
+                                    <p class="text-gray-900">{{ $attendance->rombel_name ?? 'N/A' }}</p>
                                 </div>
                             </div>
                         </div>

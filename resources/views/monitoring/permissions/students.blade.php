@@ -1,26 +1,4 @@
 @php
-    function sortableLink($label, $sortField, $currentSort, $currentDirection) {
-        $newDirection = 'asc';
-        $icon = '';
-
-        if ($currentSort == $sortField) {
-            // If this column is currently sorted
-            $newDirection = $currentDirection == 'asc' ? 'desc' : 'asc';
-            $icon = $currentDirection == 'asc' ? ' ↑' : ' ↓';
-        }
-
-        // Build query string preserving filters
-        $params = request()->except(['sort', 'direction', 'page']);
-        $params['sort'] = $sortField;
-        $params['direction'] = $newDirection;
-
-        $url = request()->url() . '?' . http_build_query($params);
-
-        $class = $currentSort == $sortField ? 'text-blue-600 font-semibold' : 'text-gray-700 hover:text-blue-600';
-
-        return '<a href="' . $url . '" class="' . $class . '">' . $label . $icon . '</a>';
-    }
-
     $currentSort = $sortField ?? request('sort', 'created_at');
     $currentDirection = $sortDirection ?? request('direction', 'desc');
 @endphp
@@ -129,7 +107,7 @@
                                 {{ $permission->permissible->full_name ?? 'N/A' }}
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                {{ $permission->permissible->rombel->name ?? 'N/A' }}
+                                {{ $permission->rombel_name ?? 'N/A' }}
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 {{ \Carbon\Carbon::parse($permission->start_date)->format('d/m/Y') }} - {{ \Carbon\Carbon::parse($permission->end_date)->format('d/m/Y') }}
@@ -139,7 +117,7 @@
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 @if($permission->supporting_document)
-                                    <a href="{{ asset('storage/' . $permission->supporting_document) }}" target="_blank" class="text-blue-600 hover:underline">
+                                    <a href="{{ route('documents.permission', $permission) }}" target="_blank" class="text-blue-600 hover:underline">
                                         Lihat Dokumen
                                     </a>
                                 @else

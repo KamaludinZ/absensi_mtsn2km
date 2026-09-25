@@ -71,8 +71,7 @@ class AttendanceCorrectionController extends Controller
         $supportingDocumentPath = null;
         if ($request->hasFile('supporting_document')) {
             $file = $request->file('supporting_document');
-            $filename = time() . '_' . $file->getClientOriginalName();
-            $supportingDocumentPath = $file->storeAs('attendance_corrections', $filename, 'public');
+            $supportingDocumentPath = $file->store('attendance_corrections', 'public');
         }
 
         // Fetch current attendance for the day to get original times
@@ -223,8 +222,7 @@ class AttendanceCorrectionController extends Controller
             }
 
             $file = $request->file('supporting_document');
-            $filename = time() . '_' . $file->getClientOriginalName();
-            $supportingDocumentPath = $file->storeAs('attendance_corrections', $filename, 'public');
+            $supportingDocumentPath = $file->store('attendance_corrections', 'public');
         }
 
         // Fetch current attendance for the day to get original times

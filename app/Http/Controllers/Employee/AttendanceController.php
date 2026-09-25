@@ -60,7 +60,9 @@ class AttendanceController extends Controller
             'display_with_map' => $displayWithMap ? filter_var($displayWithMap->setting_value, FILTER_VALIDATE_BOOLEAN) : true,
         ];
 
-        return view('employee.attendance', compact('employee', 'attendance', 'attendanceSettings', 'locationSettings'));
+        $scheduledEnd = $this->scheduledEndToday($employee);
+
+        return view('employee.attendance', compact('employee', 'attendance', 'attendanceSettings', 'locationSettings', 'scheduledEnd'));
     }
 
     public function clockIn(Request $request)
@@ -148,7 +150,8 @@ class AttendanceController extends Controller
             if ($attendance && $attendance->clock_in) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Anda sudah melakukan absen masuk hari ini.',
+                    'already_clocked_in' => true,
+                    'message' => 'Anda sudah absen masuk hari ini pukul ' . $attendance->clock_in->format('H:i') . '.',
                 ]);
             }
 
@@ -361,6 +364,21 @@ class AttendanceController extends Controller
                 ]);
             }
 
+            // Clocking out before the scheduled end time must be confirmed, so an
+            // accidental tap on "Absen Pulang" (e.g. right after clocking in) is
+            // never recorded silently.
+            $scheduledEnd = $this->scheduledEndToday($employee);
+            if ($scheduledEnd && Carbon::now()->lt($scheduledEnd) && !$request->boolean('confirm_early')) {
+                $since = $attendance->clock_in ? ' (absen masuk pukul ' . $attendance->clock_in->format('H:i') . ')' : '';
+
+                return response()->json([
+                    'success' => false,
+                    'needs_confirmation' => true,
+                    'message' => 'Jadwal pulang Anda hari ini pukul ' . $scheduledEnd->format('H:i') . ', sekarang baru pukul '
+                        . Carbon::now()->format('H:i') . $since . '. Yakin ingin absen PULANG sekarang?',
+                ]);
+            }
+
             // Process selfie only if provided
             $selfiePath = null;
             if ($request->has('selfie') && !empty($request->selfie)) {
@@ -438,6 +456,30 @@ class AttendanceController extends Controller
                 'message' => 'Terjadi kesalahan saat memproses absensi. Silakan coba lagi.',
             ], 500);
         }
+    }
+
+    /**
+     * Today's scheduled end time for the employee: the assigned shift if there
+     * is one, otherwise the general employee schedule for this weekday.
+     */
+    private function scheduledEndToday(Employee $employee): ?Carbon
+    {
+        $today = Carbon::today();
+
+        $shift = \App\Models\EmployeeShift::where('employee_id', $employee->id)
+            ->whereDate('date', $today)
+            ->with('schedule')
+            ->first();
+
+        $schedule = $shift && $shift->schedule
+            ? $shift->schedule
+            : Schedule::where('type', 'pegawai')->where('day_of_week', $today->dayOfWeek)->first();
+
+        if (!$schedule || !$schedule->end_time) {
+            return null;
+        }
+
+        return $today->copy()->setTimeFromTimeString(Carbon::parse($schedule->end_time)->format('H:i:s'));
     }
 
     public function report(Request $request)

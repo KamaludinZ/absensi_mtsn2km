@@ -178,14 +178,14 @@
                 <span class="badge badge-info">{{ $employeeShifts->count() }} shift</span>
             </div>
         </div>
-        <div class="table-responsive">
+        <div class="table-responsive" x-data="{ showAll: false }">
             <table class="table">
                 <thead>
                     <tr>
                         <th>Tanggal</th>
                         <th>Hari</th>
                         <th>Nama Shift</th>
-                        <th>Jenis Shift</th>
+                        <th class="hidden sm:table-cell">Jenis Shift</th>
                         <th>Jam Masuk</th>
                         <th>Jam Pulang</th>
                     </tr>
@@ -202,8 +202,9 @@
                         $dateString = $date->format('Y-m-d');
                         $employeeShift = $employeeShifts[$dateString] ?? null;
                         $isToday = $date->format('Y-m-d') === \Carbon\Carbon::today()->format('Y-m-d');
+                        $isThisWeek = $date->between(\Carbon\Carbon::today(), \Carbon\Carbon::today()->addDays(6));
                     @endphp
-                    <tr class="{{ $isToday ? 'bg-blue-50' : ($employeeShift ? '' : 'bg-gray-50') }}">
+                    <tr class="{{ $isToday ? 'bg-blue-50' : ($employeeShift ? '' : 'bg-gray-50') }}" @unless($isThisWeek) x-show="showAll" x-cloak @endunless>
                         <td class="font-medium">{{ $date->format('d') }}</td>
                         <td>{{ $date->locale('id_ID')->dayName }}</td>
                         <td>
@@ -213,7 +214,7 @@
                                 <span class="text-gray-400">Tidak Ada</span>
                             @endif
                         </td>
-                        <td>
+                        <td class="hidden sm:table-cell">
                             @if($employeeShift && $employeeShift->schedule)
                                 <span class="badge badge-info">{{ $employeeShift->schedule->shift_type ?: 'N/A' }}</span>
                             @else
@@ -238,6 +239,10 @@
                 @endfor
                 </tbody>
             </table>
+            <div class="mt-4 text-center">
+                <button type="button" @click="showAll = !showAll" class="text-sm text-blue-600 hover:underline"
+                        x-text="showAll ? 'Tampilkan 7 hari ke depan saja' : 'Tampilkan jadwal sebulan penuh'"></button>
+            </div>
         </div>
     </div>
 </div>
@@ -283,15 +288,15 @@
             </div>
             <div class="space-y-3">
                 <div class="flex">
-                    <span class="font-medium w-24 text-gray-600">Nama:</span>
+                    <span class="font-medium w-28 shrink-0 text-gray-600">Nama:</span>
                     <span class="text-gray-800">{{ $employee->full_name ?? auth()->user()->name }}</span>
                 </div>
                 <div class="flex">
-                    <span class="font-medium w-24 text-gray-600">Jabatan:</span>
+                    <span class="font-medium w-28 shrink-0 text-gray-600">Jabatan:</span>
                     <span class="text-gray-800">{{ $employee->position ?? 'N/A' }}</span>
                 </div>
                 <div class="flex">
-                    <span class="font-medium w-24 text-gray-600">Departemen:</span>
+                    <span class="font-medium w-28 shrink-0 text-gray-600">Departemen:</span>
                     <span class="text-gray-800">{{ $employee->department ?? 'Umum' }}</span>
                 </div>
             </div>

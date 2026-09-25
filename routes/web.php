@@ -29,8 +29,6 @@ Route::get('/', [WelcomeController::class, 'index'])->name('welcome');
 
 // Public API endpoints
 Route::get('/api/schedules/current-status', [ApiScheduleController::class, 'getCurrentStatus'])->middleware('throttle:30,1');
-Route::get('/api/rombels/by-grade/{grade}', [RombelController::class, 'getByGrade'])->middleware('throttle:30,1');
-Route::get('/api/students/by-rombel/{rombelId}', [StudentController::class, 'getByRombel'])->middleware('throttle:30,1');
 
 // Public location settings API
 Route::get('/api/location-settings/geofence-center-lat', [\App\Http\Controllers\API\LocationSettingController::class, 'getGeofenceCenterLat']);
@@ -38,12 +36,10 @@ Route::get('/api/location-settings/geofence-center-lng', [\App\Http\Controllers\
 Route::get('/api/location-settings/geofence-radius', [\App\Http\Controllers\API\LocationSettingController::class, 'getGeofenceRadius']);
 Route::get('/api/location-settings/location-required', [\App\Http\Controllers\API\LocationSettingController::class, 'getLocationRequired']);
 
-// Student attendance (public with rate limiting)
-Route::prefix('student/attendance')->name('student.attendance.')->middleware('throttle:60,1')->group(function () {
+// Student attendance: no login (NISN or RFID student card), only open during the
+// attendance hours (see EnsureStudentKioskAccess)
+Route::prefix('student/attendance')->name('student.attendance.')->middleware(['throttle:student-kiosk', \App\Http\Middleware\EnsureStudentKioskAccess::class])->group(function () {
     Route::get('/', [StudentAttendanceController::class, 'index'])->name('index');
-    Route::get('/get-grades', [StudentAttendanceController::class, 'getGrades'])->name('get-grades');
-    Route::get('/get-rombels/{grade}', [StudentAttendanceController::class, 'getRombels'])->name('get-rombels');
-    Route::get('/get-students/{rombelId}', [StudentAttendanceController::class, 'getStudents'])->name('get-students');
     Route::post('/get-student-info', [StudentAttendanceController::class, 'getStudentInfo'])->name('get-student-info');
     Route::post('/clock-in', [StudentAttendanceController::class, 'clockIn'])->name('clock-in');
     Route::post('/clock-out', [StudentAttendanceController::class, 'clockOut'])->name('clock-out');
@@ -51,7 +47,7 @@ Route::prefix('student/attendance')->name('student.attendance.')->middleware('th
 
 // Authentication routes (with rate limiting)
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
-Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1'); // 5 attempts per minute
+Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login'); // see AppServiceProvider
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middleware('auth');
 
 // Secure selfie access route - requires authentication
@@ -60,6 +56,12 @@ Route::get('/selfies/{type}/{filename}', [SelfieController::class, 'show'])
     ->where('type', 'employee|student')
     ->where('filename', '.*')
     ->name('selfies.show');
+
+// Supporting documents (doctor's notes etc.) - login + ownership check
+Route::middleware('auth')->prefix('documents')->name('documents.')->group(function () {
+    Route::get('/permissions/{permission}', [App\Http\Controllers\DocumentController::class, 'permission'])->name('permission');
+    Route::get('/attendance-corrections/{attendanceCorrection}', [App\Http\Controllers\DocumentController::class, 'attendanceCorrection'])->name('attendance-correction');
+});
 
 // Employee routes
 Route::middleware(['auth', CheckRole::class . ':pegawai'])->prefix('employee')->name('employee.')->group(function () {
@@ -71,8 +73,6 @@ Route::middleware(['auth', CheckRole::class . ':pegawai'])->prefix('employee')->
         Route::post('/clock-out', [EmployeeAttendanceController::class, 'clockOut'])->name('clock-out');
         Route::get('/report', [EmployeeAttendanceController::class, 'report'])->name('report');
         Route::get('/report/export', [EmployeeAttendanceController::class, 'export'])->name('report.export');
-        // Test route for geofence validation (temporary)
-        Route::get('/test-geofence', [EmployeeAttendanceController::class, 'testGeofence'])->name('test-geofence');
     });
 
     Route::prefix('permission')->name('permission.')->group(function () {
@@ -159,6 +159,14 @@ Route::middleware(['auth', CheckRole::class . ':admin'])->prefix('admin')->name(
     // Students
     Route::get('students/import', [StudentController::class, 'importForm'])->name('students.import-form');
     Route::post('students/import', [StudentController::class, 'import'])->name('students.import');
+    // Class promotion / graduation (must be registered before the resource route)
+    Route::get('students/promotion', [App\Http\Controllers\Admin\StudentPromotionController::class, 'index'])->name('students.promotion.index');
+    Route::post('students/promotion', [App\Http\Controllers\Admin\StudentPromotionController::class, 'process'])->name('students.promotion.process');
+
+    // Student RFID cards (must be registered before the resource route)
+    Route::get('students/rfid', [App\Http\Controllers\Admin\StudentRfidController::class, 'index'])->name('students.rfid.index');
+    Route::post('students/{student}/rfid', [App\Http\Controllers\Admin\StudentRfidController::class, 'assign'])->name('students.rfid.assign');
+    Route::delete('students/{student}/rfid', [App\Http\Controllers\Admin\StudentRfidController::class, 'remove'])->name('students.rfid.remove');
     Route::resource('students', StudentController::class);
 
     // Rombels
@@ -367,6 +375,12 @@ Route::middleware(['auth', CheckRole::class . ':admin'])->prefix('admin')->name(
         Route::get('/location-required', [App\Http\Controllers\Admin\LocationSettingsController::class, 'getLocationRequired'])->name('location-required');
     });
 
+    // Opening hours of the student attendance page
+    Route::prefix('student-kiosk')->name('student-kiosk.')->group(function () {
+        Route::get('/', [App\Http\Controllers\Admin\StudentKioskController::class, 'index'])->name('index');
+        Route::post('/settings', [App\Http\Controllers\Admin\StudentKioskController::class, 'updateSettings'])->name('settings');
+    });
+
     // Attendance Settings
     Route::prefix('attendance-settings')->name('attendance-settings.')->group(function () {
         Route::get('/', [App\Http\Controllers\Admin\AttendanceSettingController::class, 'index'])->name('index');
@@ -378,13 +392,6 @@ Route::middleware(['auth', CheckRole::class . ':admin'])->prefix('admin')->name(
         Route::get('/', [App\Http\Controllers\Admin\SystemMonitorController::class, 'index'])->name('index');
     });
 });
-
-// Additional student permissions CRUD routes
-Route::get('/admin/permissions/students/create', [App\Http\Controllers\Admin\PermissionController::class, 'createStudent'])->name('admin.permissions.students.create');
-Route::post('/admin/permissions/students', [App\Http\Controllers\Admin\PermissionController::class, 'storeStudent'])->name('admin.permissions.students.store');
-Route::get('/admin/permissions/students/{permission}/edit', [App\Http\Controllers\Admin\PermissionController::class, 'editStudent'])->name('admin.permissions.students.edit');
-Route::put('/admin/permissions/students/{permission}', [App\Http\Controllers\Admin\PermissionController::class, 'updateStudent'])->name('admin.permissions.students.update');
-Route::delete('/admin/permissions/students/{permission}', [App\Http\Controllers\Admin\PermissionController::class, 'destroyStudent'])->name('admin.permissions.students.destroy');
 
 // API route for schedule information
 Route::post('/api/schedule-info', [App\Http\Controllers\API\ScheduleController::class, 'getScheduleInfo'])->middleware('auth');
