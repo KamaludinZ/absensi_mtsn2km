@@ -5,6 +5,10 @@
 
     RewriteEngine On
 
+    # Selfie photos must only be served through Laravel (route selfies.show),
+    # which checks who is allowed to see them. Block direct file access.
+    RewriteRule ^storage/selfies/ - [F,L]
+
     # Handle Authorization Header
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
