@@ -36,6 +36,10 @@ class SystemUpdateController extends Controller
      */
     public function upload(Request $request)
     {
+        if (config('app.disable_web_updater')) {
+            return back()->with('error', 'Update lewat panel admin dinonaktifkan di server ini (Docker/Coolify). Untuk memperbarui aplikasi, lakukan Redeploy dari Coolify.');
+        }
+
         // Validate the upload
         $request->validate([
             'update_zip' => 'required|file|mimes:zip|max:102400', // Max 100MB

@@ -1,0 +1,68 @@
+# Run the app + PostgreSQL with Docker Compose (local test, or Coolify's
+# "Docker Compose" build pack). For Coolify the recommended way is the
+# "Dockerfile" build pack + a separate PostgreSQL resource, see
+# DEPLOY_COOLIFY.md.
+#
+#   cp .env.docker.example .env   # then fill in the passwords
+#   docker compose up -d --build
+#   open http://localhost:8080
+
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${APP_PORT:-8080}:80"
+    environment:
+      APP_NAME: ${APP_NAME:-MTsN 2 Absensi}
+      APP_ENV: production
+      APP_KEY: ${APP_KEY:-}
+      APP_DEBUG: "false"
+      APP_URL: ${APP_URL:-http://localhost:8080}
+      APP_LOCALE: id
+      APP_FALLBACK_LOCALE: en
+      LOG_CHANNEL: stack
+      LOG_STACK: single,stderr
+      LOG_LEVEL: ${LOG_LEVEL:-warning}
+      DB_CONNECTION: pgsql
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_DATABASE: ${DB_DATABASE:-absensi}
+      DB_USERNAME: ${DB_USERNAME:-absensi}
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      SESSION_DRIVER: database
+      SESSION_SECURE_COOKIE: ${SESSION_SECURE_COOKIE:-false}
+      CACHE_STORE: database
+      QUEUE_CONNECTION: sync
+      FILESYSTEM_DISK: local
+      DISABLE_WEB_UPDATER: "true"
+      INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD:-}
+    volumes:
+      - app-storage:/var/www/html/storage
+      - app-public-storage:/var/www/html/public/storage
+      - app-uploads:/var/www/html/public/uploads
+
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-absensi}
+      POSTGRES_USER: ${DB_USERNAME:-absensi}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      TZ: Asia/Jakarta
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  app-storage:
+  app-public-storage:
+  app-uploads:
+  db-data:
