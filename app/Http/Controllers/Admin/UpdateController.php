@@ -130,6 +130,10 @@ class UpdateController extends Controller
      */
     public function update(Request $request)
     {
+        if (config('app.disable_web_updater')) {
+            return back()->with('error', 'Update lewat panel admin dinonaktifkan di server ini (Docker/Coolify). Untuk memperbarui aplikasi, lakukan Redeploy dari Coolify.');
+        }
+
         try {
             // Validate GitHub token
             if (empty($this->githubToken)) {

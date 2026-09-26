@@ -69,6 +69,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Web Updater
+    |--------------------------------------------------------------------------
+    |
+    | In Docker (e.g. Coolify) the application code lives inside the image and
+    | is replaced on every redeploy, so updating it from the admin panel would
+    | be lost on the next restart. Set DISABLE_WEB_UPDATER=true there.
+    |
+    */
+
+    'disable_web_updater' => (bool) env('DISABLE_WEB_UPDATER', false),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Locale Configuration
     |--------------------------------------------------------------------------
     |
