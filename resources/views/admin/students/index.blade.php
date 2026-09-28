@@ -18,13 +18,25 @@
 
 <!-- Filters -->
 <div class="mb-4 bg-white p-4 rounded-lg shadow">
-    <form method="GET" action="{{ route('admin.students.index') }}" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+    <form method="GET" action="{{ route('admin.students.index') }}" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Pencarian Nama</label>
             <input type="text" name="search" value="{{ request('search') }}" placeholder="Cari nama siswa..." 
                    class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
         </div>
         
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Tahun Pelajaran</label>
+            <select name="academic_year_id" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                <option value="">Semua Tahun</option>
+                @foreach($academicYears as $year)
+                    <option value="{{ $year->id }}" {{ request('academic_year_id') == $year->id ? 'selected' : '' }}>
+                        {{ $year->year_name }}{{ $year->status === 'active' ? ' (aktif)' : '' }}
+                    </option>
+                @endforeach
+            </select>
+        </div>
+
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Jenjang</label>
             <select name="grade_id" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
@@ -43,7 +55,7 @@
                 <option value="">Semua Rombel</option>
                 @foreach($rombels as $rombel)
                     <option value="{{ $rombel->id }}" {{ request('rombel_id') == $rombel->id ? 'selected' : '' }}>
-                        {{ $rombel->name }}
+                        {{ $rombel->name }} ({{ $rombel->academicYear->year_name ?? '-' }})
                     </option>
                 @endforeach
             </select>
@@ -80,7 +92,7 @@
                             NISN: {{ $student->nisn ?? '-' }}
                         </div>
                         <div class="mt-1 text-sm text-gray-500">
-                            ID Absensi: {{ $student->attendance_id ?? '-' }}
+                            Tahun Pelajaran: {{ $student->rombel->academicYear->year_name ?? '-' }}
                         </div>
                         <div class="mt-1 text-sm text-gray-500">
                             Tingkat Kelas: {{ $student->rombel->grade->description }}
@@ -116,9 +128,9 @@
                 <tr>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{!! sortableLink('Nama', 'full_name', $currentSort, $currentDirection) !!}</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{!! sortableLink('NISN', 'nisn', $currentSort, $currentDirection) !!}</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{!! sortableLink('ID Absensi', 'attendance_id', $currentSort, $currentDirection) !!}</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{!! sortableLink('Tingkat Kelas', 'grade_name', $currentSort, $currentDirection) !!}</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{!! sortableLink('Rombel', 'rombel_name', $currentSort, $currentDirection) !!}</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{!! sortableLink('Tahun Pelajaran', 'academic_year', $currentSort, $currentDirection) !!}</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{!! sortableLink('Status', 'is_active', $currentSort, $currentDirection) !!}</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Aksi</th>
                 </tr>
@@ -128,9 +140,14 @@
                 <tr>
                     <td class="px-6 py-4">{{ $student->full_name }}</td>
                     <td class="px-6 py-4">{{ $student->nisn ?? '-' }}</td>
-                    <td class="px-6 py-4">{{ $student->attendance_id ?? '-' }}</td>
                     <td class="px-6 py-4">{{ $student->rombel->grade->description }}</td>
                     <td class="px-6 py-4">{{ $student->rombel->name }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        {{ $student->rombel->academicYear->year_name ?? '-' }}
+                        @if(($student->rombel->academicYear->status ?? null) === 'active')
+                            <span class="ml-1 px-1.5 py-0.5 text-xs rounded bg-green-100 text-green-800">aktif</span>
+                        @endif
+                    </td>
                     <td class="px-6 py-4">
                         @include('admin.students.partials.status-badge')
                     </td>
@@ -143,12 +160,11 @@
                     </td>
                 </tr>
                 @empty
-                <tr><td colspan="5" class="px-6 py-4 text-center text-gray-500">Tidak ada data</td></tr>
+                <tr><td colspan="7" class="px-6 py-4 text-center text-gray-500">Tidak ada data</td></tr>
                 @endforelse
             </tbody>
         </table>
     </div>
-</div>
 </div>
 
 <!-- Custom Pagination with per_page selector -->
@@ -199,6 +215,5 @@
         }
     </script>
 @endif
-    </div>
 </div>
 @endsection

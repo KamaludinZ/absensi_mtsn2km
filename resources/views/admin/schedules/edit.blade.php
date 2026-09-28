@@ -9,20 +9,8 @@
         @csrf
         @method('PUT')
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div class="mb-4">
-                <label class="block text-gray-700 font-bold mb-2" for="type">
-                    Tipe
-                </label>
-                <select name="type" id="type" 
-                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
-                    <option value="pegawai" {{ old('type', $schedule->type) == 'pegawai' ? 'selected' : '' }}>Pegawai</option>
-                    <option value="siswa" {{ old('type', $schedule->type) == 'siswa' ? 'selected' : '' }}>Siswa</option>
-                </select>
-                @error('type')
-                    <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
-                @enderror
-            </div>
-            
+            <input type="hidden" name="type" value="pegawai">
+
             <div class="mb-4">
                 <label class="block text-gray-700 font-bold mb-2" for="shift_type">
                     Jenis Shift

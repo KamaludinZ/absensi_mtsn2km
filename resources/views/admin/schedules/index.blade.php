@@ -5,24 +5,21 @@
 
 @extends('layouts.app')
 
-@section('title', 'Pengaturan Jadwal')
-@section('page-title', 'Pengaturan Jadwal')
+@section('title', 'Jadwal Pegawai')
+@section('page-title', 'Jadwal Pegawai')
 @section('container-class', '')
 
 @section('content')
 <div class="w-full py-6">
     <div class="bg-white rounded-lg shadow p-6">
     <div class="flex flex-wrap justify-between items-center mb-6 gap-4">
-        <h2 class="text-xl font-bold text-gray-800">Daftar Jadwal Absensi</h2>
+        <div>
+            <h2 class="text-xl font-bold text-gray-800">Daftar Jadwal Pegawai</h2>
+            <p class="text-sm text-gray-500">Jadwal siswa diatur terpisah di <a href="{{ route('admin.schedules.custom.siswa') }}" class="text-blue-600 hover:underline">Pengaturan Absen Siswa</a>.</p>
+        </div>
         <div class="flex flex-wrap gap-2">
             <a href="{{ route('admin.schedules.custom.create') }}" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
                 Tambah Jadwal
-            </a>
-            <a href="{{ route('admin.schedules.custom.pegawai') }}" class="bg-blue-100 text-blue-800 px-4 py-2 rounded-md hover:bg-blue-200">
-                Hanya Pegawai
-            </a>
-            <a href="{{ route('admin.schedules.custom.siswa') }}" class="bg-green-100 text-green-800 px-4 py-2 rounded-md hover:bg-green-200">
-                Hanya Siswa
             </a>
         </div>
     </div>
@@ -30,15 +27,6 @@
     <!-- Filter Section -->
     <div class="mb-6 p-4 bg-gray-50 rounded-lg">
         <form method="GET" class="flex flex-wrap items-center gap-4">
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Filter Tipe</label>
-                <select name="type" class="border border-gray-300 rounded px-3 py-2">
-                    <option value="">Semua Tipe</option>
-                    <option value="pegawai" {{ request('type') == 'pegawai' ? 'selected' : '' }}>Pegawai</option>
-                    <option value="siswa" {{ request('type') == 'siswa' ? 'selected' : '' }}>Siswa</option>
-                </select>
-            </div>
-            
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Filter Shift</label>
                 <select name="shift_type" class="border border-gray-300 rounded px-3 py-2">

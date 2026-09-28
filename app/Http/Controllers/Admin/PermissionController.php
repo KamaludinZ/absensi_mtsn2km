@@ -314,19 +314,17 @@ class PermissionController extends Controller
         $selectedMonth = $request->filled('month') ? $request->month : now()->month;
         $selectedYear = $request->filled('year') ? $request->year : now()->year;
 
-        if ($request->filled('month') && $request->filled('year')) {
-            $query->whereMonth('start_date', $request->month)
-                  ->whereYear('start_date', $request->year);
-        } elseif ($request->filled('month')) {
-            $query->whereMonth('start_date', $request->month)
-                  ->whereYear('start_date', $selectedYear);
-        } elseif ($request->filled('year')) {
-            $query->whereYear('start_date', $request->year);
+        // Permissions that overlap the period, so one running into the next
+        // month is listed in both months
+        if (!$request->filled('month') && $request->filled('year')) {
+            $periodStart = \Carbon\Carbon::create((int) $request->year, 1, 1);
+            $periodEnd = $periodStart->copy()->endOfYear();
         } else {
-            // Default to current month and year
-            $query->whereMonth('start_date', now()->month)
-                  ->whereYear('start_date', now()->year);
+            $periodStart = \Carbon\Carbon::create((int) $selectedYear, (int) $selectedMonth, 1);
+            $periodEnd = $periodStart->copy()->endOfMonth();
         }
+        $query->whereDate('start_date', '<=', $periodEnd->toDateString())
+              ->whereDate('end_date', '>=', $periodStart->toDateString());
 
         // Filter by rombel
         if ($request->filled('rombel_id')) {
@@ -385,6 +383,8 @@ class PermissionController extends Controller
     {
         $request->validate([
             'student_id' => 'required|exists:students,id',
+            'type' => 'nullable|in:' . implode(',', array_keys(Permission::STUDENT_TYPES)),
+            'status' => 'nullable|in:pending,approved,rejected',
             'start_date' => 'required|date',
             'end_date' => 'required|date|after_or_equal:start_date',
             'reason' => 'required|string|max:500',
@@ -403,7 +403,9 @@ class PermissionController extends Controller
             'end_date' => $request->end_date,
             'reason' => $request->reason,
             'supporting_document' => $documentPath,
-            'status' => 'pending',
+            'type' => $request->input('type', 'I'),
+            'status' => $status = $request->input('status', 'pending'),
+            'approved_by' => $status === 'pending' ? null : auth()->id(),
         ]);
 
         return redirect()->route('admin.permissions.students')->with('success', 'Izin siswa berhasil ditambahkan.');
@@ -432,6 +434,7 @@ class PermissionController extends Controller
 
         $request->validate([
             'student_id' => 'required|exists:students,id',
+            'type' => 'required|in:' . implode(',', array_keys(Permission::STUDENT_TYPES)),
             'start_date' => 'required|date',
             'end_date' => 'required|date|after_or_equal:start_date',
             'reason' => 'required|string|max:500',
@@ -455,7 +458,11 @@ class PermissionController extends Controller
             'end_date' => $request->end_date,
             'reason' => $request->reason,
             'supporting_document' => $documentPath,
+            'type' => $request->type,
             'status' => $request->status,
+            'approved_by' => $request->status === 'pending'
+                ? null
+                : ($request->status === $permission->status ? $permission->approved_by : auth()->id()),
         ]);
 
         return redirect()->route('admin.permissions.students')->with('success', 'Izin siswa berhasil diperbarui.');

@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
-@section('title', 'Laporan Absensi Siswa')
-@section('page-title', 'Laporan Absensi Siswa')
+@section('title', 'Data Absensi Harian Siswa')
+@section('page-title', 'Data Absensi Harian Siswa')
 @section('container-class', '')
 
 @php
@@ -15,10 +15,15 @@
     <div class="bg-white rounded-lg shadow-md overflow-hidden">
         <div class="p-4">
     <div class="flex justify-between items-center mb-6">
-        <h2 class="text-xl font-bold text-gray-800">Rekap Absensi Siswa</h2>
-        <a href="{{ route('admin.attendances.create-student') }}" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-            + Tambah Absensi Siswa
-        </a>
+        <h2 class="text-xl font-bold text-gray-800">Data Absensi Harian Siswa</h2>
+        <div class="flex flex-wrap gap-2">
+            <a href="{{ route('admin.reports.students') }}" class="px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200">
+                Rekap Absensi Siswa
+            </a>
+            <a href="{{ route('admin.attendances.create-student') }}" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                + Tambah Absensi Siswa
+            </a>
+        </div>
     </div>
     
     <!-- Filter Section -->
@@ -71,7 +76,7 @@
                 <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 mr-2">
                     Filter
                 </button>
-                <a href="{{ route('admin.reports.students') }}" class="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700">
+                <a href="{{ route('admin.reports.students.daily') }}" class="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700">
                     Reset
                 </a>
             </div>

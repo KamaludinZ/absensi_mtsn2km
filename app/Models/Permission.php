@@ -20,8 +20,18 @@ class Permission extends Model
         'reason',
         'supporting_document',
         'status',
+        'type',
         'approved_by',
         'rombel_id',
+    ];
+
+    /**
+     * Kinds of student permissions, as shown in the student attendance recap.
+     * Old student records without a kind count as Izin.
+     */
+    public const STUDENT_TYPES = [
+        'S' => 'Sakit',
+        'I' => 'Izin',
     ];
 
     protected $casts = [
@@ -64,6 +74,11 @@ class Permission extends Model
     public function getRombelNameAttribute(): ?string
     {
         return $this->rombel?->name ?? $this->permissible?->rombel?->name;
+    }
+
+    public function getStudentTypeLabelAttribute(): string
+    {
+        return self::STUDENT_TYPES[$this->type] ?? self::STUDENT_TYPES['I'];
     }
 
     public function permissible(): MorphTo

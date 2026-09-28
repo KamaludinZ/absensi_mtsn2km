@@ -238,7 +238,7 @@
             </div>
 
             <!-- Data Siswa Group -->
-            <div class="nav-group" x-data="{ open: @if(request()->routeIs('admin.grades.*') || request()->routeIs('admin.rombels.*') || request()->routeIs('admin.students.*') || request()->routeIs('admin.schedules.custom.siswa') || request()->routeIs('admin.student-kiosk.*') || request()->routeIs('admin.reports.students') || request()->routeIs('admin.permissions.students') || request()->routeIs('admin.exports.students')) true @else false @endif }">
+            <div class="nav-group" x-data="{ open: @if(request()->routeIs('admin.grades.*') || request()->routeIs('admin.rombels.*') || request()->routeIs('admin.students.*') || request()->routeIs('admin.schedules.custom.siswa') || request()->routeIs('admin.student-kiosk.*') || request()->routeIs('admin.reports.students*') || request()->routeIs('admin.permissions.students') || request()->routeIs('admin.exports.students')) true @else false @endif }">
                 <button @click="open = !open" class="nav-group-header" :aria-expanded="open" aria-controls="siswa-submenu">
                     <div class="nav-group-title">
                         <div class="nav-icon">
@@ -309,7 +309,7 @@
                         </svg>
                         <span class="nav-text">Jam Absensi Siswa</span>
                     </a>
-                    <a href="{{ route('admin.reports.students') }}" class="nav-sub-item {{ request()->routeIs('admin.reports.students') ? 'active' : '' }}">
+                    <a href="{{ route('admin.reports.students') }}" class="nav-sub-item {{ request()->routeIs('admin.reports.students*') ? 'active' : '' }}">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>

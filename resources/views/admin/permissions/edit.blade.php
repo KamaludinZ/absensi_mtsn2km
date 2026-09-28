@@ -70,6 +70,23 @@
             </div>
             
             <div class="mb-4">
+                <label class="block text-gray-700 font-bold mb-2" for="type">
+                    Jenis Izin
+                </label>
+                <select name="type" id="type"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required>
+                    @foreach(\App\Models\Permission::STUDENT_TYPES as $code => $label)
+                        <option value="{{ $code }}" {{ (string) old('type', $permission->type ?? 'I') === $code ? 'selected' : '' }}>{{ $label }}</option>
+                    @endforeach
+                </select>
+                <p class="text-gray-500 text-xs mt-1">Masuk ke rekap absensi siswa sebagai Sakit atau Izin setelah disetujui.</p>
+                @error('type')
+                    <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
+                @enderror
+            </div>
+
+            <div class="mb-4">
                 <label class="block text-gray-700 font-bold mb-2" for="status">
                     Status
                 </label>

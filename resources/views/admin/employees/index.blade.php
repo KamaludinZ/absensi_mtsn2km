@@ -139,7 +139,6 @@
         </table>
     </div>
 </div>
-</div>
 
 <!-- Custom Pagination with per_page selector -->
 @if ($employees instanceof \Illuminate\Pagination\LengthAwarePaginator)
