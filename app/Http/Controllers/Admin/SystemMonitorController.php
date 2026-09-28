@@ -358,9 +358,9 @@ class SystemMonitorController extends Controller
 
         if (!empty($memory)) {
             $memory = explode(' ', trim(array_shift($memory)));
-            $memory = array_filter($memory, function($value) {
+            $memory = array_values(array_filter($memory, function($value) {
                 return $value !== '';
-            });
+            }));
 
             if (count($memory) >= 3) {
                 $total = $memory[1];

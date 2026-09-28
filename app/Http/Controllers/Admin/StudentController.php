@@ -31,6 +31,13 @@ class StudentController extends Controller
             });
         }
 
+        // Filter by academic year of the student's rombel
+        if ($request->filled('academic_year_id')) {
+            $query->whereHas('rombel', function ($q) use ($request) {
+                $q->where('academic_year_id', $request->academic_year_id);
+            });
+        }
+
         // Filter by rombel
         if ($request->filled('rombel_id')) {
             $query->where('rombel_id', $request->rombel_id);
@@ -89,8 +96,11 @@ class StudentController extends Controller
                 break;
 
             case 'rombel_name':
-                $students = $query->get()->sortBy(function($student) {
-                    return strtolower($student->rombel->name ?? '');
+            case 'academic_year':
+                $students = $query->get()->sortBy(function($student) use ($sortField) {
+                    return $sortField === 'academic_year'
+                        ? [$student->rombel->academicYear->year_name ?? '', strtolower($student->rombel->name ?? ''), strtolower($student->full_name)]
+                        : strtolower($student->rombel->name ?? '');
                 }, SORT_REGULAR, $sortDirection === 'desc');
                 
                 // Manually paginate with customizable pagination
@@ -151,9 +161,14 @@ class StudentController extends Controller
         if ($request->filled('grade_id')) {
             $rombelsQuery->where('grade_id', $request->grade_id);
         }
+        if ($request->filled('academic_year_id')) {
+            $rombelsQuery->where('academic_year_id', $request->academic_year_id);
+        }
         $rombels = $rombelsQuery->get();
 
-        return view('admin.students.index', compact('students', 'grades', 'rombels', 'sortField', 'sortDirection'));
+        $academicYears = AcademicYear::orderByDesc('year_name')->get();
+
+        return view('admin.students.index', compact('students', 'grades', 'rombels', 'academicYears', 'sortField', 'sortDirection'));
     }
 
     public function create()
@@ -226,24 +241,48 @@ class StudentController extends Controller
 
     public function importForm()
     {
-        return view('admin.students.import');
+        $activeYear = AcademicYear::where('status', 'active')->first();
+
+        return view('admin.students.import', compact('activeYear'));
+    }
+
+    public function downloadTemplate(Request $request)
+    {
+        $withStudents = $request->boolean('with_students');
+        $spreadsheet = \App\Exports\StudentImportTemplate::build($withStudents);
+        $fileName = $withStudents ? 'data_siswa_' . now()->format('Ymd') . '.xlsx' : 'template_import_siswa.xlsx';
+
+        return response()->streamDownload(function () use ($spreadsheet) {
+            (new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet))->save('php://output');
+        }, $fileName, ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']);
     }
 
     public function import(Request $request)
     {
         $request->validate([
-            'file' => 'required|mimes:xlsx,xls,csv',
+            'file' => 'required|file|mimes:xlsx,xls,csv,txt|max:5120',
+        ], [
+            'file.required' => 'Pilih file Excel yang akan diimpor.',
+            'file.mimes' => 'File harus berformat .xlsx, .xls atau .csv.',
+            'file.max' => 'Ukuran file maksimal 5 MB.',
         ]);
 
         try {
-            Excel::import(new StudentsImport, $request->file('file'));
+            $sheet = Excel::toCollection(new StudentsImport, $request->file('file'))->first() ?? collect();
+        } catch (\Throwable $e) {
+            report($e);
 
-            return redirect()->route('admin.students.index')
-                ->with('success', 'Data siswa berhasil diimpor.');
-        } catch (\Exception $e) {
-            return redirect()->back()
-                ->with('error', 'Gagal mengimpor data: ' . $e->getMessage());
+            return back()->with('error', 'File tidak bisa dibaca. Pastikan file berasal dari template dan tidak rusak.');
         }
+
+        $result = StudentsImport::process($sheet);
+
+        if ($result['errors']) {
+            return back()->with('import_errors', $result['errors']);
+        }
+
+        return redirect()->route('admin.students.index')
+            ->with('success', "Import selesai: {$result['created']} siswa ditambahkan, {$result['updated']} siswa diperbarui.");
     }
 
     private function rfidMessages(): array

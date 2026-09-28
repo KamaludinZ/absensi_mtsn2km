@@ -383,6 +383,5 @@
 </div>
 
     </div>
-</div>
 
 @endsection

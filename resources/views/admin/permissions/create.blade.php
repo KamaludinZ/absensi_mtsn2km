@@ -68,16 +68,33 @@
             </div>
             
             <div class="mb-4">
+                <label class="block text-gray-700 font-bold mb-2" for="type">
+                    Jenis Izin
+                </label>
+                <select name="type" id="type"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required>
+                    @foreach(\App\Models\Permission::STUDENT_TYPES as $code => $label)
+                        <option value="{{ $code }}" {{ (string) old('type', 'I') === $code ? 'selected' : '' }}>{{ $label }}</option>
+                    @endforeach
+                </select>
+                <p class="text-gray-500 text-xs mt-1">Masuk ke rekap absensi siswa sebagai Sakit atau Izin setelah disetujui.</p>
+                @error('type')
+                    <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
+                @enderror
+            </div>
+
+            <div class="mb-4">
                 <label class="block text-gray-700 font-bold mb-2" for="status">
                     Status
                 </label>
                 <select name="status" id="status" 
                         class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
                         required>
-                    <option value="pending" {{ old('status', 'pending') == 'pending' ? 'selected' : '' }}>
+                    <option value="pending" {{ old('status', 'approved') == 'pending' ? 'selected' : '' }}>
                         Menunggu Persetujuan
                     </option>
-                    <option value="approved" {{ old('status') == 'approved' ? 'selected' : '' }}>
+                    <option value="approved" {{ old('status', 'approved') == 'approved' ? 'selected' : '' }}>
                         Disetujui
                     </option>
                     <option value="rejected" {{ old('status') == 'rejected' ? 'selected' : '' }}>
@@ -225,24 +242,17 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // Trigger change on load if default values are selected
+    // Restore the previous selection after a validation error
+    const oldRombel = rombelSelect.value;
+    const oldStudent = studentSelect.value;
     if (gradeSelect.value) {
         gradeSelect.dispatchEvent(new Event('change'));
+        rombelSelect.value = oldRombel;
     }
-    
     if (rombelSelect.value) {
         rombelSelect.dispatchEvent(new Event('change'));
     }
-    
-    // Ensure proper initialization
-    setTimeout(function() {
-        if (gradeSelect.value) {
-            gradeSelect.dispatchEvent(new Event('change'));
-        }
-        if (rombelSelect.value) {
-            rombelSelect.dispatchEvent(new Event('change'));
-        }
-    }, 100);
+    studentSelect.value = oldStudent;
 });
 </script>
 @endsection

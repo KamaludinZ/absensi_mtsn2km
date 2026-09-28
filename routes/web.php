@@ -159,6 +159,7 @@ Route::middleware(['auth', CheckRole::class . ':admin'])->prefix('admin')->name(
     // Students
     Route::get('students/import', [StudentController::class, 'importForm'])->name('students.import-form');
     Route::post('students/import', [StudentController::class, 'import'])->name('students.import');
+    Route::get('students/download-template', [StudentController::class, 'downloadTemplate'])->name('students.download-template');
     // Class promotion / graduation (must be registered before the resource route)
     Route::get('students/promotion', [App\Http\Controllers\Admin\StudentPromotionController::class, 'index'])->name('students.promotion.index');
     Route::post('students/promotion', [App\Http\Controllers\Admin\StudentPromotionController::class, 'process'])->name('students.promotion.process');
@@ -183,6 +184,9 @@ Route::middleware(['auth', CheckRole::class . ':admin'])->prefix('admin')->name(
     // Academic Years
     Route::resource('academic-years', AcademicYearController::class)->except(['show']);
 
+    // Student schedule: one row per school day (must be registered before the resource route)
+    Route::put('schedules/siswa', [App\Http\Controllers\Admin\ScheduleController::class, 'updateSiswa'])->name('schedules.custom.siswa.update');
+
     // Schedules
     Route::resource('schedules', App\Http\Controllers\Admin\ScheduleController::class)->except(['show']);
 
@@ -192,7 +196,9 @@ Route::middleware(['auth', CheckRole::class . ':admin'])->prefix('admin')->name(
     // Reports
     Route::prefix('reports')->name('reports.')->group(function () {
         Route::get('/', [ReportController::class, 'index'])->name('index');
-        Route::get('/students', [ReportController::class, 'studentReports'])->name('students');
+        Route::get('/students', [App\Http\Controllers\Admin\StudentReportController::class, 'index'])->name('students');
+        Route::get('/students/export', [App\Http\Controllers\Admin\StudentReportController::class, 'export'])->name('students.export');
+        Route::get('/students/daily', [ReportController::class, 'studentReports'])->name('students.daily');
         Route::post('/generate', [ReportController::class, 'generate'])->name('generate');
 
         // Meal Allowance and Performance Allowance Reports

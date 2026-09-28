@@ -108,7 +108,7 @@ class AttendanceClassHistoryTest extends TestCase
 
         // Report filtered by the old class still shows the old attendance only
         $report = fn (Rombel $rombel) => $this->actingAs($this->admin)
-            ->get(route('admin.reports.students', ['month' => 9, 'year' => 2026, 'rombel_id' => $rombel->id]))
+            ->get(route('admin.reports.students.daily', ['month' => 9, 'year' => 2026, 'rombel_id' => $rombel->id]))
             ->assertOk()
             ->viewData('attendances');
 

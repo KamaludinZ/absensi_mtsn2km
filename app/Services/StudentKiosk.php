@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\AttendanceSetting;
 use App\Models\Holiday;
 use App\Models\Schedule;
-use App\Models\Setting;
 use App\Models\Student;
 use Carbon\Carbon;
 
@@ -46,18 +45,14 @@ class StudentKiosk
             return $closed('Hari ini libur: ' . $holiday->name . '.');
         }
 
-        // active_days uses ISO numbers: 1 = Monday ... 7 = Sunday
-        $activeDays = json_decode(Setting::get('active_days', '[1,2,3,4,5]'), true) ?: [1, 2, 3, 4, 5];
-        if (!in_array($now->dayOfWeekIso, array_map('intval', $activeDays), true)) {
-            return $closed('Hari ini bukan hari aktif sekolah.');
-        }
-
+        // School days are the days of the student schedule (Pengaturan Absen
+        // Siswa), independent of the employee working days.
         // Schedules use Carbon dayOfWeek: 0 = Sunday ... 6 = Saturday
         $schedules = Schedule::where('type', 'siswa')
             ->where('day_of_week', $now->dayOfWeek)
             ->get();
         if ($schedules->isEmpty()) {
-            return $closed('Tidak ada jadwal absensi siswa untuk hari ini.');
+            return $closed('Hari ini bukan hari sekolah (tidak ada jadwal absensi siswa).');
         }
 
         $start = $schedules->map(fn ($s) => Carbon::parse($s->start_time)->format('H:i:s'))->min();

@@ -185,7 +185,7 @@ class AttendanceController extends Controller
         $attendance->update($updateData);
 
         // Determine the route based on attendable type
-        $route = $attendance->attendable_type === Student::class ? 'admin.reports.students' : 'admin.reports.index';
+        $route = $attendance->attendable_type === Student::class ? 'admin.reports.students.daily' : 'admin.reports.index';
 
         // Preserve query parameters from the hidden input or referring page
         $redirectUrl = route($route);
@@ -212,7 +212,7 @@ class AttendanceController extends Controller
         $attendance->delete();
 
         // Determine the route based on attendable type
-        $route = $isStudent ? 'admin.reports.students' : 'admin.reports.index';
+        $route = $isStudent ? 'admin.reports.students.daily' : 'admin.reports.index';
 
         // Get the original request parameters from the referring page
         $previousUrl = url()->previous();
@@ -320,7 +320,7 @@ class AttendanceController extends Controller
         Attendance::create($data);
 
         // Determine the route based on attendable type
-        $route = $request->attendable_type === 'App\Models\Student' ? 'admin.reports.students' : 'admin.reports.index';
+        $route = $request->attendable_type === 'App\Models\Student' ? 'admin.reports.students.daily' : 'admin.reports.index';
 
         // Preserve query parameters from the hidden input or referring page
         $redirectUrl = route($route);

@@ -161,6 +161,9 @@
                         @else
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{!! sortableLink('Jabatan', 'position', $currentSort, $currentDirection) !!}</th>
                         @endif
+                        @if(request()->routeIs('admin.permissions.students'))
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jenis</th>
+                        @endif
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{!! sortableLink('Tanggal Izin', 'start_date', $currentSort, $currentDirection) !!}</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{!! sortableLink('Alasan', 'reason', $currentSort, $currentDirection) !!}</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dokumen Pendukung</th>
@@ -188,6 +191,9 @@
                                     {{ $permission->permissible->position ?? 'N/A' }}
                                 @endif
                             </td>
+                            @if(request()->routeIs('admin.permissions.students'))
+                                <td class="px-6 py-4 whitespace-nowrap">{{ $permission->student_type_label }}</td>
+                            @endif
                             <td class="px-6 py-4 whitespace-nowrap">
                                 {{ \Carbon\Carbon::parse($permission->start_date)->format('d/m/Y') }} - {{ \Carbon\Carbon::parse($permission->end_date)->format('d/m/Y') }}
                             </td>
@@ -278,7 +284,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8" class="px-6 py-4 text-center text-gray-500">
+                            <td colspan="{{ request()->routeIs('admin.permissions.students') ? 9 : 8 }}" class="px-6 py-4 text-center text-gray-500">
                                 Tidak ada permohonan izin.
                             </td>
                         </tr>

@@ -150,5 +150,4 @@
     {{ $permissions->links() }}
 </div>
     </div>
-</div>
 @endsection

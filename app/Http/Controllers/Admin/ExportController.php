@@ -26,8 +26,10 @@ class ExportController extends Controller
     public function students()
     {
         try {
-            $rombels = Rombel::with('academicYear')->orderBy('name')->get();
-            return view('admin.exports.students', compact('rombels'));
+            $grades = \App\Models\Grade::orderBy('name')->get();
+            $rombels = Rombel::orderBy('name')->get(['id', 'name', 'grade_id']);
+            $students = Student::where('is_active', true)->orderBy('full_name')->get(['id', 'full_name', 'rombel_id']);
+            return view('admin.exports.students', compact('grades', 'rombels', 'students'));
         } catch (\Exception $e) {
             Log::error('Error in ExportController@students: ' . $e->getMessage());
             Log::error($e->getTraceAsString());
