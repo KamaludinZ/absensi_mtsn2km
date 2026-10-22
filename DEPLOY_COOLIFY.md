@@ -192,6 +192,21 @@ docker exec <container-aplikasi> chown -R www-data:www-data /var/www/html/public
 Sebelum update besar, buat backup dulu di **Admin > Backup** dan unduh
 filenya, atau gunakan fitur **Scheduled Backups** pada database di Coolify.
 
+## Update keamanan PHP
+
+Versi PHP ditulis tetap di `Dockerfile` (`ARG PHP_VERSION`). Saat ini
+**8.4.27**, rilis 21 Oktober 2026 yang menambal celah kritis **PHP2Shell**
+(CVE-2026-109618 dan CVE-2026-109619, eksekusi kode jarak jauh tanpa login).
+Build juga sengaja dibuat **gagal** jika versi PHP di image lebih lama dari
+`PHP_MIN_SAFE`, supaya server tidak pernah menjalankan PHP yang rentan.
+
+- Setelah perubahan versi PHP di-merge ke `main`: klik **Redeploy** di Coolify.
+- Cek versi yang berjalan: tab **Terminal** aplikasi → `php -v`.
+- Admin juga melihat peringatan merah di setiap halaman jika versi PHP server
+  masih rentan (berguna untuk server non-Docker seperti cPanel).
+- Jika nanti ada rilis keamanan PHP baru, naikkan `PHP_VERSION` dan
+  `PHP_MIN_SAFE` di `Dockerfile` serta daftar di `app/Support/PhpSecurity.php`.
+
 ## Backup
 
 - **Dari aplikasi**: Admin > Backup (database + foto). File tersimpan di

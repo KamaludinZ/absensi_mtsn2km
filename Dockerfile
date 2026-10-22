@@ -5,7 +5,11 @@
 # Made for Coolify (Build Pack: Dockerfile), works with any Docker host.
 # See DEPLOY_COOLIFY.md.
 
-ARG PHP_VERSION=8.4
+# Exact PHP release, so a redeploy always gets this version instead of an
+# older image cached on the server. 8.4.27 (21 Oct 2026) fixes the critical
+# PHP2Shell RCE bugs CVE-2026-109618 / CVE-2026-109619. Raise this (and
+# PHP_MIN_SAFE below) when a newer 8.4.x security release comes out.
+ARG PHP_VERSION=8.4.27
 ARG NODE_VERSION=22
 
 ############################################
@@ -16,10 +20,14 @@ FROM php:${PHP_VERSION}-fpm-alpine AS base
 # pg_dump / psql are used by Admin > Backup. Their major version must be
 # the same as or newer than the PostgreSQL server (Coolify default: 16/17).
 ARG PG_CLIENT_VERSION=17
+# Oldest PHP release the build accepts (stops a build on an unpatched image)
+ARG PHP_MIN_SAFE=8.4.27
 
 COPY --from=mlocati/php-extension-installer:2 /usr/bin/install-php-extensions /usr/local/bin/
 
 RUN set -eux; \
+    php -r 'exit(version_compare(PHP_VERSION, getenv("PHP_MIN_SAFE"), ">=") ? 0 : 1);' \
+        || { echo "PHP $(php -r 'echo PHP_VERSION;') is older than ${PHP_MIN_SAFE} and has known security holes" >&2; exit 1; }; \
     apk add --no-cache \
         nginx \
         supervisor \
