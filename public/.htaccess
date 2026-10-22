@@ -1,3 +1,16 @@
+# Extra protection against the PHP2Shell bugs (CVE-2026-109618) on Apache
+# mod_php / LiteSpeed. PHP-FPM hosting reads public/.user.ini instead.
+# This does NOT replace updating PHP.
+<IfModule mod_php.c>
+    php_flag session.upload_progress.enabled off
+</IfModule>
+<IfModule mod_php7.c>
+    php_flag session.upload_progress.enabled off
+</IfModule>
+<IfModule Litespeed>
+    php_flag session.upload_progress.enabled off
+</IfModule>
+
 <IfModule mod_rewrite.c>
     <IfModule mod_negotiation.c>
         Options -MultiViews -Indexes

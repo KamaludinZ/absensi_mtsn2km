@@ -45,6 +45,15 @@ jobs:
           PHP_FPM_MAX_CHILDREN=5 php-fpm -t
         '
 
+    - name: Check PHP2Shell protection (CVE-2026-109618 / CVE-2026-109619)
+      run: |
+        docker run --rm -i --entrypoint sh absensi:ci <<'SCRIPT'
+        set -e
+        php -r 'exit(version_compare(PHP_VERSION, "8.4.27", ">=") ? 0 : 1);' || { echo "unpatched PHP"; exit 1; }
+        [ "$(php -r 'echo (int) ini_get("session.upload_progress.enabled");')" = 0 ] || { echo "session.upload_progress is on"; exit 1; }
+        echo "PHP $(php -r 'echo PHP_VERSION;') patched, session.upload_progress off"
+        SCRIPT
+
     - name: Start PostgreSQL and the app
       run: |
         docker network create absensi

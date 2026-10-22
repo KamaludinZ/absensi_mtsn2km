@@ -76,7 +76,7 @@ class DashboardController extends Controller
         $currentAcademicYear = Cache::remember('current_academic_year', 300, function () {
             $year = \App\Models\AcademicYear::where('status', 'active')->first();
             if (!$year) {
-                $year = \App\Models\AcademicYear::orderBy('year', 'desc')->first();
+                $year = \App\Models\AcademicYear::orderBy('year_name', 'desc')->first();
             }
             return $year;
         });
@@ -292,7 +292,7 @@ class DashboardController extends Controller
         $currentAcademicYear = Cache::remember('current_academic_year', 300, function () {
             $year = \App\Models\AcademicYear::where('status', 'active')->first();
             if (!$year) {
-                $year = \App\Models\AcademicYear::orderBy('year', 'desc')->first();
+                $year = \App\Models\AcademicYear::orderBy('year_name', 'desc')->first();
             }
             return $year;
         });
