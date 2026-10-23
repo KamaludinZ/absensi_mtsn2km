@@ -24,6 +24,7 @@ dan proyek ini mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Admin panel updater is disabled on Docker (`DISABLE_WEB_UPDATER`); update by redeploying.
 
 ### Fixed
+- Clock-in/clock-out times shown 7 hours off on a database server in UTC (e.g. Coolify): the database connection now uses `DB_TIMEZONE` (Asia/Jakarta); `app:fix-attendance-timezone` repairs times saved before the fix.
 - Accidental "Absen Pulang" right after "Absen Masuk".
 - "Buat Backup" saved files in a folder the backup list never showed.
 - Admin dashboard error 500 on PostgreSQL when no academic year is active.

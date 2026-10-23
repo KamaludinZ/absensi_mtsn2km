@@ -96,6 +96,10 @@ return [
             'prefix_indexes' => true,
             'search_path' => 'public',
             'sslmode' => 'prefer',
+            // Same time zone as the app (config/app.php). clock_in/clock_out
+            // are "timestamp with time zone": without this, a database server
+            // in UTC (e.g. Coolify) shows every time 7 hours off.
+            'timezone' => env('DB_TIMEZONE', 'Asia/Jakarta'),
         ],
 
         'sqlsrv' => [

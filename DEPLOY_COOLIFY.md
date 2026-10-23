@@ -256,6 +256,11 @@ Berlaku untuk Cara A dan B.
 4. Setelah restore, login memakai akun dan password dari server lama.
    Redeploy sekali lagi agar migrasi yang lebih baru dijalankan.
 
+> Jam absensi selalu ditampilkan dalam WIB (`DB_TIMEZONE`, bawaan
+> `Asia/Jakarta`), walaupun server database memakai UTC. Jika sebelum versi
+> ini jam absensi tampil bergeser 7 jam, lihat
+> [Jam absensi bergeser 7 jam](#jam-absensi-bergeser-7-jam).
+
 ### B. File (foto selfie, dokumen, logo)
 
 Lewat SSH di server Coolify (nama container terlihat di Coolify atau dengan `docker ps`):
@@ -269,6 +274,31 @@ docker cp ./absensi-uploads/. <container-aplikasi>:/var/www/html/public/uploads/
 docker exec <container-aplikasi> chown -R www-data:www-data /var/www/html/public/storage /var/www/html/public/uploads
 ```
 
+## Jam absensi bergeser 7 jam
+
+Versi sebelum perbaikan ini tidak memberi tahu database bahwa aplikasi
+memakai WIB. Di database Coolify (zona waktu UTC), akibatnya:
+
+- Data hasil pindahan dari server lama tampil **mundur 7 jam** (07:05 jadi
+  00:05). Datanya sendiri benar dan tampil normal lagi setelah update.
+- Absensi yang dicatat di Coolify **sebelum** update tersimpan **maju 7 jam**
+  dan perlu diperbaiki sekali dengan perintah berikut.
+
+Setelah Redeploy dengan versi terbaru, buka tab **Terminal** aplikasi:
+
+```bash
+# 1. Lihat dulu apa yang akan diperbaiki (belum mengubah apa pun)
+su-exec www-data php artisan app:fix-attendance-timezone
+
+# 2. Buat backup, lalu simpan perbaikannya
+su-exec www-data php artisan app:backup-database
+su-exec www-data php artisan app:fix-attendance-timezone --apply
+```
+
+Perintah ini hanya mengubah jam yang tersimpan tepat 7 jam lebih lambat dari
+saat data itu dicatat. Data pindahan yang sudah benar tidak disentuh, dan
+perintah aman dijalankan berulang.
+
 ## Pengaturan tambahan
 
 | Variabel | Bawaan | Keterangan |
@@ -278,6 +308,7 @@ docker exec <container-aplikasi> chown -R www-data:www-data /var/www/html/public
 | `BACKUP_KEEP` | `14` | Jumlah backup otomatis yang disimpan per jenis. |
 | `PRE_MIGRATION_BACKUP` | `true` | Backup sebelum update yang mengubah database. Isi `false` hanya jika backup selalu gagal dan Anda sudah punya backup lain. |
 | `PHP_FPM_MAX_CHILDREN` | `10` | Jumlah proses PHP. Kira-kira 50 MB RAM per proses. Server 2 GB: 8–10, server 4 GB: 20. |
+| `DB_TIMEZONE` | `Asia/Jakarta` | Zona waktu koneksi database; samakan dengan zona waktu aplikasi. |
 | `RUN_MIGRATIONS` | `true` | Isi `false` jika ingin menjalankan migrasi sendiri. |
 | `DB_WAIT_TIMEOUT` | `60` | Berapa detik menunggu database saat container menyala. |
 | `MAIL_*` | – | Jika ingin mengirim email. |
@@ -317,6 +348,7 @@ su-exec www-data php artisan app:backup-database
 | Banner merah "Penyimpanan belum permanen" | Cara A: Persistent Storage belum lengkap (A4). Cara B: jangan hapus bagian `volumes` di `docker-compose.yml`. |
 | Halaman tanpa gaya (CSS) atau link `http://` | `APP_URL` harus `https://domain-anda`, domain di Coolify juga `https://`. |
 | Error `419 Page Expired` saat login | `SESSION_SECURE_COOKIE=true` hanya untuk HTTPS; bersihkan cookie browser. |
+| Jam absensi bergeser 7 jam (mundur atau maju) | Lihat [Jam absensi bergeser 7 jam](#jam-absensi-bergeser-7-jam). |
 | Semua pengguna logout setelah redeploy | `APP_KEY` berubah. Tulis `APP_KEY` tetap di Environment Variables. |
 | Unggah file besar gagal (413) | Batas 512 MB sudah diatur; jika memakai Cloudflare, batas paket gratisnya 100 MB. |
 
