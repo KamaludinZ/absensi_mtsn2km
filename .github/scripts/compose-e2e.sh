@@ -76,7 +76,8 @@ return new class extends Migration
     }
 };
 PHP
-dc up -d --build --wait || fail "update deploy"
+# Coolify always starts new containers on deploy
+dc up -d --build --force-recreate --wait || fail "update deploy"
 dc logs app 2>&1 | grep -q "pending migration(s): backing up" || fail "no backup before the migration"
 in_app sh -c 'ls /var/www/html/storage/app/backups/backup_premigrate_*.zip' || fail "pre-migration backup file missing"
 [ "$(sql "select to_regclass('public.ci_update_test') is not null")" = "t" ] || fail "migration did not run"
