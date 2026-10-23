@@ -5,6 +5,33 @@ Semua perubahan penting pada proyek ini akan didokumentasikan dalam file ini.
 Format ini didasarkan pada [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 dan proyek ini mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.9] - 2026-10-23
+
+### Added
+- Student attendance without login: NISN or RFID card (tap on a USB RFID reader), only open during the student attendance hours.
+- RFID card registration per student in Admin (type the number or tap the card).
+- Class promotion / transfer menu; graduated students are deactivated for attendance and RFID.
+- Attendance and permission history keep the class the student was in at the time.
+- Student attendance recap, per-day student schedules, student import with an Excel template.
+- Docker / Coolify deployment (Dockerfile or Docker Compose), see `DEPLOY_COOLIFY.md`.
+- Automatic database backups: daily, before every update that changes the database, and before a restore (all listed in Admin > Backup).
+- Admin warnings for an unpatched PHP version and for data folders that are not persistent volumes.
+
+### Changed
+- Employee "Absen Pulang" before the scheduled end time now asks for confirmation; the 10-minute cooldown was removed.
+- Automatic IP blocking removed (the school shares one public IP); suspicious requests are still rejected and logged.
+- Database restore runs in a single transaction and replaces the whole database: it either fully succeeds or changes nothing.
+- Admin panel updater is disabled on Docker (`DISABLE_WEB_UPDATER`); update by redeploying.
+
+### Fixed
+- Accidental "Absen Pulang" right after "Absen Masuk".
+- "Buat Backup" saved files in a folder the backup list never showed.
+- Admin dashboard error 500 on PostgreSQL when no academic year is active.
+- Fixes from the security and function audit (permission checks, login rate limit per user, secrets kept out of logs and backups).
+
+### Security
+- PHP pinned to 8.4.27 (PHP2Shell, CVE-2026-109618 / CVE-2026-109619); `session.upload_progress` turned off.
+
 ## [1.2.8] - 2026-09-03
 
 ### Fixed
