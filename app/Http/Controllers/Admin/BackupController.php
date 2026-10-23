@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Services\DatabaseBackup;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Storage;
@@ -17,6 +18,7 @@ class BackupController extends Controller
     public function index()
     {
         $backups = [];
+        app(DatabaseBackup::class)->moveMisplacedBackups();
 
         if (Storage::disk('backups')->exists('backups')) {
             $files = Storage::disk('backups')->files('backups');
@@ -44,7 +46,8 @@ class BackupController extends Controller
         try {
             $timestamp = Carbon::now()->format('Y-m-d_H-i-s');
             $backupName = 'backup_full_' . $timestamp . '.zip';
-            $backupPath = storage_path('app/backups/backups/' . $backupName);
+            // Same folder the backup list, download and restore use
+            $backupPath = Storage::disk('backups')->path('backups/' . $backupName);
 
             // Ensure backup directory exists
             if (!File::exists(dirname($backupPath))) {
@@ -136,29 +139,7 @@ class BackupController extends Controller
                     throw new \Exception('mysqldump failed');
                 }
             } else if ($dbType === 'pgsql') {
-                $host = config('database.connections.pgsql.host');
-                $port = config('database.connections.pgsql.port');
-                $database = config('database.connections.pgsql.database');
-                $username = config('database.connections.pgsql.username');
-                $password = config('database.connections.pgsql.password');
-
-                putenv("PGPASSWORD=" . $password);
-
-                $command = sprintf(
-                    'pg_dump -h %s -p %s -U %s -d %s -f %s 2>&1',
-                    escapeshellarg($host),
-                    escapeshellarg($port),
-                    escapeshellarg($username),
-                    escapeshellarg($database),
-                    escapeshellarg($tempFile)
-                );
-
-                exec($command, $output, $returnVar);
-                putenv("PGPASSWORD");
-
-                if ($returnVar !== 0 || !File::exists($tempFile)) {
-                    throw new \Exception('pg_dump failed');
-                }
+                app(DatabaseBackup::class)->dump($tempFile);
             } else {
                 // Fallback: Export using Laravel's DB facade
                 $tables = DB::select('SHOW TABLES');
@@ -244,6 +225,7 @@ class BackupController extends Controller
     public function showRestore()
     {
         $backups = [];
+        app(DatabaseBackup::class)->moveMisplacedBackups();
 
         if (Storage::disk('backups')->exists('backups')) {
             $files = Storage::disk('backups')->files('backups');
@@ -320,6 +302,12 @@ class BackupController extends Controller
             $zip->extractTo($tempDir);
             $zip->close();
 
+            // 0. Safety copy of the current database first, so a wrong
+            //    restore can be undone from the backup list
+            $safetyBackup = DatabaseBackup::supported()
+                ? app(DatabaseBackup::class)->create('prerestore')
+                : null;
+
             // 1. Restore Database
             $sqlFile = $tempDir . '/database.sql';
             if (File::exists($sqlFile)) {
@@ -357,7 +345,8 @@ class BackupController extends Controller
             $this->deleteDirectory($tempDir);
 
             return redirect()->route('admin.backup.index')
-                ->with('success', 'Restore berhasil dilakukan (Database + Files).');
+                ->with('success', 'Restore berhasil dilakukan (Database + Files).'
+                    . ($safetyBackup ? ' Data sebelum restore disimpan di ' . $safetyBackup . '.' : ''));
         } catch (\Exception $e) {
             Log::error('Backup restore error: ' . $e->getMessage());
 
@@ -401,29 +390,8 @@ class BackupController extends Controller
                 throw new \Exception('MySQL restore failed: ' . implode("\n", $output));
             }
         } else if ($dbType === 'pgsql') {
-            $host = config('database.connections.pgsql.host');
-            $port = config('database.connections.pgsql.port');
-            $database = config('database.connections.pgsql.database');
-            $username = config('database.connections.pgsql.username');
-            $password = config('database.connections.pgsql.password');
-
-            putenv("PGPASSWORD=" . $password);
-
-            $command = sprintf(
-                'psql -h %s -p %s -U %s -d %s -f %s 2>&1',
-                escapeshellarg($host),
-                escapeshellarg($port),
-                escapeshellarg($username),
-                escapeshellarg($database),
-                escapeshellarg($sqlFile)
-            );
-
-            exec($command, $output, $returnVar);
-            putenv("PGPASSWORD");
-
-            if ($returnVar !== 0) {
-                throw new \Exception('PostgreSQL restore failed: ' . implode("\n", $output));
-            }
+            // One transaction: on any error nothing changes
+            app(DatabaseBackup::class)->restore($sqlFile);
         } else {
             // Fallback: Use Laravel DB
             $sqlContent = File::get($sqlFile);

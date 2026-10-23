@@ -1,0 +1,10 @@
+# Extra settings for trying the app on your own computer (not for Coolify):
+#   docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --build
+#   open http://localhost:8080
+services:
+  app:
+    ports:
+      - "${APP_PORT:-8080}:80"
+    environment:
+      # Plain http on localhost
+      SESSION_SECURE_COOKIE: "false"

@@ -17,9 +17,10 @@ ARG NODE_VERSION=22
 ############################################
 FROM php:${PHP_VERSION}-fpm-alpine AS base
 
-# pg_dump / psql are used by Admin > Backup. Their major version must be
-# the same as or newer than the PostgreSQL server (Coolify default: 16/17).
-ARG PG_CLIENT_VERSION=17
+# pg_dump / psql are used by the backups (Admin > Backup, daily and before
+# updates). pg_dump must be the same or a newer major version than the
+# PostgreSQL server; 18 works with servers 18, 17, 16 and older.
+ARG PG_CLIENT_VERSION=18
 # Oldest PHP release the build accepts (stops a build on an unpatched image)
 ARG PHP_MIN_SAFE=8.4.27
 
@@ -48,7 +49,8 @@ RUN set -eux; \
     rm -f /usr/local/etc/php-fpm.d/*.conf; \
     mkdir -p /run/nginx /var/lib/nginx/tmp /var/log/supervisor
 
-ENV TZ=Asia/Jakarta
+ENV TZ=Asia/Jakarta \
+    APP_IN_DOCKER=1
 
 COPY docker/php/php.ini /usr/local/etc/php/conf.d/zz-app.ini
 COPY docker/php/fpm-pool.conf /usr/local/etc/php-fpm.d/www.conf
