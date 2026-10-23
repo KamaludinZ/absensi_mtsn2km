@@ -1,27 +1,36 @@
-# Run the app + PostgreSQL with Docker Compose (local test, or Coolify's
-# "Docker Compose" build pack). For Coolify the recommended way is the
-# "Dockerfile" build pack + a separate PostgreSQL resource, see
-# DEPLOY_COOLIFY.md.
+# Docker Compose for Coolify ("Docker Compose" build pack): the app and its
+# own PostgreSQL database in one resource. See DEPLOY_COOLIFY.md.
 #
+# DATA SAFETY - read before changing this file:
+# - All data lives in the named volumes at the bottom. Coolify keeps them
+#   across updates and redeploys. NEVER rename or remove a volume here:
+#   a new name means a new, EMPTY volume (the old data is still on the
+#   server, but the app no longer sees it).
+# - Keep the PostgreSQL major version (17). A new major version cannot read
+#   the old data folder; upgrading needs a dump and restore.
+# - DB_PASSWORD is only used when the database is created the first time.
+#   Changing it later does not change the database password.
+#
+# Try it on your own computer (adds port 8080, see docker-compose.local.yml):
 #   cp .env.docker.example .env   # then fill in the passwords
-#   docker compose up -d --build
-#   open http://localhost:8080
+#   docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --build
 
 services:
   app:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy
-    ports:
-      - "${APP_PORT:-8080}:80"
     environment:
       APP_NAME: ${APP_NAME:-MTsN 2 Absensi}
       APP_ENV: production
-      APP_KEY: ${APP_KEY:-}
       APP_DEBUG: "false"
-      APP_URL: ${APP_URL:-http://localhost:8080}
+      APP_URL: ${APP_URL:?}
+      # Empty: generated once and kept in the storage volume
+      APP_KEY: ${APP_KEY:-}
       APP_LOCALE: id
       APP_FALLBACK_LOCALE: en
       LOG_CHANNEL: stack
@@ -32,18 +41,26 @@ services:
       DB_PORT: 5432
       DB_DATABASE: ${DB_DATABASE:-absensi}
       DB_USERNAME: ${DB_USERNAME:-absensi}
-      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      DB_PASSWORD: ${DB_PASSWORD:?}
       SESSION_DRIVER: database
-      SESSION_SECURE_COOKIE: ${SESSION_SECURE_COOKIE:-false}
+      SESSION_LIFETIME: ${SESSION_LIFETIME:-120}
+      SESSION_SECURE_COOKIE: ${SESSION_SECURE_COOKIE:-true}
       CACHE_STORE: database
       QUEUE_CONNECTION: sync
       FILESYSTEM_DISK: local
       DISABLE_WEB_UPDATER: "true"
+      # Backups (shown in Admin > Backup): daily + before every update
+      AUTO_BACKUP: ${AUTO_BACKUP:-true}
+      AUTO_BACKUP_TIME: ${AUTO_BACKUP_TIME:-01:00}
+      BACKUP_KEEP: ${BACKUP_KEEP:-14}
+      PRE_MIGRATION_BACKUP: ${PRE_MIGRATION_BACKUP:-true}
+      PHP_FPM_MAX_CHILDREN: ${PHP_FPM_MAX_CHILDREN:-10}
+      # Only for a brand-new, empty database: creates user "admin"
       INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD:-}
     volumes:
-      - app-storage:/var/www/html/storage
-      - app-public-storage:/var/www/html/public/storage
-      - app-uploads:/var/www/html/public/uploads
+      - absensi-storage:/var/www/html/storage
+      - absensi-public-storage:/var/www/html/public/storage
+      - absensi-uploads:/var/www/html/public/uploads
 
   db:
     image: postgres:17-alpine
@@ -51,18 +68,20 @@ services:
     environment:
       POSTGRES_DB: ${DB_DATABASE:-absensi}
       POSTGRES_USER: ${DB_USERNAME:-absensi}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?}
       TZ: Asia/Jakarta
     volumes:
-      - db-data:/var/lib/postgresql/data
+      - absensi-db:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 20
+    # Give PostgreSQL time to shut down cleanly on redeploy
+    stop_grace_period: 60s
 
 volumes:
-  app-storage:
-  app-public-storage:
-  app-uploads:
-  db-data:
+  absensi-storage:
+  absensi-public-storage:
+  absensi-uploads:
+  absensi-db:

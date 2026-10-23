@@ -1,63 +1,79 @@
 # Deploy ke Coolify (Docker)
 
 Panduan ini untuk memasang aplikasi Absensi MTsN 2 Kota Malang di server
-yang memakai [Coolify](https://coolify.io). Aplikasi berjalan di dalam satu
-container Docker (nginx + PHP 8.4) dan memakai database PostgreSQL dari
-Coolify.
+yang memakai [Coolify](https://coolify.io). Ada **dua cara**, pilih salah satu:
+
+| | **Cara A: Dockerfile** | **Cara B: Docker Compose** |
+|---|---|---|
+| Isi | Aplikasi saja; database PostgreSQL dibuat terpisah di Coolify | Aplikasi + database PostgreSQL dalam satu resource |
+| Penyimpanan permanen | Dibuat manual (3 volume) | Otomatis dari `docker-compose.yml` |
+| Backup terjadwal dari Coolify (bisa ke S3) | Ya, dari halaman database | Pakai backup otomatis aplikasi (lihat bawah) |
+| Update tanpa jeda (rolling update) | Ya | Ada jeda beberapa detik saat restart |
+| Cocok untuk | Produksi, ingin fitur backup Coolify | Paling mudah dipasang |
+
+Kedua cara memakai image yang sama dan **sama-sama aman untuk update dan redeploy**.
 
 ```
-Pengunjung ──HTTPS──> Proxy Coolify (SSL otomatis) ──HTTP:80──> Container Absensi ──> PostgreSQL (Coolify)
+Pengunjung ──HTTPS──> Proxy Coolify (SSL otomatis) ──HTTP:80──> Container Absensi ──> PostgreSQL
                                                                    │
-                                                                   └── 3 volume: foto selfie, logo, backup & log
+                                                                   └── volume: foto, dokumen, logo, backup, log
 ```
 
-Yang sudah diurus otomatis oleh image Docker setiap kali container menyala:
+## Yang diurus otomatis setiap container menyala
 
-- Menunggu database siap, lalu menjalankan migrasi database (`migrate --force`).
-- Membuat cache config/route/view supaya aplikasi cepat.
-- Membuat folder yang dibutuhkan dan mengatur izin tulis.
-- Mengisi logo sekolah bawaan ke volume yang masih kosong.
-- Health check di alamat `/up` (Coolify tahu kapan aplikasi sudah siap).
-- `pg_dump`/`psql` sudah terpasang, jadi menu **Admin > Backup** tetap jalan.
-- IP asli pengunjung diteruskan dari proxy Coolify (untuk batas login dan log keamanan).
-- File PHP selain `index.php` tidak pernah dijalankan; foto selfie dan dokumen
-  izin hanya bisa dibuka lewat aplikasi setelah login.
+- Menunggu database siap, lalu menjalankan migrasi database.
+- **Backup database otomatis sebelum update** yang mengubah database
+  (`backup_premigrate_...zip`). Kalau backup ini gagal, update **dibatalkan**
+  dan data tidak berubah.
+- **Backup database harian** pukul 01:00 (`backup_auto_...zip`). Disimpan
+  14 terbaru, backup buatan admin tidak pernah dihapus.
+- Semua backup muncul di **Admin > Backup** dan bisa diunduh atau di-restore.
+- **Restore aman:** sebelum restore, data saat itu dibackup dulu
+  (`backup_prerestore_...zip`). Restore berjalan dalam satu transaksi: kalau ada
+  yang gagal, database tidak berubah sama sekali.
+- Kunci aplikasi (`APP_KEY`) dibuat sekali dan disimpan di volume, jadi tidak
+  berubah saat redeploy.
+- Peringatan di log deploy dan banner merah untuk admin jika folder data
+  belum memakai volume permanen, atau jika versi PHP masih rentan.
+- Cache config/route/view, izin folder, logo bawaan, health check `/up`.
+- IP asli pengunjung dari proxy Coolify; hanya `index.php` yang dijalankan;
+  foto selfie dan dokumen izin hanya bisa dibuka setelah login.
 
 ---
 
-## Langkah 1: Buat database PostgreSQL
+## Cara A: Dockerfile + database Coolify
+
+### A1. Buat database PostgreSQL
 
 1. Di Coolify buka project Anda, klik **+ New** → **Database** → **PostgreSQL**
-   (pilih versi 17 atau 16).
+   (versi 16, 17, atau 18).
 2. Isi nama database, user, dan password (atau pakai yang dibuat Coolify), lalu **Start**.
-3. Catat datanya. Yang dipakai adalah alamat **internal** (bukan public):
-   - Host: nama/UUID container database (terlihat di *Postgres URL (internal)*, bagian setelah `@` dan sebelum `:5432`)
-   - Port: `5432`
-   - Database, Username, Password
+3. Catat alamat **internal** (bukan public):
+   - Host: bagian setelah `@` dan sebelum `:5432` pada *Postgres URL (internal)*
+   - Port `5432`, Database, Username, Password
+4. Disarankan: tab **Backups** database → aktifkan jadwal harian (dan tujuan S3 bila ada).
 
-> Aplikasi dan database harus berada di **server dan project/environment
-> yang sama** di Coolify supaya bisa saling terhubung lewat jaringan internal.
+> Aplikasi dan database harus di **server dan project/environment yang sama**.
 
-## Langkah 2: Buat aplikasi
+### A2. Buat aplikasi
 
 1. **+ New** → **Private Repository (with GitHub App)** (atau Public Repository),
    pilih repo `absensi_mtsn2km`, branch `main`.
-2. **Build Pack**: pilih **Dockerfile** (bukan Nixpacks).
+2. **Build Pack**: **Dockerfile**.
 3. **Ports Exposes**: `80`.
-4. **Domains**: isi alamat lengkap, misalnya `https://siab.mtsn2kotamalang.sch.id`.
-   Arahkan DNS domain (A record) ke IP server Coolify. SSL dibuat otomatis.
+4. **Domains**: misalnya `https://siab.mtsn2kotamalang.sch.id`. Arahkan DNS
+   (A record) ke IP server Coolify. SSL dibuat otomatis.
 
-## Langkah 3: Environment Variables
+### A3. Environment Variables
 
-Buka tab **Environment Variables** aplikasi, lalu isi (bisa pakai mode
-*Developer view* / tempel sekaligus):
+Tab **Environment Variables** (bisa ditempel sekaligus di *Developer view*):
 
 ```env
 APP_NAME="MTsN 2 Absensi"
 APP_ENV=production
 APP_DEBUG=false
 APP_URL=https://siab.mtsn2kotamalang.sch.id
-APP_KEY=base64:ISI_DENGAN_KUNCI_ANDA
+APP_KEY=
 APP_LOCALE=id
 APP_FALLBACK_LOCALE=en
 
@@ -66,7 +82,7 @@ LOG_STACK=single,stderr
 LOG_LEVEL=warning
 
 DB_CONNECTION=pgsql
-DB_HOST=isi-host-internal-dari-langkah-1
+DB_HOST=isi-host-internal-dari-A1
 DB_PORT=5432
 DB_DATABASE=isi-nama-database
 DB_USERNAME=isi-username
@@ -81,162 +97,228 @@ FILESYSTEM_DISK=local
 
 DISABLE_WEB_UPDATER=true
 
-# Hanya untuk instalasi BARU dengan database kosong (lihat Langkah 5)
+# Hanya untuk instalasi BARU dengan database kosong
 INITIAL_ADMIN_PASSWORD=
 ```
 
-Penjelasan yang penting:
+> Jika ada pilihan **Build Variable / Available at Buildtime**, matikan untuk
+> `APP_KEY` dan `DB_PASSWORD`. Image ini tidak butuh variabel saat build.
 
-| Variabel | Keterangan |
-|---|---|
-| `APP_KEY` | **Wajib sama selamanya.** Jika pindah dari server lama, salin `APP_KEY` dari file `.env` server lama. Jika instalasi baru, buat dengan perintah `php artisan key:generate --show` (di komputer mana pun yang ada PHP, atau di Terminal container setelah deploy pertama). Jika dikosongkan, container membuat kunci sendiri dan menyimpannya di volume `storage` (lihat log deploy), tetapi lebih aman ditulis di sini. |
-| `APP_URL` | Sama persis dengan domain, pakai `https://`. |
-| `DB_*` | Dari Langkah 1 (alamat internal). |
-| `SESSION_SECURE_COOKIE` | `true` karena situs memakai HTTPS. |
-| `DISABLE_WEB_UPDATER` | `true`: menu update lewat panel admin dimatikan. Di Docker, kode aplikasi ada di dalam image, jadi update dilakukan dengan **Redeploy** (lihat bagian Update). |
-| `INITIAL_ADMIN_PASSWORD` | Hanya untuk database kosong: membuat akun `admin` dengan password ini (minimal 8 karakter) beserta data awal (role, kelas, jadwal). Tidak berpengaruh jika database sudah berisi pengguna. |
+### A4. Persistent Storage (WAJIB untuk Cara A)
 
-Opsional:
-
-| Variabel | Bawaan | Keterangan |
-|---|---|---|
-| `PHP_FPM_MAX_CHILDREN` | `10` | Jumlah proses PHP sekaligus. Kira-kira 50 MB RAM per proses. Server 2 GB: 8–10, server 4 GB: 20. |
-| `RUN_MIGRATIONS` | `true` | Isi `false` jika ingin menjalankan migrasi sendiri. |
-| `DB_WAIT_TIMEOUT` | `60` | Berapa detik menunggu database saat container menyala. |
-| `MAIL_*` | – | Jika ingin mengirim email. |
-
-> Jika Coolify menampilkan pilihan **Build Variable / Available at
-> Buildtime** pada tiap variabel, matikan untuk `APP_KEY` dan `DB_PASSWORD`.
-> Image ini tidak butuh variabel apa pun saat build.
-
-## Langkah 4: Persistent Storage (WAJIB)
-
-Tanpa ini, foto selfie, dokumen izin, logo, dan file backup akan **hilang
-setiap redeploy**. Buka tab **Persistent Storage** → **+ Add** → *Volume*,
-tambahkan 3 volume:
+Tab **Persistent Storage** → **+ Add** → *Volume*, tambahkan 3 volume:
 
 | Nama volume (bebas) | Destination Path (harus persis) | Isi |
 |---|---|---|
-| `absensi-storage` | `/var/www/html/storage` | backup (Admin > Backup), log, file sementara |
-| `absensi-public-storage` | `/var/www/html/public/storage` | foto selfie, dokumen izin & koreksi absensi |
+| `absensi-storage` | `/var/www/html/storage` | backup, log, kunci aplikasi |
+| `absensi-public-storage` | `/var/www/html/public/storage` | foto selfie, dokumen izin & koreksi |
 | `absensi-uploads` | `/var/www/html/public/uploads` | logo kop laporan |
 
-## Langkah 5: Deploy
+Jika ada yang terlewat, log deploy menampilkan
+`WARNING: ... is NOT a persistent volume` dan admin melihat banner merah
+**"Penyimpanan belum permanen"**.
 
-1. Klik **Deploy**. Build pertama butuh beberapa menit.
-2. Di log deploy, tunggu baris `[entrypoint] Ready. Starting nginx + php-fpm.`
-3. Buka domain Anda.
+### A5. Deploy
 
-**Instalasi baru (database kosong):** isi `INITIAL_ADMIN_PASSWORD` sebelum
-deploy. Setelah berhasil, login dengan username `admin` dan password
-tersebut, lalu **segera ganti password** di menu profil dan kosongkan lagi
-`INITIAL_ADMIN_PASSWORD` di Coolify.
-
-**Pindahan dari server lama:** ikuti bagian berikut dulu, baru deploy.
+Klik **Deploy**, tunggu baris `[entrypoint] Ready. Starting nginx + php-fpm.`
+di log, lalu buka domain. Lanjut ke [Setelah deploy pertama](#setelah-deploy-pertama).
 
 ---
 
+## Cara B: Docker Compose (aplikasi + database)
+
+### B1. Buat resource
+
+1. **+ New** → **Private Repository (with GitHub App)** (atau Public Repository),
+   pilih repo `absensi_mtsn2km`, branch `main`.
+2. **Build Pack**: **Docker Compose**.
+3. **Docker Compose Location**: pastikan `/docker-compose.yml`
+   (bukan `docker-compose.local.yml`, itu hanya untuk komputer sendiri).
+4. Klik **Save / Load Compose**. Coolify membaca dua service: `app` dan `db`.
+
+### B2. Environment Variables
+
+Tab **Environment Variables**, isi minimal:
+
+```env
+APP_URL=https://siab.mtsn2kotamalang.sch.id
+DB_PASSWORD=buat-password-panjang-dan-acak
+# Hanya untuk instalasi BARU dengan database kosong
+INITIAL_ADMIN_PASSWORD=
+```
+
+Opsional: `APP_KEY` (salin dari server lama jika pindahan; kosong = dibuat
+otomatis), `DB_DATABASE` dan `DB_USERNAME` (bawaan `absensi`), serta variabel
+backup di tabel [Pengaturan tambahan](#pengaturan-tambahan).
+
+> **Jangan ubah `DB_PASSWORD` setelah deploy pertama.** PostgreSQL hanya
+> memakainya saat database pertama kali dibuat. Jika diubah, aplikasi tidak
+> bisa masuk ke database (kembalikan ke nilai lama untuk memperbaikinya).
+
+Jika `APP_URL` atau `DB_PASSWORD` kosong, deploy berhenti dengan pesan
+`required variable ... is missing a value`. Ini disengaja.
+
+### B3. Domain
+
+Di daftar service, pada service **app** isi **Domains**, misalnya
+`https://siab.mtsn2kotamalang.sch.id`. Service **db** tidak diberi domain
+(database tidak boleh dibuka dari internet).
+
+### B4. Deploy
+
+Klik **Deploy**. Volume dibuat otomatis dari `docker-compose.yml`:
+`absensi-storage`, `absensi-public-storage`, `absensi-uploads` (data
+aplikasi) dan `absensi-db` (database). Tidak perlu membuat Persistent Storage
+manual.
+
+---
+
+## Setelah deploy pertama
+
+- **Instalasi baru (database kosong):** isi `INITIAL_ADMIN_PASSWORD` sebelum
+  deploy. Login dengan username `admin` dan password tersebut, **segera ganti
+  password**, lalu kosongkan lagi `INITIAL_ADMIN_PASSWORD`.
+- **Pindahan dari server lama:** lihat [Pindah data dari server lama](#pindah-data-dari-server-lama).
+- Jika `APP_KEY` dikosongkan, salin kunci yang dibuat otomatis ke Environment
+  Variables agar tersimpan juga di Coolify. Lihat isinya di Terminal:
+  `cat /var/www/html/storage/app/private/.app_key`.
+
+## Aturan agar data selalu aman
+
+1. **Jangan hapus resource** aplikasi/database di Coolify. Jika terpaksa,
+   jangan centang pilihan untuk menghapus volume.
+2. **Cara A:** jangan ubah *Destination Path* di Persistent Storage.
+   **Cara B:** jangan ganti nama atau hapus volume di `docker-compose.yml`.
+   Nama baru berarti volume baru yang kosong.
+3. **Jangan ganti versi utama PostgreSQL** (misalnya 17 ke 18) tanpa backup dan
+   restore. Versi baru tidak bisa membaca folder data versi lama.
+4. **Jaga `APP_KEY` tetap sama.**
+5. **Simpan salinan di luar server:** unduh backup terbaru dari
+   **Admin > Backup** minimal seminggu sekali, atau aktifkan backup S3 di
+   database Coolify (Cara A). Backup di server tidak menolong jika servernya rusak.
+
+## Update aplikasi
+
+1. Perubahan kode di-*merge* ke branch `main` di GitHub.
+2. Di Coolify klik **Redeploy** (atau aktifkan **Auto Deploy**).
+3. Yang terjadi otomatis:
+   - Image baru dibuat, container baru menyala dengan volume yang sama.
+   - Jika ada perubahan database, database **dibackup dulu**
+     (`backup_premigrate_...zip`), baru migrasi dijalankan.
+   - Jika backup gagal, update dibatalkan dan log menjelaskan sebabnya; data tetap utuh.
+
+### Membatalkan update yang bermasalah
+
+1. Kembalikan kode ke versi sebelumnya: di GitHub *revert* perubahan lalu
+   Redeploy, atau pakai fitur **Rollback** deployment di Coolify jika tersedia.
+2. Jika data juga perlu dikembalikan: **Admin > Backup > Restore** → pilih
+   `backup_premigrate_...` dengan tanggal update tersebut.
+
+## Backup dan restore
+
+| Jenis | Nama file | Kapan |
+|---|---|---|
+| Manual | `backup_full_...zip` (database + foto) | Tombol **Buat Backup** di Admin > Backup |
+| Harian | `backup_auto_...zip` (database) | Setiap hari pukul `AUTO_BACKUP_TIME` |
+| Sebelum update | `backup_premigrate_...zip` | Saat redeploy yang mengubah database |
+| Sebelum restore | `backup_prerestore_...zip` | Setiap kali restore dijalankan |
+
+Semua ada di volume `absensi-storage` (folder `storage/app/backups`). Backup
+otomatis disimpan `BACKUP_KEEP` buah terbaru per jenis. Backup manual dan file
+yang diunggah tidak pernah dihapus otomatis.
+
+**Restore** mengganti seluruh isi database dengan isi backup (termasuk akun
+pengguna). Prosesnya satu transaksi, jadi kalau gagal di tengah jalan, database
+tetap seperti sebelumnya.
+
+Backup manual dari terminal:
+
+```bash
+su-exec www-data php artisan app:backup-database
+```
+
 ## Pindah data dari server lama
 
-### A. Database
+Berlaku untuk Cara A dan B.
 
-1. Di server lama, buat dump database:
+### A. Database (lewat Admin > Backup)
+
+1. Deploy dulu sebagai instalasi baru (dengan `INITIAL_ADMIN_PASSWORD`) dan
+   salin `APP_KEY` dari `.env` server lama ke Environment Variables, lalu Redeploy.
+2. Di server lama, buat file backup:
 
    ```bash
-   pg_dump --no-owner --no-acl -Fc -h 127.0.0.1 -U USER_LAMA -d DB_LAMA -f absensi.dump
+   pg_dump --no-owner --no-acl -h 127.0.0.1 -U USER_LAMA -d DB_LAMA -f database.sql
+   zip backup_lama.zip database.sql
    ```
 
-2. Masukkan ke database Coolify **yang masih kosong** (sebelum aplikasi
-   pertama kali dideploy), salah satu cara:
-   - Di halaman database Coolify, menu **Import Backup** → unggah `absensi.dump`
-     (nama menu bisa sedikit berbeda tergantung versi Coolify), atau
-   - Dari server Coolify (SSH):
-
-     ```bash
-     docker cp absensi.dump <container-database>:/tmp/absensi.dump
-     docker exec -it <container-database> pg_restore --no-owner -U <user> -d <database> /tmp/absensi.dump
-     ```
-
-3. Salin `APP_KEY` dari `.env` server lama ke Environment Variables Coolify.
-4. Deploy aplikasi. Migrasi yang belum ada akan dijalankan otomatis.
-
-> Menu **Admin > Backup > Restore** di aplikasi ditujukan untuk memulihkan
-> backup ke database yang sama. Untuk pindahan server, pakai cara di atas.
+3. Di aplikasi baru: **Admin > Backup > Restore** → unggah `backup_lama.zip` → **Restore**.
+4. Setelah restore, login memakai akun dan password dari server lama.
+   Redeploy sekali lagi agar migrasi yang lebih baru dijalankan.
 
 ### B. File (foto selfie, dokumen, logo)
 
-Setelah deploy pertama selesai, salin folder dari server lama ke container
-(lewat SSH di server Coolify). Nama container terlihat di Coolify atau
-dengan `docker ps`.
+Lewat SSH di server Coolify (nama container terlihat di Coolify atau dengan `docker ps`):
 
 ```bash
-# dari server lama ke server Coolify (contoh memakai scp)
 scp -r user@server-lama:/path/aplikasi/public/storage ./absensi-public-storage
 scp -r user@server-lama:/path/aplikasi/public/uploads ./absensi-uploads
 
-# masukkan ke container, lalu atur pemiliknya
 docker cp ./absensi-public-storage/. <container-aplikasi>:/var/www/html/public/storage/
 docker cp ./absensi-uploads/. <container-aplikasi>:/var/www/html/public/uploads/
 docker exec <container-aplikasi> chown -R www-data:www-data /var/www/html/public/storage /var/www/html/public/uploads
 ```
 
----
+## Pengaturan tambahan
 
-## Update aplikasi
-
-1. Perubahan kode di-*merge* ke branch `main` di GitHub.
-2. Di Coolify klik **Redeploy** (atau aktifkan **Auto Deploy** agar otomatis
-   setiap ada push ke `main`).
-3. Migrasi database berjalan otomatis. Data di volume tetap aman.
-
-Sebelum update besar, buat backup dulu di **Admin > Backup** dan unduh
-filenya, atau gunakan fitur **Scheduled Backups** pada database di Coolify.
+| Variabel | Bawaan | Keterangan |
+|---|---|---|
+| `AUTO_BACKUP` | `true` | Backup database harian. |
+| `AUTO_BACKUP_TIME` | `01:00` | Jam backup harian (WIB). |
+| `BACKUP_KEEP` | `14` | Jumlah backup otomatis yang disimpan per jenis. |
+| `PRE_MIGRATION_BACKUP` | `true` | Backup sebelum update yang mengubah database. Isi `false` hanya jika backup selalu gagal dan Anda sudah punya backup lain. |
+| `PHP_FPM_MAX_CHILDREN` | `10` | Jumlah proses PHP. Kira-kira 50 MB RAM per proses. Server 2 GB: 8–10, server 4 GB: 20. |
+| `RUN_MIGRATIONS` | `true` | Isi `false` jika ingin menjalankan migrasi sendiri. |
+| `DB_WAIT_TIMEOUT` | `60` | Berapa detik menunggu database saat container menyala. |
+| `MAIL_*` | – | Jika ingin mengirim email. |
 
 ## Update keamanan PHP
 
 Versi PHP ditulis tetap di `Dockerfile` (`ARG PHP_VERSION`). Saat ini
 **8.4.27**, rilis 21 Oktober 2026 yang menambal celah kritis **PHP2Shell**
-(CVE-2026-109618 dan CVE-2026-109619, eksekusi kode jarak jauh tanpa login).
-Build juga sengaja dibuat **gagal** jika versi PHP di image lebih lama dari
-`PHP_MIN_SAFE`, supaya server tidak pernah menjalankan PHP yang rentan.
+(CVE-2026-109618 dan CVE-2026-109619). Build sengaja **gagal** jika versi PHP di
+image lebih lama dari `PHP_MIN_SAFE`.
 
-- Setelah perubahan versi PHP di-merge ke `main`: klik **Redeploy** di Coolify.
-- Cek versi yang berjalan: tab **Terminal** aplikasi → `php -v`.
-- Admin juga melihat peringatan merah di setiap halaman jika versi PHP server
-  masih rentan (berguna untuk server non-Docker seperti cPanel).
-- Jika nanti ada rilis keamanan PHP baru, naikkan `PHP_VERSION` dan
-  `PHP_MIN_SAFE` di `Dockerfile` serta daftar di `app/Support/PhpSecurity.php`.
-
-## Backup
-
-- **Dari aplikasi**: Admin > Backup (database + foto). File tersimpan di
-  volume `absensi-storage` (`storage/app/backups`). Unduh secara berkala ke
-  tempat lain.
-- **Dari Coolify** (disarankan, otomatis): buka resource PostgreSQL →
-  **Backups** → atur jadwal (misalnya setiap hari) dan, bila ada, tujuan S3.
+- Setelah perubahan versi PHP di-merge ke `main`: **Redeploy**.
+- Cek versi yang berjalan: tab **Terminal** → `php -v`.
+- Untuk rilis keamanan PHP berikutnya, naikkan `PHP_VERSION` dan `PHP_MIN_SAFE`
+  di `Dockerfile` serta daftar di `app/Support/PhpSecurity.php`.
 
 ## Menjalankan perintah artisan
 
-Buka aplikasi di Coolify → tab **Terminal**, lalu jalankan sebagai user
-web server, contoh:
+Tab **Terminal** aplikasi (Cara B: pilih container `app`), jalankan sebagai
+user web server:
 
 ```bash
 su-exec www-data php artisan about
 su-exec www-data php artisan migrate:status
+su-exec www-data php artisan app:backup-database
 ```
 
 ## Pemecahan masalah
 
 | Gejala | Penyebab & solusi |
 |---|---|
-| Log: `cannot connect to the database` | `DB_HOST`/`DB_PASSWORD` salah, atau database beda server/jaringan. Pakai alamat **internal** dari halaman database Coolify. |
-| Log: `The database is empty. Set INITIAL_ADMIN_PASSWORD` | Database kosong: isi `INITIAL_ADMIN_PASSWORD` lalu Redeploy, atau impor database lama. |
-| Halaman tampil tanpa gaya (CSS) atau link mengarah ke `http://` | `APP_URL` harus `https://domain-anda` dan domain di Coolify juga `https://`. |
-| Error `419 Page Expired` saat login | Pastikan `SESSION_SECURE_COOKIE=true` hanya jika situs dibuka lewat HTTPS; bersihkan cookie browser. |
-| Foto/logo hilang setelah redeploy | Persistent Storage belum dibuat atau Destination Path tidak persis sama (Langkah 4). |
+| Log: `cannot connect to the database` | Cara A: `DB_HOST`/`DB_PASSWORD` salah atau database beda server; pakai alamat **internal**. Cara B: `DB_PASSWORD` diubah setelah deploy pertama; kembalikan nilai lama. |
+| Log: `the backup before the database update failed, so the update was NOT run` | Baca pesan di atasnya. Paling sering: versi PostgreSQL server lebih baru dari `pg_dump` di image (lihat baris berikut). Data tidak berubah. |
+| `pg_dump ... server version mismatch` | Image memakai `pg_dump` 18 (cocok untuk server 18 ke bawah). Untuk server yang lebih baru, ubah `PG_CLIENT_VERSION` di `Dockerfile`. |
+| Log: `The database is empty. Set INITIAL_ADMIN_PASSWORD` | Database kosong: isi `INITIAL_ADMIN_PASSWORD` lalu Redeploy, atau pindahkan data lama. |
+| Deploy Cara B: `required variable APP_URL/DB_PASSWORD is missing a value` | Isi variabel tersebut di Environment Variables. |
+| Banner merah "Penyimpanan belum permanen" | Cara A: Persistent Storage belum lengkap (A4). Cara B: jangan hapus bagian `volumes` di `docker-compose.yml`. |
+| Halaman tanpa gaya (CSS) atau link `http://` | `APP_URL` harus `https://domain-anda`, domain di Coolify juga `https://`. |
+| Error `419 Page Expired` saat login | `SESSION_SECURE_COOKIE=true` hanya untuk HTTPS; bersihkan cookie browser. |
 | Semua pengguna logout setelah redeploy | `APP_KEY` berubah. Tulis `APP_KEY` tetap di Environment Variables. |
-| Backup gagal `pg_dump ... server version mismatch` | Versi PostgreSQL server lebih baru dari 17. Build ulang image dengan build argument `PG_CLIENT_VERSION` sesuai versi server. |
-| Unggah file besar gagal (413) | Batas unggah 512 MB sudah diatur di nginx & PHP; jika memakai Cloudflare, batas paket gratis Cloudflare 100 MB. |
+| Unggah file besar gagal (413) | Batas 512 MB sudah diatur; jika memakai Cloudflare, batas paket gratisnya 100 MB. |
 
 ## Mencoba di komputer sendiri (opsional)
 
@@ -244,7 +326,7 @@ Butuh Docker Desktop.
 
 ```bash
 cp .env.docker.example .env      # lalu isi DB_PASSWORD dan INITIAL_ADMIN_PASSWORD
-docker compose up -d --build
+docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --build
 # buka http://localhost:8080
 ```
 
@@ -252,11 +334,12 @@ docker compose up -d --build
 
 | File | Fungsi |
 |---|---|
-| `Dockerfile` | Membuat image: PHP 8.4 + ekstensi, Composer, build aset (Vite/Tailwind), nginx, supervisor, pg_dump. |
-| `.dockerignore` | Menjaga file rahasia (`.env`, `.git`) dan file yang tidak perlu keluar dari image. |
-| `docker/entrypoint.sh` | Langkah saat container menyala (folder, APP_KEY, tunggu DB, migrasi, cache). |
+| `Dockerfile` | Image: PHP 8.4 + ekstensi, Composer, aset Vite/Tailwind, nginx, supervisor, pg_dump/psql. |
+| `docker-compose.yml` | Cara B (Coolify Docker Compose): aplikasi + PostgreSQL + volume. |
+| `docker-compose.local.yml`, `.env.docker.example` | Tambahan untuk mencoba di komputer sendiri (port 8080). |
+| `.dockerignore` | Menjaga file rahasia (`.env`, `.git`) keluar dari image. |
+| `docker/entrypoint.sh` | Saat container menyala: folder, cek volume, APP_KEY, tunggu DB, backup sebelum update, migrasi, cache. |
+| `docker/supervisord.conf` | Menjalankan nginx, php-fpm, dan penjadwal backup harian. |
 | `docker/nginx.conf` | Web server: IP asli dari proxy, HTTPS, blokir file PHP lain & file privat. |
-| `docker/php/php.ini`, `docker/php/fpm-pool.conf` | Pengaturan PHP (batas unggah, zona waktu, OPcache, jumlah proses). |
-| `docker/supervisord.conf` | Menjalankan nginx dan php-fpm bersama. |
-| `docker-compose.yml`, `.env.docker.example` | Untuk mencoba lokal atau Coolify mode *Docker Compose*. |
-| `.github/workflows/docker.yml` | GitHub Actions: build image dan uji jalan (health, login admin) di setiap PR. |
+| `docker/php/php.ini`, `docker/php/fpm-pool.conf` | Pengaturan PHP. |
+| `.github/workflows/docker.yml`, `.github/scripts/compose-e2e.sh` | GitHub Actions: build image, uji Cara A, dan uji Cara B (install, redeploy, update dengan migrasi baru, restart; data harus tetap ada). |

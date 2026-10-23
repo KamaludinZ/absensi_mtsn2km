@@ -104,6 +104,11 @@ jobs:
         echo "$location" | grep -q '/admin/dashboard'
         [ "$(curl -s -o /dev/null -w '%{http_code}' -c "$jar" -b "$jar" http://localhost:8080/admin/dashboard)" = 200 ]
 
+        # Daily backup scheduler runs
+        docker exec app pgrep -f schedule:work > /dev/null
+        # This container has no volumes: the log must warn about it
+        docker logs app 2>&1 | grep -q 'is NOT a persistent volume'
+
     - name: Restart keeps working (migrations and first install run again safely)
       run: |
         docker restart app
@@ -117,3 +122,15 @@ jobs:
     - name: Container logs
       if: always()
       run: docker logs app 2>&1 | tail -200 || true
+
+  # The Coolify "Docker Compose" setup: data must survive redeploys,
+  # updates with database changes, and a full restart.
+  compose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Data safety across redeploy, update and restart
+      run: sh .github/scripts/compose-e2e.sh

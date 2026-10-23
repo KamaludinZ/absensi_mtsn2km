@@ -39,6 +39,14 @@ if [ "$1" = "supervisord" ]; then
 
     chown -R www-data:www-data storage bootstrap/cache public/storage public/uploads
 
+    # Uploads and backups must live on volumes, or a redeploy wipes them
+    for dir in /var/www/html/storage /var/www/html/public/storage /var/www/html/public/uploads; do
+        if ! awk '{print $5}' /proc/self/mountinfo | grep -qx "$dir"; then
+            log "WARNING: $dir is NOT a persistent volume: its files will be LOST on the next redeploy."
+            log "         Add it under Persistent Storage in Coolify (see DEPLOY_COOLIFY.md)."
+        fi
+    done
+
     # ---------------------------------------------------------------
     # 2. APP_KEY: must stay the same forever (it encrypts sessions and
     #    data). If it is not set in Coolify, create one and keep it in
@@ -104,6 +112,15 @@ if [ "$1" = "supervisord" ]; then
     rm -f bootstrap/cache/config.php bootstrap/cache/routes-*.php bootstrap/cache/events.php
 
     if [ "${RUN_MIGRATIONS:-true}" = "true" ]; then
+        # Safety net for updates: back up the database before a deploy that
+        # changes it. The backup shows up in Admin > Backup.
+        if [ "${PRE_MIGRATION_BACKUP:-true}" = "true" ]; then
+            if ! as_www php artisan app:backup-database --kind=premigrate --if-pending-migrations --no-interaction; then
+                log "ERROR: the backup before the database update failed, so the update was NOT run (your data is unchanged)."
+                log "Fix the error above, or set PRE_MIGRATION_BACKUP=false to update without a backup."
+                exit 1
+            fi
+        fi
         log "Running database migrations..."
         as_www php artisan migrate --force --no-interaction
     fi

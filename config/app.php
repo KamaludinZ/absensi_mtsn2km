@@ -80,6 +80,25 @@ return [
 
     'disable_web_updater' => (bool) env('DISABLE_WEB_UPDATER', false),
 
+    // Set by the Docker image; enables the check that uploads and backups
+    // are stored on persistent volumes (App\Support\PersistentStorage).
+    'in_docker' => (bool) env('APP_IN_DOCKER', false),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Automatic Database Backups
+    |--------------------------------------------------------------------------
+    |
+    | Daily backup (AUTO_BACKUP_TIME, server time zone) and a backup before
+    | every deploy that runs migrations. BACKUP_KEEP automatic backups of
+    | each kind are kept; backups made by hand are never deleted.
+    |
+    */
+
+    'auto_backup' => (bool) env('AUTO_BACKUP', true),
+    'auto_backup_time' => env('AUTO_BACKUP_TIME', '01:00'),
+    'backup_keep' => (int) env('BACKUP_KEEP', 14),
+
     /*
     |--------------------------------------------------------------------------
     | Application Locale Configuration

@@ -50,6 +50,13 @@ class BackupAndUpdateSecurityTest extends TestCase
 
         $envBefore = File::exists(base_path('.env')) ? File::get(base_path('.env')) : null;
 
+        // The real database restore is covered by DatabaseBackupTest; it
+        // cannot run inside this test's open transaction.
+        $this->mock(\App\Services\DatabaseBackup::class, function ($mock) {
+            $mock->shouldReceive('create')->andReturn('backup_prerestore_test.zip');
+            $mock->shouldReceive('restore');
+        });
+
         $this->actingAs($this->admin())
             ->post(route('admin.backup.restore.execute'), ['filename' => 'backup_test.zip', 'restore_env' => 'yes'])
             ->assertRedirect(route('admin.backup.index'));
