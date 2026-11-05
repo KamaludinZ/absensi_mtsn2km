@@ -5,6 +5,11 @@ Semua perubahan penting pada proyek ini akan didokumentasikan dalam file ini.
 Format ini didasarkan pada [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 dan proyek ini mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.1] - 2026-11-05
+
+### Fixed
+- Monitoring users got "403" on Koreksi Absensi (/admin/attendance-corrections). They can now view the list, its filters and supporting documents (read-only, with a "Koreksi Absensi" menu item); creating, editing, deleting, approving and rejecting stay with admin.
+
 ## [1.3.0] - 2026-11-05
 
 ### Added
