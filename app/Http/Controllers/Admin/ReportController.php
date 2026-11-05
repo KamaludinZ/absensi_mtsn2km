@@ -14,6 +14,7 @@ use App\Models\Salary;
 use App\Models\Permission;
 use App\Models\AttendanceSetting;
 use App\Models\Schedule;
+use App\Services\EmployeeAllowanceCalculator;
 use App\Traits\Paginable;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\AttendanceExport;
@@ -608,67 +609,38 @@ class ReportController extends Controller
         return $pdf->download($filename);
     }
 
+    /**
+     * Rows for the employee attendance PDF, with the same schedule and status
+     * as the /admin/reports screen.
+     */
     private function processAttendances($attendances)
     {
-        return $attendances->map(function($attendance) {
-            $schedule = self::getSchedule($attendance);
-            $dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-            $dayName = $attendance->date ? $dayNames[$attendance->date->dayOfWeek] : '-';
+        $dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
 
-            // Determine status_in
-            $statusIn = '-';
-            if (in_array($attendance->status_in, ['C', 'S', 'DL'])) {
-                $statusMap = ['C' => 'Cuti', 'S' => 'Sakit', 'DL' => 'Dinas Luar'];
-                $statusIn = $statusMap[$attendance->status_in];
-            } elseif ($attendance->clock_in && $schedule) {
-                // If status is 'corrected', recalculate based on time; otherwise use stored status if available
-                if ($attendance->status_in === 'corrected' || empty($attendance->status_in)) {
-                    $clockIn = Carbon::parse($attendance->clock_in);
-                    $startTime = Carbon::parse($schedule->start_time)->setDate($clockIn->year, $clockIn->month, $clockIn->day);
-                    $diffInSeconds = $clockIn->diffInSeconds($startTime, false);
-                    $statusIn = ($diffInSeconds > 0) ? 'Terlambat' : 'Tepat Waktu';
-                } elseif (in_array($attendance->status_in, ['Tepat Waktu', 'Terlambat'])) {
-                    $statusIn = $attendance->status_in;
-                } else {
-                    // Fallback: calculate from times
-                    $clockIn = Carbon::parse($attendance->clock_in);
-                    $startTime = Carbon::parse($schedule->start_time)->setDate($clockIn->year, $clockIn->month, $clockIn->day);
-                    $diffInSeconds = $clockIn->diffInSeconds($startTime, false);
-                    $statusIn = ($diffInSeconds > 0) ? 'Terlambat' : 'Tepat Waktu';
-                }
+        return $attendances->map(function($attendance) use ($dayNames) {
+            $schedule = EmployeeAllowanceCalculator::scheduleFor($attendance->attendable_id, $attendance->date);
+            $permissions = EmployeeAllowanceCalculator::PERMISSION_LABELS;
+
+            if (isset($permissions[$attendance->status_in ?? ''])) {
+                $statusIn = $permissions[$attendance->status_in];
             } elseif (!$attendance->clock_in) {
                 $statusIn = 'Tidak Hadir';
+            } else {
+                $statusIn = $schedule ? EmployeeAllowanceCalculator::arrivalStatus($attendance, $schedule) : '-';
             }
 
-            // Determine status_out
-            $statusOut = '-';
-            if (in_array($attendance->status_out, ['C', 'S', 'DL'])) {
-                $statusMap = ['C' => 'Cuti', 'S' => 'Sakit', 'DL' => 'Dinas Luar'];
-                $statusOut = $statusMap[$attendance->status_out];
-            } elseif ($attendance->clock_out && $schedule) {
-                // If status is 'corrected', recalculate based on time; otherwise use stored status if available
-                if ($attendance->status_out === 'corrected' || empty($attendance->status_out)) {
-                    $clockOut = Carbon::parse($attendance->clock_out);
-                    $endTime = Carbon::parse($schedule->end_time)->setDate($clockOut->year, $clockOut->month, $clockOut->day);
-                    $diffInSeconds = $clockOut->diffInSeconds($endTime, false);
-                    $statusOut = ($diffInSeconds < 0) ? 'Pulang Awal' : 'Tepat Waktu';
-                } elseif (in_array($attendance->status_out, ['Tepat Waktu', 'Pulang Awal', 'Belum Pulang'])) {
-                    $statusOut = $attendance->status_out;
-                } else {
-                    // Fallback: calculate from times
-                    $clockOut = Carbon::parse($attendance->clock_out);
-                    $endTime = Carbon::parse($schedule->end_time)->setDate($clockOut->year, $clockOut->month, $clockOut->day);
-                    $diffInSeconds = $clockOut->diffInSeconds($endTime, false);
-                    $statusOut = ($diffInSeconds < 0) ? 'Pulang Awal' : 'Tepat Waktu';
-                }
+            if (isset($permissions[$attendance->status_out ?? ''])) {
+                $statusOut = $permissions[$attendance->status_out];
             } elseif (!$attendance->clock_out) {
                 $statusOut = 'Belum Pulang';
+            } else {
+                $statusOut = $schedule ? EmployeeAllowanceCalculator::departureStatus($attendance, $schedule) : '-';
             }
 
             return [
                 'attendable_id' => $attendance->attendable_id,
                 'date' => $attendance->date ? $attendance->date->format('d/m/Y') : '-',
-                'day' => $dayName,
+                'day' => $attendance->date ? $dayNames[$attendance->date->dayOfWeek] : '-',
                 'schedule_start' => $schedule ? Carbon::parse($schedule->start_time)->format('H:i:s') : '-',
                 'schedule_end' => $schedule ? Carbon::parse($schedule->end_time)->format('H:i:s') : '-',
                 'clock_in' => $attendance->clock_in ? $attendance->clock_in->format('H:i:s') : '-',
@@ -677,89 +649,6 @@ class ReportController extends Controller
                 'status_out' => $statusOut,
             ];
         });
-    }
-
-    private static function getSchedule($attendance)
-    {
-        // Try to get shift from employee_shifts table
-        $employeeShift = \App\Models\EmployeeShift::where('employee_id', $attendance->attendable_id)
-            ->where('date', $attendance->date)
-            ->with('schedule')
-            ->first();
-
-        if ($employeeShift && $employeeShift->schedule) {
-            return $employeeShift->schedule;
-        }
-
-        // Try to get schedule by day of week
-        $dayOfWeek = $attendance->date->dayOfWeek;
-        return Schedule::where('type', 'pegawai')
-            ->where('day_of_week', $dayOfWeek)
-            ->first();
-    }
-
-    /**
-     * Calculate actual status based on time, even if status is 'corrected'
-     */
-    private function calculateActualStatus($attendance, $schedule, $isClockIn = true)
-    {
-        if (!$attendance) {
-            return null;
-        }
-
-        if ($isClockIn) {
-            // Check clock_in status
-            if (!$attendance->clock_in) {
-                return null;
-            }
-
-            // If status is 'corrected', recalculate the actual status based on time
-            if ($attendance->status_in === 'corrected' || empty($attendance->status_in)) {
-                $clockIn = Carbon::parse($attendance->clock_in);
-
-                // Try to get schedule time from schedule object first, then fall back to attendance record
-                if ($schedule) {
-                    $startTime = Carbon::parse($schedule->start_time)->setDate($clockIn->year, $clockIn->month, $clockIn->day);
-                } elseif ($attendance->scheduled_start_time) {
-                    $startTime = Carbon::parse($attendance->scheduled_start_time);
-                } else {
-                    // No schedule information available, cannot determine status
-                    return null;
-                }
-
-                $diffInSeconds = $clockIn->diffInSeconds($startTime, false);
-                return ($diffInSeconds > 0) ? 'Terlambat' : 'Tepat Waktu';
-            }
-
-            // Return the existing status_in if it's already set
-            return $attendance->status_in;
-        } else {
-            // Check clock_out status
-            if (!$attendance->clock_out) {
-                return null;
-            }
-
-            // If status is 'corrected', recalculate the actual status based on time
-            if ($attendance->status_out === 'corrected' || empty($attendance->status_out)) {
-                $clockOut = Carbon::parse($attendance->clock_out);
-
-                // Try to get schedule time from schedule object first, then fall back to attendance record
-                if ($schedule) {
-                    $endTime = Carbon::parse($schedule->end_time)->setDate($clockOut->year, $clockOut->month, $clockOut->day);
-                } elseif ($attendance->scheduled_end_time) {
-                    $endTime = Carbon::parse($attendance->scheduled_end_time);
-                } else {
-                    // No schedule information available, cannot determine status
-                    return null;
-                }
-
-                $diffInSeconds = $clockOut->diffInSeconds($endTime, false);
-                return ($diffInSeconds < 0) ? 'Pulang Awal' : 'Tepat Waktu';
-            }
-
-            // Return the existing status_out if it's already set
-            return $attendance->status_out;
-        }
     }
 
     public function mealAllowance(Request $request)
@@ -790,149 +679,8 @@ class ReportController extends Controller
         }
 
         $employees = $employeeQuery->get();
-        $employeeIds = $employees->pluck('id');
 
-        $startDate = Carbon::create($selectedYear, $selectedMonth, 1)->startOfMonth();
-        $endDate = $startDate->copy()->endOfMonth();
-        $daysInMonth = $startDate->daysInMonth;
-
-        // Fetch all employee shifts for the period for all filtered employees
-        $allEmployeeShifts = \App\Models\EmployeeShift::whereIn('employee_id', $employeeIds)
-            ->whereBetween('date', [$startDate, $endDate])
-            ->with('schedule')
-            ->get()
-            ->groupBy(function($shift) {
-                return $shift->employee_id . '_' . $shift->date->format('Y-m-d');
-            });
-
-        // Fetch all attendances for the period for all filtered employees
-        $allAttendances = Attendance::whereIn('attendable_id', $employeeIds)
-            ->where('attendable_type', Employee::class)
-            ->whereBetween('date', [$startDate, $endDate])
-            ->get()
-            ->groupBy(function($attendance) {
-                return $attendance->attendable_id . '_' . $attendance->date->format('Y-m-d');
-            });
-
-        // Fetch all approved permissions for the period for all filtered employees
-        $allPermissions = \App\Models\Permission::whereIn('permissible_id', $employeeIds)
-            ->where('permissible_type', Employee::class)
-            ->where('status', 'approved')
-            ->where(function ($query) use ($startDate, $endDate) {
-                $query->whereBetween('start_date', [$startDate, $endDate])
-                    ->orWhereBetween('end_date', [$startDate, $endDate])
-                    ->orWhere(function($q) use ($startDate, $endDate) {
-                        $q->where('start_date', '<=', $startDate)
-                          ->where('end_date', '>=', $endDate);
-                    });
-            })
-            ->get()
-            ->groupBy('permissible_id');
-
-        $permissionTypesFull = [
-            'C' => 'Cuti',
-            'S' => 'Sakit',
-            'DL' => 'Dinas Luar',
-        ];
-
-        $mealAllowanceData = [];
-
-        foreach ($employees as $employee) {
-            $employeeId = $employee->id;
-            $salary = $employee->salary;
-
-            if (!$salary) {
-                continue;
-            }
-
-            $employeePermissions = $allPermissions->get($employeeId, collect());
-
-            $permissionMap = [];
-            foreach ($employeePermissions as $permission) {
-                $current = Carbon::parse($permission->start_date)->max($startDate);
-                $end = Carbon::parse($permission->end_date)->min($endDate);
-                while ($current->lte($end)) {
-                    $permissionMap[$current->format('Y-m-d')] = $permissionTypesFull[$permission->type] ?? $permission->type;
-                    $current->addDay();
-                }
-            }
-
-            $mealAllowanceSummary = [
-                'employee' => $employee,
-                'active_days' => 0,
-                'present_days' => 0,
-                'absent_days' => 0,
-                'sick_days' => 0,
-                'leave_days' => 0,
-                'official_duty_days' => 0,
-                'total_meal_allowance' => 0, // Calculated below
-            ];
-
-            for ($day = 1; $day <= $daysInMonth; $day++) {
-                $currentDate = Carbon::create($selectedYear, $selectedMonth, $day);
-                $dateKey = $currentDate->format('Y-m-d');
-                $lookupKey = $employeeId . '_' . $dateKey;
-
-                $shift = $allEmployeeShifts->get($lookupKey)?->first();
-                $attendance = $allAttendances->get($lookupKey)?->first();
-                $permissionType = $permissionMap[$dateKey] ?? null;
-
-                if ($permissionType) {
-                    if ($permissionType === 'Sakit') $mealAllowanceSummary['sick_days']++;
-                    if ($permissionType === 'Cuti') $mealAllowanceSummary['leave_days']++;
-                    if ($permissionType === 'Dinas Luar') $mealAllowanceSummary['official_duty_days']++;
-                }
-
-                // Hari Aktif (Shift) - menghitung dari hari yang diisikan nama shiftnya di /admin/employee-shifts
-                // HANYA menghitung dari EmployeeShift yang di-assign, BUKAN dari default schedule
-                $hasValidShift = $shift && $shift->schedule && !empty($shift->schedule->shift_name);
-
-                if ($hasValidShift) {
-                    $mealAllowanceSummary['active_days']++;
-                }
-
-                // Process attendance data only if there's no permission for this day
-                if (!$permissionType) {
-                    // Hanya menghitung untuk hari yang memiliki nama shift di /admin/employee-shifts
-                    if ($hasValidShift) {
-                        if ($attendance) {
-                            // Hari Hadir - melihat dari hari yang HANYA memiliki nama shift di /admin/employee-shifts
-                            // dan melihat terisinya kolom absensi masuk ATAU kolom absensi pulang sesuai data di /admin/reports
-                            if ($attendance->clock_in || $attendance->clock_out) {
-                                $mealAllowanceSummary['present_days']++;
-                            } else {
-                                // Tidak Hadir - melihat dari hari yang HANYA memiliki nama shift di /admin/employee-shifts
-                                // dan melihat kolom kosong absensi masuk DAN kolom absensi pulang kosong sesuai data di /admin/reports
-                                $mealAllowanceSummary['absent_days']++;
-                            }
-                        } else {
-                            // Jika tidak ada record attendance sama sekali, berarti tidak hadir
-                            // Tidak Hadir - hari memiliki shift di /admin/employee-shifts tapi tidak ada data absensi
-                            $mealAllowanceSummary['absent_days']++;
-                        }
-                    }
-                    // Jika tidak ada shift di /admin/employee-shifts untuk hari ini, tidak ikut terhitung
-                } else {
-                    // Untuk hari dengan perizinan, tidak menghitung attendance metrics
-                    // Perizinan (Sakit, Cuti, Dinas Luar) sudah dihitung di atas
-                }
-            }
-
-            $mealAllowanceData[$employeeId] = $mealAllowanceSummary;
-        }
-
-        // After collecting all data, calculate total meal allowance for each employee
-        foreach ($mealAllowanceData as &$data) {
-            $employee = $data['employee'];
-            $salary = $employee->salary;
-
-            if ($salary) {
-                // Total meal allowance = daily meal allowance × number of present days
-                $data['total_meal_allowance'] = $salary->meal_allowance * $data['present_days'];
-            } else {
-                $data['total_meal_allowance'] = 0;
-            }
-        }
+        $mealAllowanceData = EmployeeAllowanceCalculator::rows($employees, (int) $selectedYear, (int) $selectedMonth);
 
         // Sort the final data array based on the sort parameters
         $sortField = $request->get('sort', 'full_name');
@@ -1024,123 +772,8 @@ class ReportController extends Controller
         }
 
         $employees = $employeeQuery->orderBy('full_name')->get();
-        $employeeIds = $employees->pluck('id');
 
-        $startDate = Carbon::create($selectedYear, $selectedMonth, 1)->startOfMonth();
-        $endDate = $startDate->copy()->endOfMonth();
-        $daysInMonth = $startDate->daysInMonth;
-
-        // Fetch all employee shifts for the period for all filtered employees
-        $allEmployeeShifts = \App\Models\EmployeeShift::whereIn('employee_id', $employeeIds)
-            ->whereBetween('date', [$startDate, $endDate])
-            ->with('schedule')
-            ->get()
-            ->groupBy(function($shift) {
-                return $shift->employee_id . '_' . $shift->date->format('Y-m-d');
-            });
-
-        // Fetch all attendances for the period for all filtered employees
-        $allAttendances = Attendance::whereIn('attendable_id', $employeeIds)
-            ->where('attendable_type', Employee::class)
-            ->whereBetween('date', [$startDate, $endDate])
-            ->get()
-            ->groupBy(function($attendance) {
-                return $attendance->attendable_id . '_' . $attendance->date->format('Y-m-d');
-            });
-
-        // Fetch all approved permissions for the period for all filtered employees
-        $allPermissions = \App\Models\Permission::whereIn('permissible_id', $employeeIds)
-            ->where('permissible_type', Employee::class)
-            ->where('status', 'approved')
-            ->where(function ($query) use ($startDate, $endDate) {
-                $query->whereBetween('start_date', [$startDate, $endDate])
-                    ->orWhereBetween('end_date', [$startDate, $endDate])
-                    ->orWhere(function($q) use ($startDate, $endDate) {
-                        $q->where('start_date', '<=', $startDate)
-                          ->where('end_date', '>=', $endDate);
-                    });
-            })
-            ->get()
-            ->groupBy('permissible_id');
-
-        $permissionTypesFull = [
-            'C' => 'Cuti',
-            'S' => 'Sakit',
-            'DL' => 'Dinas Luar',
-        ];
-
-        $mealAllowanceData = [];
-
-        foreach ($employees as $employee) {
-            $employeeId = $employee->id;
-            $salary = $employee->salary;
-
-            if (!$salary) {
-                continue;
-            }
-
-            $employeePermissions = $allPermissions->get($employeeId, collect());
-
-            $permissionMap = [];
-            foreach ($employeePermissions as $permission) {
-                $current = Carbon::parse($permission->start_date)->max($startDate);
-                $end = Carbon::parse($permission->end_date)->min($endDate);
-                while ($current->lte($end)) {
-                    $permissionMap[$current->format('Y-m-d')] = $permissionTypesFull[$permission->type] ?? $permission->type;
-                    $current->addDay();
-                }
-            }
-
-            $mealAllowanceSummary = [
-                'employee' => $employee,
-                'active_days' => 0,
-                'present_days' => 0,
-                'absent_days' => 0,
-                'sick_days' => 0,
-                'leave_days' => 0,
-                'official_duty_days' => 0,
-                'total_meal_allowance' => 0,
-            ];
-
-            for ($day = 1; $day <= $daysInMonth; $day++) {
-                $currentDate = Carbon::create($selectedYear, $selectedMonth, $day);
-                $dateKey = $currentDate->format('Y-m-d');
-                $lookupKey = $employeeId . '_' . $dateKey;
-
-                $shift = $allEmployeeShifts->get($lookupKey)?->first();
-                $attendance = $allAttendances->get($lookupKey)?->first();
-                $permissionType = $permissionMap[$dateKey] ?? null;
-
-                if ($permissionType) {
-                    if ($permissionType === 'Sakit') $mealAllowanceSummary['sick_days']++;
-                    if ($permissionType === 'Cuti') $mealAllowanceSummary['leave_days']++;
-                    if ($permissionType === 'Dinas Luar') $mealAllowanceSummary['official_duty_days']++;
-                }
-
-                $hasValidShift = $shift && $shift->schedule && !empty($shift->schedule->shift_name);
-
-                if ($hasValidShift) {
-                    $mealAllowanceSummary['active_days']++;
-                }
-
-                if (!$permissionType) {
-                    if ($hasValidShift) {
-                        if ($attendance) {
-                            if ($attendance->clock_in || $attendance->clock_out) {
-                                $mealAllowanceSummary['present_days']++;
-                            } else {
-                                $mealAllowanceSummary['absent_days']++;
-                            }
-                        } else {
-                            $mealAllowanceSummary['absent_days']++;
-                        }
-                    }
-                }
-            }
-
-            $mealAllowanceSummary['total_meal_allowance'] = $salary->meal_allowance * $mealAllowanceSummary['present_days'];
-            $mealAllowanceData[] = $mealAllowanceSummary;
-        }
+        $mealAllowanceData = EmployeeAllowanceCalculator::rows($employees, (int) $selectedYear, (int) $selectedMonth);
 
         $months = [
             1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April', 5 => 'Mei', 6 => 'Juni',
@@ -1189,192 +822,7 @@ class ReportController extends Controller
         }
         $employees = $employeeQuery->get();
 
-        // Fetch all employee shifts for the period for all filtered employees
-        $employeeIds = $employees->pluck('id');
-        $startDate = Carbon::create($selectedYear, $selectedMonth, 1)->startOfMonth();
-        $endDate = Carbon::create($selectedYear, $selectedMonth, 1)->endOfMonth();
-
-        $allEmployeeShifts = \App\Models\EmployeeShift::whereIn('employee_id', $employeeIds)
-            ->whereBetween('date', [$startDate, $endDate])
-            ->with('schedule')
-            ->get()
-            ->groupBy(function($shift) {
-                return $shift->employee_id . '_' . $shift->date->format('Y-m-d');
-            });
-
-        // Fetch all attendances for the period for all filtered employees
-        $allAttendances = \App\Models\Attendance::whereIn('attendable_id', $employeeIds)
-            ->where('attendable_type', Employee::class)
-            ->whereBetween('date', [$startDate, $endDate])
-            ->get()
-            ->groupBy(function($attendance) {
-                return $attendance->attendable_id . '_' . $attendance->date->format('Y-m-d');
-            });
-
-        // Fetch all approved permissions for the period for all filtered employees
-        $allPermissions = \App\Models\Permission::whereIn('permissible_id', $employeeIds)
-            ->where('permissible_type', Employee::class)
-            ->where('status', 'approved')
-            ->where(function ($query) use ($startDate, $endDate) {
-                $query->whereBetween('start_date', [$startDate, $endDate])
-                    ->orWhereBetween('end_date', [$startDate, $endDate])
-                    ->orWhere(function($q) use ($startDate, $endDate) {
-                        $q->where('start_date', '<=', $startDate)
-                          ->where('end_date', '>=', $endDate);
-                    });
-            })
-            ->get()
-            ->groupBy('permissible_id');
-
-        $permissionTypesFull = [
-            'C' => 'Cuti',
-            'S' => 'Sakit',
-            'DL' => 'Dinas Luar',
-        ];
-
-        // Initialize performance data
-        $performanceData = [];
-
-        foreach ($employees as $employee) {
-            $employeeId = $employee->id;
-            $salary = $employee->salary;
-
-            if (!$salary) {
-                continue;
-            }
-
-            $employeePermissions = $allPermissions->get($employeeId, collect());
-
-            $permissionMap = [];
-            foreach ($employeePermissions as $permission) {
-                $current = Carbon::parse($permission->start_date)->max($startDate);
-                $end = Carbon::parse($permission->end_date)->min($endDate);
-                while ($current->lte($end)) {
-                    $permissionMap[$current->format('Y-m-d')] = $permissionTypesFull[$permission->type] ?? $permission->type;
-                    $current->addDay();
-                }
-            }
-
-            $daysInMonth = Carbon::create($selectedYear, $selectedMonth, 1)->daysInMonth;
-            $activeDays = 0;
-            $presentDays = 0;
-            $absentDays = 0;
-            $onTimeArrivalDays = 0;
-            $onTimeDepartureDays = 0;
-            $lateArrivalDays = 0; // Days with late arrival (Terlambat)
-            $earlyDepartureDays = 0; // Days with early departure (Pulang Awal)
-            $sickDays = 0;
-            $leaveDays = 0;
-            $officialDutyDays = 0;
-            $onTimeBothDays = 0; // Days where both arrival and departure are on time
-
-            for ($day = 1; $day <= $daysInMonth; $day++) {
-                $currentDate = Carbon::create($selectedYear, $selectedMonth, $day);
-                $dateKey = $currentDate->format('Y-m-d');
-                $lookupKey = $employeeId . '_' . $dateKey;
-
-                $shift = $allEmployeeShifts->get($lookupKey)?->first();
-                $attendance = $allAttendances->get($lookupKey)?->first();
-                $permissionType = $permissionMap[$dateKey] ?? null;
-
-                // Count permission days
-                if ($permissionType) {
-                    if ($permissionType === 'Sakit') $sickDays++;
-                    if ($permissionType === 'Cuti') $leaveDays++;
-                    if ($permissionType === 'Dinas Luar') $officialDutyDays++;
-                }
-
-                // Hari Aktif (Shift) - menghitung dari hari yang diisikan nama shiftnya di /admin/employee-shifts
-                // HANYA menghitung dari EmployeeShift yang di-assign, BUKAN dari default schedule
-                $hasValidShift = $shift && $shift->schedule && !empty($shift->schedule->shift_name);
-
-                if ($hasValidShift) {
-                    $activeDays++;
-                }
-
-                // Process attendance data only if there's no permission for this day
-                if (!$permissionType) {
-                    // Hanya menghitung untuk hari yang memiliki nama shift di /admin/employee-shifts
-                    if ($hasValidShift) {
-                        $isPresent = false;
-                        $isOnTimeArrival = false;
-                        $isOnTimeDeparture = false;
-
-                        if ($attendance) {
-                            // Hari Hadir - melihat dari hari yang HANYA memiliki nama shift di /admin/employee-shifts
-                            // dan melihat terisinya kolom absensi masuk ATAU kolom absensi pulang sesuai data di /admin/reports
-                            if ($attendance->clock_in || $attendance->clock_out) {
-                                $isPresent = true;
-                                $presentDays++;
-
-                                // Calculate actual status (handles 'corrected' status by recalculating based on time)
-                                $actualStatusIn = $this->calculateActualStatus($attendance, $shift->schedule, true);
-                                $actualStatusOut = $this->calculateActualStatus($attendance, $shift->schedule, false);
-
-                                // Tepat Waktu Masuk - melihat dari kolom status absensi masuk "Tepat Waktu" sesuai data di /admin/reports
-                                if ($actualStatusIn === 'Tepat Waktu') {
-                                    $isOnTimeArrival = true;
-                                    $onTimeArrivalDays++;
-                                } elseif ($actualStatusIn === 'Terlambat') {
-                                    // Terlambat Datang - melihat dari kolom status absensi masuk "Terlambat" sesuai data di /admin/reports
-                                    $lateArrivalDays++;
-                                }
-
-                                // Tepat Waktu Pulang - melihat dari kolom status absensi pulang "Tepat Waktu" sesuai data di /admin/reports
-                                if ($actualStatusOut === 'Tepat Waktu') {
-                                    $isOnTimeDeparture = true;
-                                    $onTimeDepartureDays++;
-                                } elseif ($actualStatusOut === 'Pulang Awal') {
-                                    // Pulang Awal - melihat dari kolom status absensi pulang "Pulang Awal" sesuai data di /admin/reports
-                                    $earlyDepartureDays++;
-                                }
-                            } else {
-                                // Tidak Hadir - melihat dari hari yang HANYA memiliki nama shift di /admin/employee-shifts
-                                // dan melihat kolom kosong absensi masuk DAN kolom absensi pulang kosong sesuai data di /admin/reports
-                                $absentDays++;
-                            }
-                        } else {
-                            // Jika tidak ada record attendance sama sekali, berarti tidak hadir
-                            // Tidak Hadir - hari memiliki shift di /admin/employee-shifts tapi tidak ada data absensi
-                            $absentDays++;
-                        }
-
-                        // Tepat Waktu Datang dan Pulang - jika sama-sama dalam satu hari itu tepat waktu
-                        if ($isOnTimeArrival && $isOnTimeDeparture) {
-                            $onTimeBothDays++; // Counted as a perfect day for performance allowance
-                        }
-                    }
-                    // Jika tidak ada shift di /admin/employee-shifts untuk hari ini, tidak ikut terhitung
-                } else {
-                    // Untuk hari dengan perizinan, tidak menghitung attendance metrics
-                    // Perizinan (Sakit, Cuti, Dinas Luar) sesuai data di /admin/reports sudah dihitung di atas
-                }
-            }
-
-            // Calculate total performance allowance based on perfect attendance days
-            // Nilai uang tunjangan dihitung dari uang tunjangan di /admin/employees/salary-settings dikalikan dengan kolom tepat Waktu dating dan pulang
-            $totalPerformanceAllowance = $salary->performance_allowance * $onTimeBothDays;
-
-            // Nilai uang makan dihitung dari uang makan di /admin/employees/salary-settings dikalikan dengan kolom hari hadir
-            $totalMealAllowance = $salary->meal_allowance * $presentDays;
-
-            $performanceData[] = [
-                'employee' => $employee,
-                'active_days' => $activeDays,
-                'present_days' => $presentDays,
-                'absent_days' => $absentDays,
-                'on_time_arrival_days' => $onTimeArrivalDays,
-                'on_time_departure_days' => $onTimeDepartureDays,
-                'late_arrival_days' => $lateArrivalDays,
-                'early_departure_days' => $earlyDepartureDays,
-                'sick_days' => $sickDays,
-                'leave_days' => $leaveDays,
-                'official_duty_days' => $officialDutyDays,
-                'on_time_both_days' => $onTimeBothDays,
-                'total_performance_allowance' => $totalPerformanceAllowance,
-                'total_meal_allowance' => $totalMealAllowance
-            ];
-        }
+        $performanceData = EmployeeAllowanceCalculator::rows($employees, (int) $selectedYear, (int) $selectedMonth);
 
         // Sort the final data array based on the sort parameters
         $sortField = $request->get('sort', 'full_name');
@@ -1467,168 +915,7 @@ class ReportController extends Controller
 
         $employees = $employeeQuery->orderBy('full_name')->get();
 
-        // Fetch all employee shifts for the period for all filtered employees
-        $employeeIds = $employees->pluck('id');
-        $startDate = Carbon::create($selectedYear, $selectedMonth, 1)->startOfMonth();
-        $endDate = Carbon::create($selectedYear, $selectedMonth, 1)->endOfMonth();
-
-        $allEmployeeShifts = \App\Models\EmployeeShift::whereIn('employee_id', $employeeIds)
-            ->whereBetween('date', [$startDate, $endDate])
-            ->with('schedule')
-            ->get()
-            ->groupBy(function($shift) {
-                return $shift->employee_id . '_' . $shift->date->format('Y-m-d');
-            });
-
-        // Fetch all attendances for the period for all filtered employees
-        $allAttendances = \App\Models\Attendance::whereIn('attendable_id', $employeeIds)
-            ->where('attendable_type', Employee::class)
-            ->whereBetween('date', [$startDate, $endDate])
-            ->get()
-            ->groupBy(function($attendance) {
-                return $attendance->attendable_id . '_' . $attendance->date->format('Y-m-d');
-            });
-
-        // Fetch all approved permissions for the period for all filtered employees
-        $allPermissions = \App\Models\Permission::whereIn('permissible_id', $employeeIds)
-            ->where('permissible_type', Employee::class)
-            ->where('status', 'approved')
-            ->where(function ($query) use ($startDate, $endDate) {
-                $query->whereBetween('start_date', [$startDate, $endDate])
-                    ->orWhereBetween('end_date', [$startDate, $endDate])
-                    ->orWhere(function($q) use ($startDate, $endDate) {
-                        $q->where('start_date', '<=', $startDate)
-                          ->where('end_date', '>=', $endDate);
-                    });
-            })
-            ->get()
-            ->groupBy('permissible_id');
-
-        $permissionTypesFull = [
-            'C' => 'Cuti',
-            'S' => 'Sakit',
-            'DL' => 'Dinas Luar',
-        ];
-
-        // Initialize performance data
-        $performanceData = [];
-
-        foreach ($employees as $employee) {
-            $employeeId = $employee->id;
-            $salary = $employee->salary;
-
-            if (!$salary) {
-                continue;
-            }
-
-            $employeePermissions = $allPermissions->get($employeeId, collect());
-
-            $permissionMap = [];
-            foreach ($employeePermissions as $permission) {
-                $current = Carbon::parse($permission->start_date)->max($startDate);
-                $end = Carbon::parse($permission->end_date)->min($endDate);
-                while ($current->lte($end)) {
-                    $permissionMap[$current->format('Y-m-d')] = $permissionTypesFull[$permission->type] ?? $permission->type;
-                    $current->addDay();
-                }
-            }
-
-            $daysInMonth = Carbon::create($selectedYear, $selectedMonth, 1)->daysInMonth;
-            $activeDays = 0;
-            $presentDays = 0;
-            $absentDays = 0;
-            $onTimeArrivalDays = 0;
-            $onTimeDepartureDays = 0;
-            $lateArrivalDays = 0;
-            $earlyDepartureDays = 0;
-            $sickDays = 0;
-            $leaveDays = 0;
-            $officialDutyDays = 0;
-            $onTimeBothDays = 0;
-
-            for ($day = 1; $day <= $daysInMonth; $day++) {
-                $currentDate = Carbon::create($selectedYear, $selectedMonth, $day);
-                $dateKey = $currentDate->format('Y-m-d');
-                $lookupKey = $employeeId . '_' . $dateKey;
-
-                $shift = $allEmployeeShifts->get($lookupKey)?->first();
-                $attendance = $allAttendances->get($lookupKey)?->first();
-                $permissionType = $permissionMap[$dateKey] ?? null;
-
-                // Count permission days
-                if ($permissionType) {
-                    if ($permissionType === 'Sakit') $sickDays++;
-                    if ($permissionType === 'Cuti') $leaveDays++;
-                    if ($permissionType === 'Dinas Luar') $officialDutyDays++;
-                }
-
-                $hasValidShift = $shift && $shift->schedule && !empty($shift->schedule->shift_name);
-
-                if ($hasValidShift) {
-                    $activeDays++;
-                }
-
-                // Process attendance data only if there's no permission for this day
-                if (!$permissionType) {
-                    if ($hasValidShift) {
-                        $isPresent = false;
-                        $isOnTimeArrival = false;
-                        $isOnTimeDeparture = false;
-
-                        if ($attendance) {
-                            if ($attendance->clock_in || $attendance->clock_out) {
-                                $isPresent = true;
-                                $presentDays++;
-
-                                // Calculate actual status (handles 'corrected' status by recalculating based on time)
-                                $actualStatusIn = $this->calculateActualStatus($attendance, $shift->schedule, true);
-                                $actualStatusOut = $this->calculateActualStatus($attendance, $shift->schedule, false);
-
-                                if ($actualStatusIn === 'Tepat Waktu') {
-                                    $isOnTimeArrival = true;
-                                    $onTimeArrivalDays++;
-                                } elseif ($actualStatusIn === 'Terlambat') {
-                                    $lateArrivalDays++;
-                                }
-
-                                if ($actualStatusOut === 'Tepat Waktu') {
-                                    $isOnTimeDeparture = true;
-                                    $onTimeDepartureDays++;
-                                } elseif ($actualStatusOut === 'Pulang Awal') {
-                                    $earlyDepartureDays++;
-                                }
-                            } else {
-                                $absentDays++;
-                            }
-                        } else {
-                            $absentDays++;
-                        }
-
-                        if ($isOnTimeArrival && $isOnTimeDeparture) {
-                            $onTimeBothDays++;
-                        }
-                    }
-                }
-            }
-
-            $totalPerformanceAllowance = $salary->performance_allowance * $onTimeBothDays;
-
-            $performanceData[] = [
-                'employee' => $employee,
-                'active_days' => $activeDays,
-                'present_days' => $presentDays,
-                'absent_days' => $absentDays,
-                'on_time_arrival_days' => $onTimeArrivalDays,
-                'on_time_departure_days' => $onTimeDepartureDays,
-                'late_arrival_days' => $lateArrivalDays,
-                'early_departure_days' => $earlyDepartureDays,
-                'sick_days' => $sickDays,
-                'leave_days' => $leaveDays,
-                'official_duty_days' => $officialDutyDays,
-                'on_time_both_days' => $onTimeBothDays,
-                'total_performance_allowance' => $totalPerformanceAllowance,
-            ];
-        }
+        $performanceData = EmployeeAllowanceCalculator::rows($employees, (int) $selectedYear, (int) $selectedMonth);
 
         $months = [
             1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April', 5 => 'Mei', 6 => 'Juni',
@@ -1670,127 +957,8 @@ class ReportController extends Controller
         }
 
         $employees = $employeeQuery->orderBy('full_name')->get();
-        $employeeIds = $employees->pluck('id');
 
-        // Prepare attendance query
-        $attendanceQuery = Attendance::where('attendable_type', Employee::class)
-            ->whereIn('attendable_id', $employeeIds);
-
-        // Filter by month/year
-        $attendanceQuery->whereMonth('date', $selectedMonth)
-                      ->whereYear('date', $selectedYear);
-
-        $attendances = $attendanceQuery->orderBy('date', 'asc')->get()->groupBy('attendable_id');
-
-        $salaryData = [];
-
-        foreach ($employees as $employee) {
-            $employeeId = $employee->id;
-            $salary = $employee->salary;
-
-            // Skip employees without salary settings
-            if (!$salary) {
-                continue;
-            }
-
-            $employeeAttendances = $attendances->get($employeeId, collect());
-
-            // Get employee shifts for the month/year
-            $employeeShifts = \App\Models\EmployeeShift::where('employee_id', $employeeId)
-                ->whereMonth('date', $selectedMonth)
-                ->whereYear('date', $selectedYear)
-                ->with('schedule')
-                ->get()
-                ->keyBy('date');
-
-            // Get default schedules for non-shift assignment days
-            $defaultSchedules = Schedule::where('type', 'pegawai')
-                ->get()
-                ->keyBy('day_of_week');
-
-            $present_days = 0;
-            $perfect_days = 0;
-            $totalMealAllowance = 0;
-            $totalTransportAllowance = 0;
-            $totalPerformanceAllowance = 0;
-
-            // Iterate through each day of the selected month
-            $daysInMonth = Carbon::create($selectedYear, $selectedMonth, 1)->daysInMonth;
-
-            for ($day = 1; $day <= $daysInMonth; $day++) {
-                $currentDate = Carbon::create($selectedYear, $selectedMonth, $day);
-                $dateKey = $currentDate->format('Y-m-d');
-
-                $attendance = $employeeAttendances->firstWhere('date', $currentDate);
-
-                // Get shift schedule for this specific date if available, otherwise use default schedule
-                $shift = $employeeShifts->get($dateKey);
-                $schedule = $shift ? $shift->schedule : null;
-
-                if (!$schedule) {
-                    // Use default schedule based on day of week if no specific shift is assigned
-                    // Convert to 1-7 format (Monday=1, Sunday=7) as typically used in schedules
-                    $dayOfWeek = $currentDate->dayOfWeek;
-                    if ($dayOfWeek == 0) $dayOfWeek = 7; // Convert Sunday (0) to 7
-                    $schedule = $defaultSchedules->get($dayOfWeek);
-                }
-
-                // Calculate daily allowances based on schedule, attendance, and permissions
-                $dailyMealAllowance = 0;
-                $dailyTransportAllowance = 0;
-                $dailyPerformanceAllowance = 0;
-
-                if ($attendance) {
-                    // There is an attendance record
-                    $isPresent = $attendance->clock_in !== null || $attendance->clock_out !== null;
-
-                    if ($isPresent) {
-                        // Grant meal and transport allowances if present and it's a scheduled day
-                        if ($schedule) {
-                            $dailyMealAllowance = $salary->meal_allowance;
-                            $dailyTransportAllowance = $salary->transport_allowance;
-                        }
-
-                        // Calculate actual status (handles 'corrected' status by recalculating based on time)
-                        $actualStatusIn = $this->calculateActualStatus($attendance, $schedule, true);
-                        $actualStatusOut = $this->calculateActualStatus($attendance, $schedule, false);
-
-                        // Check for perfect attendance to grant performance allowance
-                        $isPerfect = $actualStatusIn === 'Tepat Waktu' && $actualStatusOut === 'Tepat Waktu';
-                        if ($isPerfect) {
-                            $dailyPerformanceAllowance = $salary->performance_allowance;
-                        }
-                    }
-                }
-
-                // Accumulate daily allowances
-                $totalMealAllowance += $dailyMealAllowance;
-                $totalTransportAllowance += $dailyTransportAllowance;
-                $totalPerformanceAllowance += $dailyPerformanceAllowance;
-
-                // Count present and perfect days for summary
-                if ($dailyMealAllowance > 0) { // If allowances were granted, it means employee was present on a scheduled day
-                    $present_days++;
-                }
-                if ($dailyPerformanceAllowance > 0) { // If performance allowance was granted, it was a perfect day
-                    $perfect_days++;
-                }
-            }
-
-            // Calculate total salary
-            $totalSalary = $salary->base_salary + $totalMealAllowance + $totalTransportAllowance + $totalPerformanceAllowance;
-
-            $salaryData[$employeeId] = [
-                'employee' => $employee,
-                'base_salary' => $salary->base_salary,
-                'present_days' => $present_days,
-                'total_meal_allowance' => $totalMealAllowance,
-                'total_transport_allowance' => $totalTransportAllowance,
-                'perfect_days' => $perfect_days,
-                'total_performance_allowance' => $totalPerformanceAllowance,
-                'total_salary' => $totalSalary,
-            ];
-        }
+        $salaryData = EmployeeAllowanceCalculator::rows($employees, (int) $selectedYear, (int) $selectedMonth);
 
         // Data for filters - only include active employees
         $allEmployees = Employee::where('is_active', true)->orderBy('full_name')->get();
@@ -1860,127 +1028,8 @@ class ReportController extends Controller
         }
 
         $employees = $employeeQuery->orderBy('full_name')->get();
-        $employeeIds = $employees->pluck('id');
 
-        // Prepare attendance query
-        $attendanceQuery = Attendance::where('attendable_type', Employee::class)
-            ->whereIn('attendable_id', $employeeIds);
-
-        // Filter by month/year
-        $attendanceQuery->whereMonth('date', $selectedMonth)
-                      ->whereYear('date', $selectedYear);
-
-        $attendances = $attendanceQuery->orderBy('date', 'asc')->get()->groupBy('attendable_id');
-
-        $salaryData = [];
-
-        foreach ($employees as $employee) {
-            $employeeId = $employee->id;
-            $salary = $employee->salary;
-
-            // Skip employees without salary settings
-            if (!$salary) {
-                continue;
-            }
-
-            $employeeAttendances = $attendances->get($employeeId, collect());
-
-            // Get employee shifts for the month/year
-            $employeeShifts = \App\Models\EmployeeShift::where('employee_id', $employeeId)
-                ->whereMonth('date', $selectedMonth)
-                ->whereYear('date', $selectedYear)
-                ->with('schedule')
-                ->get()
-                ->keyBy('date');
-
-            // Get default schedules for non-shift assignment days
-            $defaultSchedules = Schedule::where('type', 'pegawai')
-                ->get()
-                ->keyBy('day_of_week');
-
-            $present_days = 0;
-            $perfect_days = 0;
-            $totalMealAllowance = 0;
-            $totalTransportAllowance = 0;
-            $totalPerformanceAllowance = 0;
-
-            // Iterate through each day of the selected month
-            $daysInMonth = Carbon::create($selectedYear, $selectedMonth, 1)->daysInMonth;
-
-            for ($day = 1; $day <= $daysInMonth; $day++) {
-                $currentDate = Carbon::create($selectedYear, $selectedMonth, $day);
-                $dateKey = $currentDate->format('Y-m-d');
-
-                $attendance = $employeeAttendances->firstWhere('date', $currentDate);
-
-                // Get shift schedule for this specific date if available, otherwise use default schedule
-                $shift = $employeeShifts->get($dateKey);
-                $schedule = $shift ? $shift->schedule : null;
-
-                if (!$schedule) {
-                    // Use default schedule based on day of week if no specific shift is assigned
-                    // Convert to 1-7 format (Monday=1, Sunday=7) as typically used in schedules
-                    $dayOfWeek = $currentDate->dayOfWeek;
-                    if ($dayOfWeek == 0) $dayOfWeek = 7; // Convert Sunday (0) to 7
-                    $schedule = $defaultSchedules->get($dayOfWeek);
-                }
-
-                // Calculate daily allowances based on schedule, attendance, and permissions
-                $dailyMealAllowance = 0;
-                $dailyTransportAllowance = 0;
-                $dailyPerformanceAllowance = 0;
-
-                if ($attendance) {
-                    // There is an attendance record
-                    $isPresent = $attendance->clock_in !== null || $attendance->clock_out !== null;
-
-                    if ($isPresent) {
-                        // Grant meal and transport allowances if present and it's a scheduled day
-                        if ($schedule) {
-                            $dailyMealAllowance = $salary->meal_allowance;
-                            $dailyTransportAllowance = $salary->transport_allowance;
-                        }
-
-                        // Calculate actual status (handles 'corrected' status by recalculating based on time)
-                        $actualStatusIn = $this->calculateActualStatus($attendance, $schedule, true);
-                        $actualStatusOut = $this->calculateActualStatus($attendance, $schedule, false);
-
-                        // Check for perfect attendance to grant performance allowance
-                        $isPerfect = $actualStatusIn === 'Tepat Waktu' && $actualStatusOut === 'Tepat Waktu';
-                        if ($isPerfect) {
-                            $dailyPerformanceAllowance = $salary->performance_allowance;
-                        }
-                    }
-                }
-
-                // Accumulate daily allowances
-                $totalMealAllowance += $dailyMealAllowance;
-                $totalTransportAllowance += $dailyTransportAllowance;
-                $totalPerformanceAllowance += $dailyPerformanceAllowance;
-
-                // Count present and perfect days for summary
-                if ($dailyMealAllowance > 0) { // If allowances were granted, it means employee was present on a scheduled day
-                    $present_days++;
-                }
-                if ($dailyPerformanceAllowance > 0) { // If performance allowance was granted, it was a perfect day
-                    $perfect_days++;
-                }
-            }
-
-            // Calculate total salary
-            $totalSalary = $salary->base_salary + $totalMealAllowance + $totalTransportAllowance + $totalPerformanceAllowance;
-
-            $salaryData[] = [
-                'employee' => $employee,
-                'base_salary' => $salary->base_salary,
-                'present_days' => $present_days,
-                'total_meal_allowance' => $totalMealAllowance,
-                'total_transport_allowance' => $totalTransportAllowance,
-                'perfect_days' => $perfect_days,
-                'total_performance_allowance' => $totalPerformanceAllowance,
-                'total_salary' => $totalSalary,
-            ];
-        }
+        $salaryData = EmployeeAllowanceCalculator::rows($employees, (int) $selectedYear, (int) $selectedMonth);
 
         $months = [
             1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April', 5 => 'Mei', 6 => 'Juni',
@@ -2023,160 +1072,23 @@ class ReportController extends Controller
 
     private function getSalaryDetailData(Employee $employee, $year, $month)
     {
-        $employee->load(['salary' => function($query) {
-            $query->latest('created_at');
-        }]);
-        $salary = $employee->salary;
+        $salary = EmployeeAllowanceCalculator::salaryFor($employee, (int) $year, (int) $month);
 
         if (!$salary) {
             abort(404, 'Pengaturan gaji untuk pegawai ini tidak ditemukan.');
         }
 
-        $startDate = Carbon::create($year, $month, 1)->startOfMonth();
-        $endDate = $startDate->copy()->endOfMonth();
-        $daysInMonth = $startDate->daysInMonth;
+        $loaded = EmployeeAllowanceCalculator::loadMonth([$employee->id], (int) $year, (int) $month)[$employee->id];
+        $result = EmployeeAllowanceCalculator::summarize($salary, (int) $year, (int) $month, $loaded);
 
-        // Get all assigned shifts for the employee for the entire month
-        $employeeShifts = \App\Models\EmployeeShift::where('employee_id', $employee->id)
-            ->whereBetween('date', [$startDate, $endDate])
-            ->with('schedule')
-            ->get()
-            ->keyBy(function ($shift) {
-                return $shift->date->format('Y-m-d');
-            });
-
-        // Get all attendances for the employee for the month
-        $attendances = Attendance::where('attendable_type', Employee::class)
-            ->where('attendable_id', $employee->id)
-            ->whereBetween('date', [$startDate, $endDate])
-            ->get()
-            ->keyBy(function ($item) {
-                return $item->date->format('Y-m-d');
-            });
-            
-        // Get all approved permissions for the employee that overlap with the month
-        $permissions = \App\Models\Permission::where('permissible_id', $employee->id)
-            ->where('permissible_type', Employee::class)
-            ->where('status', 'approved')
-            ->where(function ($query) use ($startDate, $endDate) {
-                $query->whereBetween('start_date', [$startDate, $endDate])
-                    ->orWhereBetween('end_date', [$startDate, $endDate])
-                    ->orWhere(function($q) use ($startDate, $endDate) {
-                        $q->where('start_date', '<=', $startDate)
-                          ->where('end_date', '>=', $endDate);
-                    });
-            })
-            ->get();
-
-        // Create a date-keyed map of permissions for quick lookup
-        $permissionMap = [];
-        $permissionTypesFull = [
-            'C' => 'Cuti',
-            'S' => 'Sakit',
-            'DL' => 'Dinas Luar',
-        ];
-        foreach ($permissions as $permission) {
-            $current = Carbon::parse($permission->start_date)->max($startDate);
-            $end = Carbon::parse($permission->end_date)->min($endDate);
-            while ($current->lte($end)) {
-                $permissionMap[$current->format('Y-m-d')] = $permissionTypesFull[$permission->type] ?? $permission->type;
-                $current->addDay();
-            }
-        }
-
-        $detailData = [];
-        $totalMealAllowance = 0;
-        $totalTransportAllowance = 0;
-        $totalPerformanceAllowance = 0;
-
-        for ($day = 1; $day <= $daysInMonth; $day++) {
-            $currentDate = Carbon::create($year, $month, $day);
-            $dateKey = $currentDate->format('Y-m-d');
-            
-            $attendance = $attendances->get($dateKey);
-            $employeeShift = $employeeShifts->get($dateKey);
-            $schedule = $employeeShift ? $employeeShift->schedule : null;
-            $permissionType = $permissionMap[$dateKey] ?? null;
-
-            $dailyMealAllowance = 0;
-            $dailyTransportAllowance = 0;
-            $dailyPerformanceAllowance = 0;
-            
-            $statusIn = '-';
-            $statusOut = '-';
-
-            if ($permissionType) {
-                // Handle permission day first
-                $statusIn = $permissionType;
-                $statusOut = $permissionType;
-            } elseif ($schedule) {
-                // Handle scheduled workday
-                if ($attendance) {
-                    // There is an attendance record on a scheduled day
-                    if ($attendance->clock_in) {
-                        $diffIn = $this->calculateTimeDifference($attendance->clock_in, $schedule->start_time);
-                        // Fixed: If actual > scheduled (positive seconds), then late
-                        // If actual == scheduled (0 seconds), then on-time
-                        $statusIn = ($diffIn['seconds'] > 0) ? 'Terlambat' : 'Tepat Waktu';
-                    } else {
-                        $statusIn = 'Tidak Hadir';
-                    }
-
-                    if ($attendance->clock_out) {
-                        $diffOut = $this->calculateTimeDifference($attendance->clock_out, $schedule->end_time);
-                        // If actual < scheduled (negative seconds), then early departure
-                        $statusOut = ($diffOut['seconds'] < 0) ? 'Pulang Awal' : 'Tepat Waktu';
-                    } else {
-                        $statusOut = 'Belum Pulang';
-                    }
-
-                    // Grant allowances only if employee is present
-                    $isPresent = $attendance->clock_in !== null;
-                    if ($isPresent) {
-                        $dailyMealAllowance = $salary->meal_allowance;
-                        $dailyTransportAllowance = $salary->transport_allowance;
-                        $totalMealAllowance += $dailyMealAllowance;
-                        $totalTransportAllowance += $dailyTransportAllowance;
-                        
-                        // Performance allowance only if perfect
-                        $isPerfect = $statusIn === 'Tepat Waktu' && $statusOut === 'Tepat Waktu';
-                        if ($isPerfect) {
-                            $dailyPerformanceAllowance = $salary->performance_allowance;
-                            $totalPerformanceAllowance += $dailyPerformanceAllowance;
-                        }
-                    }
-
-                } else {
-                    // Scheduled day, but no attendance record
-                    $statusIn = 'Tidak Hadir';
-                    $statusOut = 'Tidak Hadir';
-                }
-            } else {
-                // No schedule and no permission -> off day
-                $statusIn = 'Hari Libur';
-                $statusOut = 'Hari Libur';
-            }
-
-            $detailData[] = [
-                'date' => $currentDate,
-                'attendance' => $attendance,
-                'schedule' => $schedule,
-                'status_in' => $statusIn,
-                'status_out' => $statusOut,
-                'daily_meal_allowance' => $dailyMealAllowance,
-                'daily_transport_allowance' => $dailyTransportAllowance,
-                'daily_performance_allowance' => $dailyPerformanceAllowance,
-            ];
-        }
-
-        $totalSalary = $salary->base_salary + $totalMealAllowance + $totalTransportAllowance + $totalPerformanceAllowance;
-
+        $detailData = $result['days'];
+        $permissionMap = $loaded['permissions'];
         $summary = [
-            'base_salary' => $salary->base_salary,
-            'total_meal_allowance' => $totalMealAllowance,
-            'total_transport_allowance' => $totalTransportAllowance,
-            'total_performance_allowance' => $totalPerformanceAllowance,
-            'total_salary' => $totalSalary,
+            'base_salary' => $result['base_salary'],
+            'total_meal_allowance' => $result['total_meal_allowance'],
+            'total_transport_allowance' => $result['total_transport_allowance'],
+            'total_performance_allowance' => $result['total_performance_allowance'],
+            'total_salary' => $result['total_salary'],
         ];
 
         return compact('employee', 'year', 'month', 'detailData', 'summary', 'permissionMap');
@@ -2202,139 +1114,19 @@ class ReportController extends Controller
 
     private function getMealAllowanceDetailData(Employee $employee, $year, $month)
     {
-        $employee->load(['salary' => function($query) {
-            $query->latest('created_at');
-        }]);
-        $salary = $employee->salary;
+        $salary = EmployeeAllowanceCalculator::salaryFor($employee, (int) $year, (int) $month);
 
         if (!$salary) {
             abort(404, 'Pengaturan gaji untuk pegawai ini tidak ditemukan.');
         }
 
-        $startDate = Carbon::create($year, $month, 1)->startOfMonth();
-        $endDate = $startDate->copy()->endOfMonth();
-        $daysInMonth = $startDate->daysInMonth;
+        $loaded = EmployeeAllowanceCalculator::loadMonth([$employee->id], (int) $year, (int) $month)[$employee->id];
+        $result = EmployeeAllowanceCalculator::summarize($salary, (int) $year, (int) $month, $loaded);
 
-        // Get all assigned shifts for the employee for the entire month
-        $employeeShifts = \App\Models\EmployeeShift::where('employee_id', $employee->id)
-            ->whereBetween('date', [$startDate, $endDate])
-            ->with('schedule')
-            ->get()
-            ->keyBy(function ($shift) {
-                return $shift->date->format('Y-m-d');
-            });
-
-        // Get all attendances for the employee for the month
-        $attendances = Attendance::where('attendable_type', Employee::class)
-            ->where('attendable_id', $employee->id)
-            ->whereBetween('date', [$startDate, $endDate])
-            ->get()
-            ->keyBy(function ($item) {
-                return $item->date->format('Y-m-d');
-            });
-            
-        // Get all approved permissions for the employee that overlap with the month
-        $permissions = \App\Models\Permission::where('permissible_id', $employee->id)
-            ->where('permissible_type', Employee::class)
-            ->where('status', 'approved')
-            ->where(function ($query) use ($startDate, $endDate) {
-                $query->whereBetween('start_date', [$startDate, $endDate])
-                    ->orWhereBetween('end_date', [$startDate, $endDate])
-                    ->orWhere(function($q) use ($startDate, $endDate) {
-                        $q->where('start_date', '<=', $startDate)
-                          ->where('end_date', '>=', $endDate);
-                    });
-            })
-            ->get();
-
-        // Create a date-keyed map of permissions for quick lookup
-        $permissionMap = [];
-        $permissionTypesFull = [
-            'C' => 'Cuti',
-            'S' => 'Sakit',
-            'DL' => 'Dinas Luar',
-        ];
-        foreach ($permissions as $permission) {
-            $current = Carbon::parse($permission->start_date)->max($startDate);
-            $end = Carbon::parse($permission->end_date)->min($endDate);
-            while ($current->lte($end)) {
-                $permissionMap[$current->format('Y-m-d')] = $permissionTypesFull[$permission->type] ?? $permission->type;
-                $current->addDay();
-            }
-        }
-
-        $detailData = [];
-        $totalMealAllowance = 0;
-        
-        for ($day = 1; $day <= $daysInMonth; $day++) {
-            $currentDate = Carbon::create($year, $month, $day);
-            $dateKey = $currentDate->format('Y-m-d');
-            
-            $attendance = $attendances->get($dateKey);
-            $employeeShift = $employeeShifts->get($dateKey);
-            $schedule = $employeeShift ? $employeeShift->schedule : null;
-            $permissionType = $permissionMap[$dateKey] ?? null;
-
-            $dailyMealAllowance = 0;
-            
-            $statusIn = '-';
-            $statusOut = '-';
-
-            if ($permissionType) {
-                // Handle permission day first
-                $statusIn = $permissionType;
-                $statusOut = $permissionType;
-            } elseif ($schedule) {
-                // Handle scheduled workday
-                if ($attendance) {
-                    // There is an attendance record on a scheduled day
-                    if ($attendance->clock_in) {
-                        $diffIn = $this->calculateTimeDifference($attendance->clock_in, $schedule->start_time);
-                        // Fixed: If actual > scheduled (positive seconds), then late
-                        // If actual == scheduled (0 seconds), then on-time
-                        $statusIn = ($diffIn['seconds'] > 0) ? 'Terlambat' : 'Tepat Waktu';
-                    } else {
-                        $statusIn = 'Tidak Hadir';
-                    }
-
-                    if ($attendance->clock_out) {
-                        $diffOut = $this->calculateTimeDifference($attendance->clock_out, $schedule->end_time);
-                        // If actual < scheduled (negative seconds), then early departure
-                        $statusOut = ($diffOut['seconds'] < 0) ? 'Pulang Awal' : 'Tepat Waktu';
-                    } else {
-                        $statusOut = 'Belum Pulang';
-                    }
-
-                    // Grant allowances only if employee is present
-                    $isPresent = $attendance->clock_in !== null || $attendance->clock_out !== null;
-                    if ($isPresent) {
-                        $dailyMealAllowance = $salary->meal_allowance;
-                        $totalMealAllowance += $dailyMealAllowance;
-                    }
-
-                } else {
-                    // Scheduled day, but no attendance record
-                    $statusIn = 'Tidak Hadir';
-                    $statusOut = 'Tidak Hadir';
-                }
-            } else {
-                // No schedule and no permission -> off day
-                $statusIn = 'Hari Libur';
-                $statusOut = 'Hari Libur';
-            }
-
-            $detailData[] = [
-                'date' => $currentDate,
-                'attendance' => $attendance,
-                'schedule' => $schedule,
-                'status_in' => $statusIn,
-                'status_out' => $statusOut,
-                'daily_meal_allowance' => $dailyMealAllowance,
-            ];
-        }
-
+        $detailData = $result['days'];
+        $permissionMap = $loaded['permissions'];
         $summary = [
-            'total_meal_allowance' => $totalMealAllowance,
+            'total_meal_allowance' => $result['total_meal_allowance'],
         ];
 
         return compact('employee', 'year', 'month', 'detailData', 'summary', 'permissionMap');
@@ -2368,149 +1160,8 @@ class ReportController extends Controller
         }
 
         $employees = $employeeQuery->get();
-        $employeeIds = $employees->pluck('id');
 
-        $startDate = Carbon::create($selectedYear, $selectedMonth, 1)->startOfMonth();
-        $endDate = $startDate->copy()->endOfMonth();
-        $daysInMonth = $startDate->daysInMonth;
-
-        // Fetch all employee shifts for the period for all filtered employees
-        $allEmployeeShifts = \App\Models\EmployeeShift::whereIn('employee_id', $employeeIds)
-            ->whereBetween('date', [$startDate, $endDate])
-            ->with('schedule')
-            ->get()
-            ->groupBy(function($shift) {
-                return $shift->employee_id . '_' . $shift->date->format('Y-m-d');
-            });
-
-        // Fetch all attendances for the period for all filtered employees
-        $allAttendances = Attendance::whereIn('attendable_id', $employeeIds)
-            ->where('attendable_type', Employee::class)
-            ->whereBetween('date', [$startDate, $endDate])
-            ->get()
-            ->groupBy(function($attendance) {
-                return $attendance->attendable_id . '_' . $attendance->date->format('Y-m-d');
-            });
-
-        // Fetch all approved permissions for the period for all filtered employees
-        $allPermissions = \App\Models\Permission::whereIn('permissible_id', $employeeIds)
-            ->where('permissible_type', Employee::class)
-            ->where('status', 'approved')
-            ->where(function ($query) use ($startDate, $endDate) {
-                $query->whereBetween('start_date', [$startDate, $endDate])
-                    ->orWhereBetween('end_date', [$startDate, $endDate])
-                    ->orWhere(function($q) use ($startDate, $endDate) {
-                        $q->where('start_date', '<=', $startDate)
-                          ->where('end_date', '>=', $endDate);
-                    });
-            })
-            ->get()
-            ->groupBy('permissible_id');
-
-        $permissionTypesFull = [
-            'C' => 'Cuti',
-            'S' => 'Sakit',
-            'DL' => 'Dinas Luar',
-        ];
-
-        $transportAllowanceData = [];
-
-        foreach ($employees as $employee) {
-            $employeeId = $employee->id;
-            $salary = $employee->salary;
-
-            if (!$salary) {
-                continue;
-            }
-
-            $employeePermissions = $allPermissions->get($employeeId, collect());
-
-            $permissionMap = [];
-            foreach ($employeePermissions as $permission) {
-                $current = Carbon::parse($permission->start_date)->max($startDate);
-                $end = Carbon::parse($permission->end_date)->min($endDate);
-                while ($current->lte($end)) {
-                    $permissionMap[$current->format('Y-m-d')] = $permissionTypesFull[$permission->type] ?? $permission->type;
-                    $current->addDay();
-                }
-            }
-
-            $transportAllowanceSummary = [
-                'employee' => $employee,
-                'active_days' => 0,
-                'present_days' => 0,
-                'absent_days' => 0,
-                'sick_days' => 0,
-                'leave_days' => 0,
-                'official_duty_days' => 0,
-                'total_transport_allowance' => 0, // Calculated below
-            ];
-
-            for ($day = 1; $day <= $daysInMonth; $day++) {
-                $currentDate = Carbon::create($selectedYear, $selectedMonth, $day);
-                $dateKey = $currentDate->format('Y-m-d');
-                $lookupKey = $employeeId . '_' . $dateKey;
-
-                $shift = $allEmployeeShifts->get($lookupKey)?->first();
-                $attendance = $allAttendances->get($lookupKey)?->first();
-                $permissionType = $permissionMap[$dateKey] ?? null;
-
-                if ($permissionType) {
-                    if ($permissionType === 'Sakit') $transportAllowanceSummary['sick_days']++;
-                    if ($permissionType === 'Cuti') $transportAllowanceSummary['leave_days']++;
-                    if ($permissionType === 'Dinas Luar') $transportAllowanceSummary['official_duty_days']++;
-                }
-
-                // Hari Aktif (Shift) - menghitung dari hari yang diisikan nama shiftnya di /admin/employee-shifts
-                // HANYA menghitung dari EmployeeShift yang di-assign, BUKAN dari default schedule
-                $hasValidShift = $shift && $shift->schedule && !empty($shift->schedule->shift_name);
-
-                if ($hasValidShift) {
-                    $transportAllowanceSummary['active_days']++;
-                }
-
-                // Process attendance data only if there's no permission for this day
-                if (!$permissionType) {
-                    // Hanya menghitung untuk hari yang memiliki nama shift di /admin/employee-shifts
-                    if ($hasValidShift) {
-                        if ($attendance) {
-                            // Hari Hadir - melihat dari hari yang HANYA memiliki nama shift di /admin/employee-shifts
-                            // dan melihat terisinya kolom absensi masuk ATAU kolom absensi pulang sesuai data di /admin/reports
-                            if ($attendance->clock_in || $attendance->clock_out) {
-                                $transportAllowanceSummary['present_days']++;
-                            } else {
-                                // Tidak Hadir - melihat dari hari yang HANYA memiliki nama shift di /admin/employee-shifts
-                                // dan melihat kolom kosong absensi masuk DAN kolom absensi pulang kosong sesuai data di /admin/reports
-                                $transportAllowanceSummary['absent_days']++;
-                            }
-                        } else {
-                            // Jika tidak ada record attendance sama sekali, berarti tidak hadir
-                            // Tidak Hadir - hari memiliki shift di /admin/employee-shifts tapi tidak ada data absensi
-                            $transportAllowanceSummary['absent_days']++;
-                        }
-                    }
-                    // Jika tidak ada shift di /admin/employee-shifts untuk hari ini, tidak ikut terhitung
-                } else {
-                    // Untuk hari dengan perizinan, tidak menghitung attendance metrics
-                    // Perizinan (Sakit, Cuti, Dinas Luar) sudah dihitung di atas
-                }
-            }
-
-            $transportAllowanceData[$employeeId] = $transportAllowanceSummary;
-        }
-
-        // After collecting all data, calculate total transport allowance for each employee
-        foreach ($transportAllowanceData as &$data) {
-            $employee = $data['employee'];
-            $salary = $employee->salary;
-
-            if ($salary) {
-                // Total transport allowance = daily transport allowance × number of present days
-                $data['total_transport_allowance'] = $salary->transport_allowance * $data['present_days'];
-            } else {
-                $data['total_transport_allowance'] = 0;
-            }
-        }
+        $transportAllowanceData = EmployeeAllowanceCalculator::rows($employees, (int) $selectedYear, (int) $selectedMonth);
 
         // Sort the final data array based on the sort parameters
         $sortField = $request->get('sort', 'full_name');
@@ -2593,123 +1244,8 @@ class ReportController extends Controller
         }
 
         $employees = $employeeQuery->orderBy('full_name')->get();
-        $employeeIds = $employees->pluck('id');
 
-        $startDate = Carbon::create($selectedYear, $selectedMonth, 1)->startOfMonth();
-        $endDate = $startDate->copy()->endOfMonth();
-        $daysInMonth = $startDate->daysInMonth;
-
-        // Fetch all employee shifts for the period for all filtered employees
-        $allEmployeeShifts = \App\Models\EmployeeShift::whereIn('employee_id', $employeeIds)
-            ->whereBetween('date', [$startDate, $endDate])
-            ->with('schedule')
-            ->get()
-            ->groupBy(function($shift) {
-                return $shift->employee_id . '_' . $shift->date->format('Y-m-d');
-            });
-
-        // Fetch all attendances for the period for all filtered employees
-        $allAttendances = Attendance::whereIn('attendable_id', $employeeIds)
-            ->where('attendable_type', Employee::class)
-            ->whereBetween('date', [$startDate, $endDate])
-            ->get()
-            ->groupBy(function($attendance) {
-                return $attendance->attendable_id . '_' . $attendance->date->format('Y-m-d');
-            });
-
-        // Fetch all approved permissions for the period for all filtered employees
-        $allPermissions = \App\Models\Permission::whereIn('permissible_id', $employeeIds)
-            ->where('permissible_type', Employee::class)
-            ->where('status', 'approved')
-            ->where(function ($query) use ($startDate, $endDate) {
-                $query->whereBetween('start_date', [$startDate, $endDate])
-                    ->orWhereBetween('end_date', [$startDate, $endDate])
-                    ->orWhere(function($q) use ($startDate, $endDate) {
-                        $q->where('start_date', '<=', $startDate)
-                          ->where('end_date', '>=', $endDate);
-                    });
-            })
-            ->get()
-            ->groupBy('permissible_id');
-
-        $permissionTypesFull = [
-            'C' => 'Cuti',
-            'S' => 'Sakit',
-            'DL' => 'Dinas Luar',
-        ];
-
-        $transportAllowanceData = [];
-
-        foreach ($employees as $employee) {
-            $employeeId = $employee->id;
-            $salary = $employee->salary;
-
-            if (!$salary) {
-                continue;
-            }
-
-            $employeePermissions = $allPermissions->get($employeeId, collect());
-
-            $permissionMap = [];
-            foreach ($employeePermissions as $permission) {
-                $current = Carbon::parse($permission->start_date)->max($startDate);
-                $end = Carbon::parse($permission->end_date)->min($endDate);
-                while ($current->lte($end)) {
-                    $permissionMap[$current->format('Y-m-d')] = $permissionTypesFull[$permission->type] ?? $permission->type;
-                    $current->addDay();
-                }
-            }
-
-            $transportAllowanceSummary = [
-                'employee' => $employee,
-                'active_days' => 0,
-                'present_days' => 0,
-                'absent_days' => 0,
-                'sick_days' => 0,
-                'leave_days' => 0,
-                'official_duty_days' => 0,
-                'total_transport_allowance' => 0,
-            ];
-
-            for ($day = 1; $day <= $daysInMonth; $day++) {
-                $currentDate = Carbon::create($selectedYear, $selectedMonth, $day);
-                $dateKey = $currentDate->format('Y-m-d');
-                $lookupKey = $employeeId . '_' . $dateKey;
-
-                $shift = $allEmployeeShifts->get($lookupKey)?->first();
-                $attendance = $allAttendances->get($lookupKey)?->first();
-                $permissionType = $permissionMap[$dateKey] ?? null;
-
-                if ($permissionType) {
-                    if ($permissionType === 'Sakit') $transportAllowanceSummary['sick_days']++;
-                    if ($permissionType === 'Cuti') $transportAllowanceSummary['leave_days']++;
-                    if ($permissionType === 'Dinas Luar') $transportAllowanceSummary['official_duty_days']++;
-                }
-
-                $hasValidShift = $shift && $shift->schedule && !empty($shift->schedule->shift_name);
-
-                if ($hasValidShift) {
-                    $transportAllowanceSummary['active_days']++;
-                }
-
-                if (!$permissionType) {
-                    if ($hasValidShift) {
-                        if ($attendance) {
-                            if ($attendance->clock_in || $attendance->clock_out) {
-                                $transportAllowanceSummary['present_days']++;
-                            } else {
-                                $transportAllowanceSummary['absent_days']++;
-                            }
-                        } else {
-                            $transportAllowanceSummary['absent_days']++;
-                        }
-                    }
-                }
-            }
-
-            $transportAllowanceSummary['total_transport_allowance'] = $salary->transport_allowance * $transportAllowanceSummary['present_days'];
-            $transportAllowanceData[] = $transportAllowanceSummary;
-        }
+        $transportAllowanceData = EmployeeAllowanceCalculator::rows($employees, (int) $selectedYear, (int) $selectedMonth);
 
         $months = [
             1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April', 5 => 'Mei', 6 => 'Juni',
@@ -2751,137 +1287,19 @@ class ReportController extends Controller
 
     private function getTransportAllowanceDetailData(Employee $employee, $year, $month)
     {
-        $employee->load(['salary' => function($query) {
-            $query->latest('created_at');
-        }]);
-        $salary = $employee->salary;
+        $salary = EmployeeAllowanceCalculator::salaryFor($employee, (int) $year, (int) $month);
 
         if (!$salary) {
             abort(404, 'Pengaturan gaji untuk pegawai ini tidak ditemukan.');
         }
 
-        $startDate = Carbon::create($year, $month, 1)->startOfMonth();
-        $endDate = $startDate->copy()->endOfMonth();
-        $daysInMonth = $startDate->daysInMonth;
+        $loaded = EmployeeAllowanceCalculator::loadMonth([$employee->id], (int) $year, (int) $month)[$employee->id];
+        $result = EmployeeAllowanceCalculator::summarize($salary, (int) $year, (int) $month, $loaded);
 
-        // Get all assigned shifts for the employee for the entire month
-        $employeeShifts = \App\Models\EmployeeShift::where('employee_id', $employee->id)
-            ->whereBetween('date', [$startDate, $endDate])
-            ->with('schedule')
-            ->get()
-            ->keyBy(function ($shift) {
-                return $shift->date->format('Y-m-d');
-            });
-
-        // Get all attendances for the employee for the month
-        $attendances = Attendance::where('attendable_type', Employee::class)
-            ->where('attendable_id', $employee->id)
-            ->whereBetween('date', [$startDate, $endDate])
-            ->get()
-            ->keyBy(function ($item) {
-                return $item->date->format('Y-m-d');
-            });
-
-        // Get all approved permissions for the employee that overlap with the month
-        $permissions = \App\Models\Permission::where('permissible_id', $employee->id)
-            ->where('permissible_type', Employee::class)
-            ->where('status', 'approved')
-            ->where(function ($query) use ($startDate, $endDate) {
-                $query->whereBetween('start_date', [$startDate, $endDate])
-                    ->orWhereBetween('end_date', [$startDate, $endDate])
-                    ->orWhere(function($q) use ($startDate, $endDate) {
-                        $q->where('start_date', '<=', $startDate)
-                          ->where('end_date', '>=', $endDate);
-                    });
-            })
-            ->get();
-
-        // Create a date-keyed map of permissions for quick lookup
-        $permissionMap = [];
-        $permissionTypesFull = [
-            'C' => 'Cuti',
-            'S' => 'Sakit',
-            'DL' => 'Dinas Luar',
-        ];
-        foreach ($permissions as $permission) {
-            $current = Carbon::parse($permission->start_date)->max($startDate);
-            $end = Carbon::parse($permission->end_date)->min($endDate);
-            while ($current->lte($end)) {
-                $permissionMap[$current->format('Y-m-d')] = $permissionTypesFull[$permission->type] ?? $permission->type;
-                $current->addDay();
-            }
-        }
-
-        $detailData = [];
-        $totalTransportAllowance = 0;
-
-        for ($day = 1; $day <= $daysInMonth; $day++) {
-            $currentDate = Carbon::create($year, $month, $day);
-            $dateKey = $currentDate->format('Y-m-d');
-
-            $attendance = $attendances->get($dateKey);
-            $employeeShift = $employeeShifts->get($dateKey);
-            $schedule = $employeeShift ? $employeeShift->schedule : null;
-            $permissionType = $permissionMap[$dateKey] ?? null;
-
-            $dailyTransportAllowance = 0;
-            $statusIn = '-';
-            $statusOut = '-';
-
-            if ($permissionType) {
-                // Handle permission day first
-                $statusIn = $permissionType;
-                $statusOut = $permissionType;
-            } else {
-                // If there's no permission, grant allowance simply if there is a clock-in or clock-out record, regardless of schedule.
-                if ($attendance && ($attendance->clock_in !== null || $attendance->clock_out !== null)) {
-                    $dailyTransportAllowance = $salary->transport_allowance;
-                    $totalTransportAllowance += $dailyTransportAllowance;
-                }
-
-                // Keep the original status display logic which depends on schedule, but the allowance calculation is now independent of it.
-                if ($schedule) {
-                    if ($attendance) {
-                        if ($attendance->clock_in) {
-                            $diffIn = $this->calculateTimeDifference($attendance->clock_in, $schedule->start_time);
-                            $statusIn = ($diffIn['seconds'] > 0) ? 'Terlambat' : 'Tepat Waktu';
-                        } else {
-                            $statusIn = 'Tidak Hadir';
-                        }
-
-                        if ($attendance->clock_out) {
-                            $diffOut = $this->calculateTimeDifference($attendance->clock_out, $schedule->end_time);
-                            $statusOut = ($diffOut['seconds'] < 0) ? 'Pulang Awal' : 'Tepat Waktu';
-                        } else {
-                            $statusOut = 'Belum Pulang';
-                        }
-                    } else {
-                        $statusIn = 'Tidak Hadir';
-                        $statusOut = 'Tidak Hadir';
-                    }
-                } else {
-                     if ($attendance && ($attendance->clock_in || $attendance->clock_out)) {
-                         $statusIn = 'Hadir';
-                         $statusOut = 'Pulang';
-                    } else {
-                         $statusIn = 'Hari Libur';
-                         $statusOut = 'Hari Libur';
-                    }
-                }
-            }
-
-            $detailData[] = [
-                'date' => $currentDate,
-                'attendance' => $attendance,
-                'schedule' => $schedule,
-                'status_in' => $statusIn,
-                'status_out' => $statusOut,
-                'daily_transport_allowance' => $dailyTransportAllowance,
-            ];
-        }
-
+        $detailData = $result['days'];
+        $permissionMap = $loaded['permissions'];
         $summary = [
-            'total_transport_allowance' => $totalTransportAllowance,
+            'total_transport_allowance' => $result['total_transport_allowance'],
         ];
 
         return compact('employee', 'year', 'month', 'detailData', 'summary', 'permissionMap');
@@ -2895,10 +1313,7 @@ class ReportController extends Controller
 
     private function getPerformanceAllowanceDetailData(Employee $employee, $year, $month)
     {
-        $employee->load(['salary' => function($query) {
-            $query->latest('created_at');
-        }]);
-        $salary = $employee->salary;
+        $salary = EmployeeAllowanceCalculator::salaryFor($employee, (int) $year, (int) $month);
 
         if (!$salary) {
             return [
@@ -2911,122 +1326,14 @@ class ReportController extends Controller
             ];
         }
 
-        $startDate = Carbon::create($year, $month, 1)->startOfMonth();
-        $endDate = $startDate->copy()->endOfMonth();
-        $daysInMonth = $startDate->daysInMonth;
+        $loaded = EmployeeAllowanceCalculator::loadMonth([$employee->id], (int) $year, (int) $month)[$employee->id];
+        $result = EmployeeAllowanceCalculator::summarize($salary, (int) $year, (int) $month, $loaded);
 
-        $employeeShifts = \App\Models\EmployeeShift::where('employee_id', $employee->id)
-            ->whereBetween('date', [$startDate, $endDate])
-            ->with('schedule')
-            ->get()
-            ->keyBy(function ($shift) {
-                return $shift->date->format('Y-m-d');
-            });
-
-        $attendances = \App\Models\Attendance::where('attendable_id', $employee->id)
-            ->where('attendable_type', Employee::class)
-            ->whereBetween('date', [$startDate, $endDate])
-            ->get()
-            ->keyBy(function ($item) {
-                return $item->date->format('Y-m-d');
-            });
-
-        $permissions = \App\Models\Permission::where('permissible_id', $employee->id)
-            ->where('permissible_type', Employee::class)
-            ->where('status', 'approved')
-            ->where(function ($query) use ($startDate, $endDate) {
-                $query->whereBetween('start_date', [$startDate, $endDate])
-                    ->orWhereBetween('end_date', [$startDate, $endDate])
-                    ->orWhere(function($q) use ($startDate, $endDate) {
-                        $q->where('start_date', '<=', $startDate)
-                          ->where('end_date', '>=', $endDate);
-                    });
-            })
-            ->get();
-
-        $permissionMap = [];
-        $permissionTypesFull = ['C' => 'Cuti', 'S' => 'Sakit', 'DL' => 'Dinas Luar'];
-        foreach ($permissions as $permission) {
-            $current = Carbon::parse($permission->start_date)->max($startDate);
-            $end = Carbon::parse($permission->end_date)->min($endDate);
-            while ($current->lte($end)) {
-                $permissionMap[$current->format('Y-m-d')] = $permissionTypesFull[$permission->type] ?? $permission->type;
-                $current->addDay();
-            }
-        }
-
-        $detailData = [];
-        $totalPerformanceAllowance = 0;
-        $totalMealAllowance = 0;
-
-        for ($day = 1; $day <= $daysInMonth; $day++) {
-            $currentDate = Carbon::create($year, $month, $day);
-            $dateKey = $currentDate->format('Y-m-d');
-
-            $shift = $employeeShifts->get($dateKey);
-            $attendance = $attendances->get($dateKey);
-            $permissionType = $permissionMap[$dateKey] ?? null;
-
-            $dailyPerformanceAllowance = 0;
-            $dailyMealAllowance = 0;
-
-            $statusIn = '-';
-            $statusOut = '-';
-
-            if ($permissionType) {
-                $statusIn = $permissionType;
-                $statusOut = $permissionType;
-            } elseif ($shift) {
-                if ($attendance) {
-                    if ($attendance->clock_in) {
-                        $statusIn = $attendance->status_in ?? 'Tepat Waktu';
-                    } else {
-                        $statusIn = 'Tidak Hadir';
-                    }
-
-                    if ($attendance->clock_out) {
-                        $statusOut = $attendance->status_out ?? 'Tepat Waktu';
-                    } else {
-                        $statusOut = 'Belum Pulang';
-                    }
-
-                    $isPresent = $attendance->clock_in !== null || $attendance->clock_out !== null;
-                    if ($isPresent) {
-                        $dailyMealAllowance = $salary->meal_allowance;
-                        $totalMealAllowance += $dailyMealAllowance;
-
-                        // Check if both arrival and departure are on time for performance allowance
-                        $isOnTimeIn = $attendance->status_in === 'Tepat Waktu';
-                        $isOnTimeOut = $attendance->status_out === 'Tepat Waktu';
-                        if ($isOnTimeIn && $isOnTimeOut) {
-                            $dailyPerformanceAllowance = $salary->performance_allowance;
-                            $totalPerformanceAllowance += $dailyPerformanceAllowance;
-                        }
-                    }
-                } else {
-                    $statusIn = 'Tidak Hadir';
-                    $statusOut = 'Tidak Hadir';
-                }
-            } else {
-                $statusIn = 'Hari Libur';
-                $statusOut = 'Hari Libur';
-            }
-
-            $detailData[] = [
-                'date' => $currentDate,
-                'attendance' => $attendance,
-                'shift' => $shift,
-                'schedule' => $shift ? $shift->schedule : null,
-                'status_in' => $statusIn,
-                'status_out' => $statusOut,
-                'daily_performance_allowance' => $dailyPerformanceAllowance,
-                'daily_meal_allowance' => $dailyMealAllowance,
-            ];
-        }
-
+        $detailData = $result['days'];
+        $permissionMap = $loaded['permissions'];
         $summary = [
-            'total_performance_allowance' => $totalPerformanceAllowance,
-            'total_meal_allowance' => $totalMealAllowance,
+            'total_performance_allowance' => $result['total_performance_allowance'],
+            'total_meal_allowance' => $result['total_meal_allowance'],
         ];
 
         return compact('employee', 'year', 'month', 'detailData', 'summary', 'permissionMap');
@@ -3067,16 +1374,5 @@ class ReportController extends Controller
             'success' => true,
             'message' => $showSalaryMenu ? 'Menu laporan gaji ditampilkan di sidebar pegawai' : 'Menu laporan gaji disembunyikan dari sidebar pegawai'
         ]);
-    }
-
-    private function calculateTimeDifference($actualTime, $scheduleTime)
-    {
-        $actual = Carbon::parse($actualTime);
-        $scheduled = Carbon::parse($scheduleTime)->setDate($actual->year, $actual->month, $actual->day);
-        // Fixed: Calculate difference as scheduled - actual for correct sign
-        // Positive = late (actual > scheduled), Negative = early (actual < scheduled)
-        $diffSeconds = $scheduled->diffInSeconds($actual, false);
-
-        return ['seconds' => $diffSeconds];
     }
 }

@@ -165,24 +165,9 @@
                 </td>
                 <td class="px-4 py-3 whitespace-nowrap text-sm">
                     @php
-                        $shiftName = null;
-                        $schedule = null;
-
-                        // Get shift from pre-loaded collection
-                        $dateKey = $attendance->date->format('Y-m-d');
-                        $employeeShift = $employeeShifts->get($dateKey);
-
-                        if ($employeeShift && $employeeShift->schedule) {
-                            $schedule = $employeeShift->schedule;
-                            $shiftName = $schedule->shift_name;
-                        } else {
-                            // Get schedule from pre-loaded collection by day of week
-                            $dayOfWeek = $attendance->date->dayOfWeek;
-                            $schedule = $schedules->get($dayOfWeek);
-                            if ($schedule) {
-                                $shiftName = $schedule->shift_name;
-                            }
-                        }
+                        // Same schedule as /admin/reports and the allowance reports
+                        $schedule = \App\Services\EmployeeAllowanceCalculator::scheduleFor($attendance->attendable_id, $attendance->date);
+                        $shiftName = $schedule?->shift_name;
                     @endphp
                     {{ $shiftName ?? 'N/A' }}
                 </td>
@@ -202,7 +187,7 @@
 
                                                             // Based on user's observation, a late clock-in produces a negative diff.
                                                             // So we check for < 0 to mean LATE and display '+'.
-                                                            if ($diffInSeconds > 0) { // This block now represents ON-TIME or EARLY
+                                                            if ($diffInSeconds >= 0) { // ON-TIME (exactly at start) or EARLY
                                                                 $selisihColor = 'text-green-600 font-semibold';
                                                                 $selisihLabel = '-' . $formattedValue;
                                                             } else { // This block now represents LATE or EXACTLY ON TIME
@@ -228,18 +213,8 @@
                                                         </span>
                                                     @elseif($attendance->clock_in && $schedule)
                                                         @php
-                                                            $clockIn = \Carbon\Carbon::parse($attendance->clock_in);
-                                                            $startTime = \Carbon\Carbon::parse($schedule->start_time)->setDate($clockIn->year, $clockIn->month, $clockIn->day);
-                                                            $diffInSeconds = $clockIn->diffInSeconds($startTime, false);
-
-                                                            // Based on user's observation, a late clock-in produces a negative diff.
-                                                            if ($diffInSeconds > 0) { // This is ON-TIME or EARLY
-                                                                $statusText = 'Tepat Waktu';
-                                                                $statusColor = 'bg-green-100 text-green-800';
-                                                            } else { // This is LATE
-                                                                $statusText = 'Terlambat';
-                                                                $statusColor = 'bg-red-100 text-red-800';
-                                                            }
+                                                            $statusText = \App\Services\EmployeeAllowanceCalculator::arrivalStatus($attendance, $schedule);
+                                                            $statusColor = $statusText === 'Terlambat' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800';
                                                         @endphp
                                                         <span class="px-2 py-1 rounded text-xs {{ $statusColor }}">
                                                             {{ $statusText }}
@@ -314,19 +289,8 @@
                         </span>
                     @elseif($attendance->clock_out && $schedule)
                         @php
-                            $clockOut = \Carbon\Carbon::parse($attendance->clock_out);
-                            $endTime = \Carbon\Carbon::parse($schedule->end_time)->setDate($clockOut->year, $clockOut->month, $clockOut->day);
-                            // Calculation: Actual Time - Scheduled Time
-                            $diffInSeconds = $clockOut->diffInSeconds($endTime, false);
-
-                            // Based on debug output, a positive diff means EARLY departure
-                            if ($diffInSeconds > 0) { // Early Departure
-                                $statusText = 'Pulang Awal';
-                                $statusColor = 'bg-red-100 text-red-800';
-                            } else { // On Time or Late Departure
-                                $statusText = 'Tepat Waktu';
-                                $statusColor = 'bg-green-100 text-green-800';
-                            }
+                            $statusText = \App\Services\EmployeeAllowanceCalculator::departureStatus($attendance, $schedule);
+                            $statusColor = $statusText === 'Pulang Awal' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800';
                         @endphp
                         <span class="px-2 py-1 rounded text-xs {{ $statusColor }}">
                             {{ $statusText }}

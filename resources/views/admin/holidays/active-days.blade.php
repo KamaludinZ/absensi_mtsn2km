@@ -8,6 +8,7 @@
     <div class="mb-6">
         <h2 class="text-xl font-bold text-gray-800">Pengaturan Hari Aktif</h2>
         <p class="text-gray-600">Pilih hari-hari yang merupakan hari kerja/aktif dalam seminggu.</p>
+        <p class="text-sm text-gray-500 mt-1">Pengaturan Shift Pegawai mengikuti hari aktif ini: mulai hari ini, shift pada hari yang dinonaktifkan dilepas (kecuali pegawai yang sudah absen) dan hari yang diaktifkan diisi otomatis sesuai Hari &amp; Jabatan Penerapan.</p>
     </div>
     
     <form action="{{ route('admin.holidays.update-active-days') }}" method="POST">

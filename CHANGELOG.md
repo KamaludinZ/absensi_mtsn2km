@@ -5,6 +5,26 @@ Semua perubahan penting pada proyek ini akan didokumentasikan dalam file ini.
 Format ini didasarkan pada [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 dan proyek ini mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-11-05
+
+### Added
+- Employee schedules: "Hari Penerapan" (weekdays) and "Jabatan Penerapan" (positions) per shift. One position can have only one automatic shift per day.
+- Automatic filling of Pengaturan Shift Pegawai for active employees with a listed position, from today to the end of the month, on active days that are not holidays. Runs daily at 00:10, when the page is opened and on clock-in; assigned cells are never replaced and cells cleared by hand are not refilled. "Terapkan Otomatis" fills empty cells on demand.
+- Shift dates follow Hari Aktif and Hari Libur: a new holiday or a removed active day releases that date's shifts (except for employees who already clocked in), a removed holiday or an added active day fills them again from today on.
+- Salary settings: "Terapkan dari <previous month>" in edit mode fills the form with last month's values; nothing is stored until "Simpan Perubahan".
+
+### Changed
+- Meal, transport, performance allowance and salary reports (summary, PDF, detail, detail PDF, monitoring and the employee's own salary page) count days with one set of rules, the same as the /admin/reports screen: late arrival and early departure from the clock time against the assigned shift; Sakit/Cuti/Dinas Luar only on active days, so Hadir + Tidak Hadir + Sakit + Cuti + Dinas Luar = Hari Aktif.
+- /admin/reports Excel and PDF exports and the employee attendance report show the same schedule and status as the screen; clocking in exactly at the start time is on time.
+- Clock-in and clock-out store their status against the assigned shift instead of the default day schedule.
+- Every employee shift needs a unique name; only named shifts can be picked, imported or exported in Pengaturan Shift Pegawai.
+- The day-of-month copy of the previous month's shifts was removed (replaced by the automatic filling).
+
+### Fixed
+- Performance allowance counted late arrivals as on time: stored statuses were checked against the default schedule, and recalculated ones (after an edit) were inverted.
+- Transport allowance detail paid days without a shift; detail pages used another month's salary settings; the employee salary page always showed 0 for on-time arrival/departure.
+- Saving Pengaturan Shift Pegawai deleted every attendance of the month, including clock-in and clock-out times; now only empty attendance rows of removed shifts are deleted.
+
 ## [1.2.9] - 2026-10-23
 
 ### Added

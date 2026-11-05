@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use App\Models\Employee;
 use App\Models\Schedule;
+use App\Models\Setting;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -156,7 +158,7 @@ class ScheduleController extends Controller
 
     public function create()
     {
-        return view('admin.schedules.create');
+        return view('admin.schedules.create', $this->applyOptions());
     }
     
     public function edit(Schedule $schedule)
@@ -165,7 +167,7 @@ class ScheduleController extends Controller
             return redirect()->route('admin.schedules.custom.siswa');
         }
 
-        return view('admin.schedules.edit', compact('schedule'));
+        return view('admin.schedules.edit', ['schedule' => $schedule] + $this->applyOptions($schedule));
     }
 
     public function store(Request $request)
@@ -173,13 +175,14 @@ class ScheduleController extends Controller
         $request->validate([
             'type' => 'required|in:pegawai',
             'shift_type' => 'nullable|in:pagi,siang,sore,malam',
-            'shift_name' => 'nullable|string|max:255',
+            'shift_name' => 'required|string|max:255',
             'day_of_week' => 'nullable|integer|min:0|max:6',
             'start_time' => 'required|date_format:H:i',
             'end_time' => 'required|date_format:H:i',
         ], [
             // Custom error messages
             'end_time.after' => 'Jam selesai harus setelah jam mulai.',
+            'shift_name.required' => 'Nama shift wajib diisi.',
         ]);
 
         // Special handling for night shifts
@@ -194,8 +197,10 @@ class ScheduleController extends Controller
                 ->withInput();
         }
 
+        $rules = $this->validateApplyRules($request);
+
         // Prepare the data to save, setting default day if not provided
-        $data = $request->only(['type', 'shift_type', 'shift_name', 'start_time', 'end_time']);
+        $data = $request->only(['type', 'shift_type', 'shift_name', 'start_time', 'end_time']) + $rules;
         $data['day_of_week'] = $request->day_of_week ?? 0; // Default to 0 (Sunday) if not provided
 
         Schedule::create($data);
@@ -209,13 +214,14 @@ class ScheduleController extends Controller
         $request->validate([
             'type' => 'required|in:pegawai',
             'shift_type' => 'nullable|in:pagi,siang,sore,malam',
-            'shift_name' => 'nullable|string|max:255',
+            'shift_name' => 'required|string|max:255',
             'day_of_week' => 'nullable|integer|min:0|max:6',
             'start_time' => 'required|date_format:H:i',
             'end_time' => 'required|date_format:H:i',
         ], [
             // Custom error messages
             'end_time.after' => 'Jam selesai harus setelah jam mulai.',
+            'shift_name.required' => 'Nama shift wajib diisi.',
         ]);
 
         // Special handling for night shifts
@@ -230,8 +236,10 @@ class ScheduleController extends Controller
                 ->withInput();
         }
 
+        $rules = $this->validateApplyRules($request, $schedule);
+
         // Prepare the data to save, setting default day if not provided
-        $data = $request->only(['type', 'shift_type', 'shift_name', 'start_time', 'end_time']);
+        $data = $request->only(['type', 'shift_type', 'shift_name', 'start_time', 'end_time']) + $rules;
         $data['day_of_week'] = $request->day_of_week ?? $schedule->day_of_week; // Keep existing value if not provided
 
         $schedule->update($data);
@@ -248,5 +256,103 @@ class ScheduleController extends Controller
             ->with('success', 'Jadwal berhasil dihapus.');
     }
 
+    /**
+     * Options for Hari Penerapan / Jabatan Penerapan on the shift form.
+     */
+    private function applyOptions(?Schedule $schedule = null): array
+    {
+        $positions = Employee::where('is_active', true)
+            ->whereNotNull('position')
+            ->where('position', '!=', '')
+            ->pluck('position')
+            ->map(fn ($p) => trim(preg_replace('/\s+/', ' ', $p)))
+            ->merge($schedule->apply_positions ?? [])
+            ->unique(fn ($p) => Schedule::normalizePosition($p))
+            ->sort(SORT_NATURAL | SORT_FLAG_CASE)
+            ->values();
 
+        $activeDays = array_map('intval', json_decode(Setting::get('active_days', '[1,2,3,4,5]'), true) ?: [1, 2, 3, 4, 5]);
+
+        return [
+            'positions' => $positions,
+            'isoDays' => Schedule::ISO_DAYS,
+            'activeDays' => $activeDays,
+        ];
+    }
+
+    /**
+     * Unique shift name; Hari Penerapan and Jabatan Penerapan both or neither,
+     * and no two shifts may apply to the same position on the same day.
+     */
+    private function validateApplyRules(Request $request, ?Schedule $schedule = null): array
+    {
+        // Shift names identify shifts on /admin/employee-shifts and in its Excel import
+        $name = Schedule::normalizePosition($request->input('shift_name'));
+        $taken = Schedule::where('type', 'pegawai')
+            ->when($schedule, fn ($q) => $q->where('id', '!=', $schedule->id))
+            ->whereNotNull('shift_name')
+            ->get(['shift_name'])
+            ->contains(fn ($other) => Schedule::normalizePosition($other->shift_name) === $name);
+        if ($taken) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'shift_name' => 'Nama shift sudah dipakai jadwal lain. Gunakan nama yang berbeda.',
+            ]);
+        }
+
+        $request->validate([
+            'apply_days' => 'nullable|array',
+            'apply_days.*' => 'integer|between:1,7',
+            'apply_positions' => 'nullable|array',
+            'apply_positions.*' => 'string|max:255',
+        ]);
+
+        $days = collect($request->input('apply_days', []))->map(fn ($d) => (int) $d)->unique()->sort()->values()->all();
+        $positions = collect($request->input('apply_positions', []))
+            ->map(fn ($p) => trim(preg_replace('/\s+/', ' ', $p)))
+            ->filter()
+            ->unique(fn ($p) => Schedule::normalizePosition($p))
+            ->values()
+            ->all();
+
+        if (!$days && !$positions) {
+            return ['apply_days' => null, 'apply_positions' => null];
+        }
+
+        $errors = [];
+        if (!$days) {
+            $errors['apply_days'] = 'Pilih minimal satu hari penerapan, atau kosongkan jabatan penerapan.';
+        }
+        if (!$positions) {
+            $errors['apply_positions'] = 'Pilih minimal satu jabatan penerapan, atau kosongkan hari penerapan.';
+        }
+
+        if (!$errors) {
+            $wanted = array_map([Schedule::class, 'normalizePosition'], $positions);
+            $others = Schedule::where('type', 'pegawai')
+                ->when($schedule, fn ($q) => $q->where('id', '!=', $schedule->id))
+                ->get()
+                ->filter->isAutoApplied();
+
+            foreach ($others as $other) {
+                $sharedDays = array_intersect($days, array_map('intval', $other->apply_days));
+                $sharedPositions = array_filter($positions, fn ($p) => in_array(
+                    Schedule::normalizePosition($p),
+                    array_map([Schedule::class, 'normalizePosition'], $other->apply_positions),
+                    true
+                ));
+                if ($sharedDays && $sharedPositions) {
+                    $dayNames = implode(', ', array_map(fn ($d) => Schedule::ISO_DAYS[$d], $sharedDays));
+                    $errors['apply_positions'] = "Bentrok dengan shift \"{$other->shift_name}\" pada hari {$dayNames} untuk jabatan "
+                        . implode(', ', $sharedPositions) . '. Satu jabatan hanya boleh punya satu shift otomatis per hari.';
+                    break;
+                }
+            }
+        }
+
+        if ($errors) {
+            throw \Illuminate\Validation\ValidationException::withMessages($errors);
+        }
+
+        return ['apply_days' => $days, 'apply_positions' => $positions];
+    }
 }

@@ -16,6 +16,7 @@
         <div>
             <h2 class="text-xl font-bold text-gray-800">Daftar Jadwal Pegawai</h2>
             <p class="text-sm text-gray-500">Jadwal siswa diatur terpisah di <a href="{{ route('admin.schedules.custom.siswa') }}" class="text-blue-600 hover:underline">Pengaturan Absen Siswa</a>.</p>
+            <p class="text-sm text-gray-500">Shift yang punya hari &amp; jabatan penerapan diisikan otomatis di <a href="{{ route('admin.employee-shifts.index') }}" class="text-blue-600 hover:underline">Pengaturan Shift Pegawai</a>.</p>
         </div>
         <div class="flex flex-wrap gap-2">
             <a href="{{ route('admin.schedules.custom.create') }}" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
@@ -61,6 +62,8 @@
 
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{!! sortableLink('Jam Masuk', 'start_time', $currentSort, $currentDirection) !!}</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{!! sortableLink('Jam Pulang', 'end_time', $currentSort, $currentDirection) !!}</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hari Penerapan</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jabatan Penerapan</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
                 </tr>
             </thead>
@@ -103,12 +106,36 @@
                                 {{ $schedule->shift_name }}
                             </span>
                         @else
-                            <span class="text-gray-500 text-xs">-</span>
+                            <a href="{{ route('admin.schedules.custom.edit', $schedule) }}" class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800"
+                               title="Jadwal tanpa nama tidak bisa dipilih di Pengaturan Shift Pegawai dan tidak dihitung sebagai hari aktif">
+                                Belum bernama — wajib diberi nama
+                            </a>
                         @endif
                     </td>
 
                     <td class="px-6 py-4 whitespace-nowrap">{{ \Carbon\Carbon::parse($schedule->start_time)->format('H:i') }}</td>
                     <td class="px-6 py-4 whitespace-nowrap">{{ \Carbon\Carbon::parse($schedule->end_time)->format('H:i') }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        @if(!empty($schedule->apply_days))
+                            {{ $schedule->applyDaysLabel() }}
+                        @else
+                            <span class="text-gray-500 text-xs">-</span>
+                        @endif
+                    </td>
+                    <td class="px-6 py-4 text-sm">
+                        @if(!empty($schedule->apply_positions))
+                            <div class="flex flex-wrap gap-1 max-w-xs">
+                                @foreach($schedule->apply_positions as $position)
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">{{ $position }}</span>
+                                @endforeach
+                            </div>
+                            @if($schedule->isAutoApplied())
+                                <span class="text-xs text-green-700">Otomatis</span>
+                            @endif
+                        @else
+                            <span class="text-gray-500 text-xs">-</span>
+                        @endif
+                    </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         <a href="{{ route('admin.schedules.custom.edit', $schedule) }}" class="text-blue-600 hover:text-blue-900 mr-3">Edit</a>
                         <form action="{{ route('admin.schedules.custom.destroy', $schedule) }}" method="POST" class="inline" onsubmit="return confirm('Apakah Anda yakin ingin menghapus jadwal ini?')">
@@ -120,7 +147,7 @@
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="7" class="px-6 py-4 text-center text-gray-500">Tidak ada data jadwal</td>
+                    <td colspan="8" class="px-6 py-4 text-center text-gray-500">Tidak ada data jadwal</td>
                 </tr>
                 @endforelse
             </tbody>

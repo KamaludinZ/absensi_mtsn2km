@@ -7,6 +7,7 @@ use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithTitle;
 use App\Helpers\AttendanceHelper;
+use App\Services\EmployeeAllowanceCalculator;
 use Carbon\Carbon;
 
 class AttendanceExport implements FromCollection, WithHeadings, WithMapping, WithTitle
@@ -71,82 +72,27 @@ class AttendanceExport implements FromCollection, WithHeadings, WithMapping, Wit
     public function map($attendance): array
     {
         if ($this->type === 'employee') {
-            // Get shift information
-            $shiftName = '-';
-            $schedule = null;
+            // Same schedule and status as the /admin/reports screen
+            $schedule = EmployeeAllowanceCalculator::scheduleFor($attendance->attendable_id, $attendance->date);
+            $shiftName = $schedule?->shift_name ?: '-';
+            $permissions = EmployeeAllowanceCalculator::PERMISSION_LABELS;
 
-            // Try to get shift from employee_shifts table
-            $employeeShift = \App\Models\EmployeeShift::where('employee_id', $attendance->attendable_id)
-                ->where('date', $attendance->date)
-                ->with('schedule')
-                ->first();
-
-            if ($employeeShift && $employeeShift->schedule) {
-                $schedule = $employeeShift->schedule;
-                $shiftName = $schedule->shift_name ?? '-';
-            } else {
-                // Try to get schedule by day of week
-                $dayOfWeek = Carbon::parse($attendance->date)->dayOfWeek;
-                $schedule = \App\Models\Schedule::where('type', 'pegawai')
-                    ->where('day_of_week', $dayOfWeek)
-                    ->first();
-                if ($schedule) {
-                    $shiftName = $schedule->shift_name ?? '-';
-                }
-            }
-
-            // Calculate Selisih Masuk using helper
             $selisihMasuk = AttendanceHelper::formatCheckInDifference($attendance);
-            $statusMasuk = '-';
-
-            if ($attendance->clock_in && $schedule) {
-                // If status is 'corrected' or empty, calculate from times; otherwise use stored status if valid
-                if (in_array($attendance->status_in, ['C', 'S', 'DL'])) {
-                    $statusMap = ['C' => 'Cuti', 'S' => 'Sakit', 'DL' => 'Dinas Luar'];
-                    $statusMasuk = $statusMap[$attendance->status_in];
-                } elseif ($attendance->status_in === 'corrected' || empty($attendance->status_in)) {
-                    $actualTime = Carbon::parse($attendance->clock_in)->format('H:i:s');
-                    $scheduledTime = Carbon::parse($schedule->start_time)->format('H:i:s');
-                    $statusMasuk = ($actualTime > $scheduledTime) ? 'Terlambat' : 'Tepat Waktu';
-                } elseif (in_array($attendance->status_in, ['Tepat Waktu', 'Terlambat'])) {
-                    $statusMasuk = $attendance->status_in;
-                } else {
-                    // Fallback: calculate from times
-                    $actualTime = Carbon::parse($attendance->clock_in)->format('H:i:s');
-                    $scheduledTime = Carbon::parse($schedule->start_time)->format('H:i:s');
-                    $statusMasuk = ($actualTime > $scheduledTime) ? 'Terlambat' : 'Tepat Waktu';
-                }
+            if (isset($permissions[$attendance->status_in ?? ''])) {
+                $statusMasuk = $permissions[$attendance->status_in];
             } elseif (!$attendance->clock_in) {
                 $statusMasuk = 'Tidak Hadir';
-            } elseif (!$schedule) {
-                $statusMasuk = 'N/A';
+            } else {
+                $statusMasuk = $schedule ? EmployeeAllowanceCalculator::arrivalStatus($attendance, $schedule) : 'N/A';
             }
 
-            // Calculate Selisih Pulang using helper
             $selisihPulang = AttendanceHelper::formatCheckOutDifference($attendance);
-            $statusPulang = '-';
-
-            if ($attendance->clock_out && $schedule) {
-                // If status is 'corrected' or empty, calculate from times; otherwise use stored status if valid
-                if (in_array($attendance->status_out, ['C', 'S', 'DL'])) {
-                    $statusMap = ['C' => 'Cuti', 'S' => 'Sakit', 'DL' => 'Dinas Luar'];
-                    $statusPulang = $statusMap[$attendance->status_out];
-                } elseif ($attendance->status_out === 'corrected' || empty($attendance->status_out)) {
-                    $actualTime = Carbon::parse($attendance->clock_out)->format('H:i:s');
-                    $scheduledTime = Carbon::parse($schedule->end_time)->format('H:i:s');
-                    $statusPulang = ($actualTime < $scheduledTime) ? 'Pulang Awal' : 'Tepat Waktu';
-                } elseif (in_array($attendance->status_out, ['Tepat Waktu', 'Pulang Awal', 'Belum Pulang'])) {
-                    $statusPulang = $attendance->status_out;
-                } else {
-                    // Fallback: calculate from times
-                    $actualTime = Carbon::parse($attendance->clock_out)->format('H:i:s');
-                    $scheduledTime = Carbon::parse($schedule->end_time)->format('H:i:s');
-                    $statusPulang = ($actualTime < $scheduledTime) ? 'Pulang Awal' : 'Tepat Waktu';
-                }
+            if (isset($permissions[$attendance->status_out ?? ''])) {
+                $statusPulang = $permissions[$attendance->status_out];
             } elseif (!$attendance->clock_out) {
                 $statusPulang = 'Belum Pulang';
-            } elseif (!$schedule) {
-                $statusPulang = 'N/A';
+            } else {
+                $statusPulang = $schedule ? EmployeeAllowanceCalculator::departureStatus($attendance, $schedule) : 'N/A';
             }
 
             return [

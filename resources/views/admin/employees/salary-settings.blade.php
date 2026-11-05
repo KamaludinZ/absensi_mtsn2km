@@ -51,6 +51,10 @@
                         <button type="submit" id="save-changes" form="salary-settings-form" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 hidden transition-colors">
                             Simpan Perubahan
                         </button>
+                        <button type="button" id="apply-previous-month" class="bg-amber-600 text-white px-4 py-2 rounded-md hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 hidden transition-colors"
+                                title="Isi form dengan pengaturan gaji {{ $previousLabel }}. Tersimpan setelah klik Simpan Perubahan.">
+                            Terapkan dari {{ $previousLabel }}
+                        </button>
                         <button type="button" id="cancel-edit" class="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 hidden transition-colors">
                             Batal
                         </button>
@@ -119,6 +123,9 @@
                 </p>
             </div>
         </div>
+
+        <!-- Shown after pulling last month's values; nothing is saved until "Simpan Perubahan" -->
+        <div id="previous-month-notice" class="hidden p-4 bg-amber-50 border-b border-amber-200 text-sm text-amber-800"></div>
 
         <form id="salary-settings-form" method="POST" action="{{ route('admin.employees.update-salary-settings') }}">
             @csrf
@@ -376,6 +383,60 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (field) field.value = bulkPerformanceAllowance.value;
                 }
             });
+        });
+    }
+
+    // "Terapkan dari bulan sebelumnya": only in edit mode, fills the form;
+    // the values are stored when "Simpan Perubahan" is clicked
+    const previousSalaries = @json($previousSalaries);
+    const previousLabel = @json($previousLabel);
+    const applyPreviousBtn = document.getElementById('apply-previous-month');
+    const previousNotice = document.getElementById('previous-month-notice');
+
+    if (enableEditModeBtn && applyPreviousBtn) {
+        enableEditModeBtn.addEventListener('click', function() {
+            applyPreviousBtn.classList.remove('hidden');
+        });
+    }
+    if (cancelEditBtn && applyPreviousBtn) {
+        cancelEditBtn.addEventListener('click', function() {
+            applyPreviousBtn.classList.add('hidden');
+            previousNotice.classList.add('hidden');
+        });
+    }
+    if (applyPreviousBtn) {
+        applyPreviousBtn.addEventListener('click', function() {
+            if (enableEditModeBtn && !enableEditModeBtn.classList.contains('hidden')) {
+                alert('Silakan klik tombol "Edit Gaji Pegawai" terlebih dahulu untuk mengaktifkan mode edit.');
+                return;
+            }
+            const ids = Object.keys(previousSalaries);
+            if (ids.length === 0) {
+                alert('Belum ada pengaturan gaji untuk ' + previousLabel + '.');
+                return;
+            }
+            if (!confirm('Isi form dengan pengaturan gaji ' + previousLabel + '? Nilai yang tampil sekarang akan diganti untuk pegawai yang punya data ' + previousLabel + '. Perubahan baru tersimpan setelah Anda klik "Simpan Perubahan".')) {
+                return;
+            }
+            let filled = 0;
+            ids.forEach(function(employeeId) {
+                let touched = false;
+                Object.entries(previousSalaries[employeeId]).forEach(function([field, value]) {
+                    const input = document.querySelector(`input[name="salaries[${employeeId}][${field}]"]`);
+                    if (input) {
+                        input.value = value;
+                        touched = true;
+                    }
+                });
+                if (touched) filled++;
+            });
+            const totalRows = employeeCheckboxes.length;
+            const skipped = totalRows - filled;
+            previousNotice.textContent = `Pengaturan gaji ${previousLabel} sudah diisikan ke ${filled} pegawai` +
+                (skipped > 0 ? ` (${skipped} pegawai tanpa data ${previousLabel} tidak diubah)` : '') +
+                '. Periksa nilainya, lalu klik "Simpan Perubahan" untuk menyimpan, atau "Batal" untuk membatalkan.';
+            previousNotice.classList.remove('hidden');
+            previousNotice.scrollIntoView({ behavior: 'smooth', block: 'center' });
         });
     }
 

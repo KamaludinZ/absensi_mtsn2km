@@ -16,3 +16,10 @@ if (config('app.auto_backup')) {
         ->withoutOverlapping(120)
         ->onOneServer();
 }
+
+// Fill /admin/employee-shifts from the shifts' Hari Penerapan and Jabatan
+// Penerapan for the rest of the month (only days not handled before).
+Schedule::command('shifts:auto-fill')
+    ->dailyAt('00:10')
+    ->withoutOverlapping(30)
+    ->onOneServer();

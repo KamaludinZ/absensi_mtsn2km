@@ -150,9 +150,14 @@ class HolidayController extends Controller
         ]);
         
         // Default to all days if none selected
-        $activeDays = $request->input('active_days', [1,2,3,4,5]);
-        
+        $activeDays = array_map('intval', $request->input('active_days', [1,2,3,4,5]));
+        $previous = \App\Services\EmployeeShiftAutoFill::activeDays();
+
         \App\Models\Setting::set('active_days', json_encode($activeDays));
+
+        // From today on: release shifts on weekdays that are no longer active,
+        // fill weekdays that became active (Pengaturan Shift Pegawai)
+        \App\Services\EmployeeShiftAutoFill::activeDaysChanged($previous, $activeDays);
         
         return redirect()->route('admin.holidays.active-days')
             ->with('success', 'Pengaturan hari aktif berhasil disimpan.');
