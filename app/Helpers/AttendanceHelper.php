@@ -142,15 +142,8 @@ class AttendanceHelper
         if (strpos($attendableType, 'Employee') !== false) {
             $scheduleType = 'pegawai';
 
-            // Try to get shift from employee_shifts table
-            $employeeShift = \App\Models\EmployeeShift::where('employee_id', $attendance->attendable_id)
-                ->where('date', $attendance->date)
-                ->with('schedule')
-                ->first();
-
-            if ($employeeShift && $employeeShift->schedule) {
-                return $employeeShift->schedule;
-            }
+            // Same lookup as the /admin/reports screen and the allowance reports
+            return \App\Services\EmployeeAllowanceCalculator::scheduleFor($attendance->attendable_id, $attendance->date);
         } elseif (strpos($attendableType, 'Student') !== false) {
             $scheduleType = 'siswa';
         }
