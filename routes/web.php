@@ -296,6 +296,7 @@ Route::middleware(['auth', CheckRole::class . ':admin'])->prefix('admin')->name(
     Route::prefix('employee-shifts')->name('employee-shifts.')->group(function () {
         Route::get('/', [App\Http\Controllers\Admin\EmployeeShiftController::class, 'index'])->name('index');
         Route::post('/', [App\Http\Controllers\Admin\EmployeeShiftController::class, 'store'])->name('store');
+        Route::post('/auto-fill', [App\Http\Controllers\Admin\EmployeeShiftController::class, 'autoFill'])->name('auto-fill');
         Route::get('/export', [App\Http\Controllers\Admin\EmployeeShiftController::class, 'export'])->name('export');
         Route::post('/import', [App\Http\Controllers\Admin\EmployeeShiftController::class, 'import'])->name('import');
         Route::get('/by-date', [App\Http\Controllers\Admin\EmployeeShiftController::class, 'getShiftsByDate'])->name('by-date');

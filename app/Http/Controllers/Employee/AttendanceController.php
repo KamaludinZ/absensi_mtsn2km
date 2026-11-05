@@ -11,6 +11,8 @@ use App\Models\User;
 use App\Models\LocationSetting;
 use App\Models\AttendanceSetting;
 use App\Helpers\AttendanceHelper;
+use App\Services\EmployeeAllowanceCalculator;
+use App\Services\EmployeeShiftAutoFill;
 use Carbon\Carbon;
 use Intervention\Image\Laravel\Facades\Image;
 use Illuminate\Support\Facades\Storage;
@@ -173,11 +175,16 @@ class AttendanceController extends Controller
                 $accuracy = isset($location['accuracy']) ? floatval($location['accuracy']) : null;
             }
 
-            // Determine status
+            // Determine status against the shift assigned for today (same
+            // schedule as /admin/reports), otherwise the default day schedule
             $now = Carbon::now();
-            $schedule = Schedule::where('type', 'pegawai')
-                ->where('day_of_week', $now->dayOfWeek)
-                ->first();
+            try {
+                // Safety net when the scheduler is not running
+                EmployeeShiftAutoFill::fillToday();
+            } catch (\Throwable $e) {
+                Log::warning('Automatic shift filling failed: ' . $e->getMessage());
+            }
+            $schedule = EmployeeAllowanceCalculator::scheduleFor($employee->id, $now);
 
             $status = 'Tepat Waktu';
             if ($schedule) {
@@ -385,11 +392,10 @@ class AttendanceController extends Controller
                 $selfiePath = $this->processSelfie($request->selfie, 'employee', $employee->id, 'out');
             }
 
-            // Determine status
+            // Determine status against the shift assigned for the attendance day
+            // (same schedule as /admin/reports), otherwise the default day schedule
             $now = Carbon::now();
-            $schedule = Schedule::where('type', 'pegawai')
-                ->where('day_of_week', $now->dayOfWeek)
-                ->first();
+            $schedule = EmployeeAllowanceCalculator::scheduleFor($employee->id, $attendance->date ?? $now);
 
             $status = 'Tepat Waktu';
             if ($schedule) {
@@ -466,14 +472,7 @@ class AttendanceController extends Controller
     {
         $today = Carbon::today();
 
-        $shift = \App\Models\EmployeeShift::where('employee_id', $employee->id)
-            ->whereDate('date', $today)
-            ->with('schedule')
-            ->first();
-
-        $schedule = $shift && $shift->schedule
-            ? $shift->schedule
-            : Schedule::where('type', 'pegawai')->where('day_of_week', $today->dayOfWeek)->first();
+        $schedule = EmployeeAllowanceCalculator::scheduleFor($employee->id, $today);
 
         if (!$schedule || !$schedule->end_time) {
             return null;
@@ -865,21 +864,7 @@ class AttendanceController extends Controller
 
     private static function getSchedule($attendance)
     {
-        // Try to get shift from employee_shifts table
-        $employeeShift = \App\Models\EmployeeShift::where('employee_id', $attendance->attendable_id)
-            ->where('date', $attendance->date)
-            ->with('schedule')
-            ->first();
-
-        if ($employeeShift && $employeeShift->schedule) {
-            return $employeeShift->schedule;
-        }
-
-        // Try to get schedule by day of week
-        $dayOfWeek = $attendance->date->dayOfWeek;
-        return Schedule::where('type', 'pegawai')
-            ->where('day_of_week', $dayOfWeek)
-            ->first();
+        return EmployeeAllowanceCalculator::scheduleFor($attendance->attendable_id, $attendance->date);
     }
 
     private static function getInTimeDifference($attendance)

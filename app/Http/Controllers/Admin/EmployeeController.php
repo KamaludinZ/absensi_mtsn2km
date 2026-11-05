@@ -459,7 +459,24 @@ class EmployeeController extends Controller
             $query->where('month', $month)->where('year', $year);
         }]);
 
-        return view('admin.employees.salary-settings', compact('employees', 'month', 'year'));
+        // Previous month's settings for "Terapkan dari Bulan Sebelumnya"; only
+        // filled into the form in edit mode, saved with "Simpan Perubahan"
+        $previous = \Carbon\Carbon::create($year, $month, 1)->subMonth();
+        $previousLabel = $previous->translatedFormat('F Y');
+        $previousSalaries = \App\Models\Salary::whereIn('employee_id', $employees->pluck('id'))
+            ->where('month', $previous->month)
+            ->where('year', $previous->year)
+            ->orderBy('created_at')
+            ->get()
+            ->keyBy('employee_id')
+            ->map(fn ($salary) => [
+                'base_salary' => (int) $salary->base_salary,
+                'meal_allowance' => (int) $salary->meal_allowance,
+                'transport_allowance' => (int) $salary->transport_allowance,
+                'performance_allowance' => (int) $salary->performance_allowance,
+            ]);
+
+        return view('admin.employees.salary-settings', compact('employees', 'month', 'year', 'previousSalaries', 'previousLabel'));
     }
 
     public function updateSalarySettings(Request $request)

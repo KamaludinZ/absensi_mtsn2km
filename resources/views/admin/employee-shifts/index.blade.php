@@ -32,6 +32,14 @@
         </form>
     </div>
     
+    {{-- Separate form so it is not nested in the shift form; its button sits in the action bar --}}
+    <form action="{{ route('admin.employee-shifts.auto-fill') }}" method="POST" id="autoFillForm"
+          onsubmit="return confirm('Isi otomatis sel shift yang masih kosong mulai hari ini sampai akhir bulan, sesuai Hari & Jabatan Penerapan di Jadwal Pegawai? Sel yang sudah terisi tidak diubah.');">
+        @csrf
+        <input type="hidden" name="month" value="{{ $month }}">
+        <input type="hidden" name="year" value="{{ $year }}">
+    </form>
+
     <form action="{{ route('admin.employee-shifts.store') }}" method="POST" id="employeeShiftForm">
         @csrf
         <input type="hidden" name="month" value="{{ $month }}">
@@ -42,6 +50,12 @@
             <button type="button" id="editShiftBtn" class="bg-yellow-600 text-white px-4 py-2 rounded-md hover:bg-yellow-700">
                 Edit Pengaturan Shift
             </button>
+            @if($hasAutoRules ?? false)
+                <button type="submit" form="autoFillForm" id="autoFillBtn" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700"
+                        title="Isi sel kosong sesuai Hari & Jabatan Penerapan di Jadwal Pegawai">
+                    Terapkan Otomatis
+                </button>
+            @endif
             <button type="submit" form="employeeShiftForm" id="saveShiftBtn" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 hidden">
                 Simpan Pengaturan Shift
             </button>
@@ -85,13 +99,24 @@
                 <li>Gunakan tombol "Export Excel" untuk mengunduh data shift saat ini dalam format Excel</li>
                 <li>Gunakan tombol "Import Excel" untuk mengunggah file Excel dan mengubah shift secara massal</li>
                 <li><strong>Import Excel:</strong> Data akan langsung disimpan dan diterapkan ke absensi pegawai. Anda dapat melihat hasilnya di tabel dan melakukan edit manual jika diperlukan</li>
-                <li>Centang/lepaskan centang pada tanggal untuk mengaktifkan/menonaktifkan hari tersebut</li>
-                <li>Jika tanggal dinonaktifkan, maka tidak akan dihitung sebagai hari aktif dan semua pilihan shift untuk tanggal tersebut akan dinonaktifkan</li>
+                <li>Centang tanggal mengikuti <a href="{{ route('admin.holidays.active-days') }}" class="underline">Hari Aktif</a> dan <a href="{{ route('admin.holidays.index') }}" class="underline">Hari Libur</a> secara otomatis. Tanggal tanpa centang (merah) tertutup: shift tidak bisa diisi dan tidak diubah saat menyimpan</li>
+                <li>Bila hari libur ditambahkan atau hari aktif dikurangi, shift di tanggal itu dilepas otomatis, kecuali pegawai yang sudah absen pada hari itu</li>
+                <li>Hanya shift yang bernama yang bisa dipilih</li>
                 <li>Pilih shift untuk setiap pegawai pada tanggal yang aktif (untuk edit manual)</li>
                 <li>Klik "Simpan Pengaturan Shift" untuk menyimpan perubahan manual dan menerapkan ke data absensi</li>
+                <li><strong>Otomatis:</strong> shift yang punya Hari &amp; Jabatan Penerapan di <a href="{{ route('admin.schedules.custom.pegawai') }}" class="underline">Jadwal Pegawai</a> diisikan sendiri setiap hari untuk pegawai aktif, mulai hari ini sampai akhir bulan, hanya pada hari aktif yang bukan hari libur. Sel yang sudah terisi tidak ditimpa, dan sel yang Anda kosongkan tidak diisi ulang.</li>
+                <li>Gunakan "Terapkan Otomatis" setelah menambah pegawai atau mengubah hari/jabatan penerapan untuk mengisi sel yang masih kosong.</li>
+                <li>Menghapus shift dari seorang pegawai juga menghapus baris absensi kosongnya di hari itu; absensi yang sudah berisi jam masuk/pulang tidak pernah dihapus.</li>
             </ul>
         </div>
         
+        @if(($namelessCount ?? 0) > 0)
+            <div class="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
+                Ada {{ $namelessCount }} shift bulan ini yang memakai jadwal <strong>tanpa nama</strong>. Jadwal tanpa nama tidak dihitung sebagai hari aktif dan tidak bisa dipilih;
+                beri nama di <a href="{{ route('admin.schedules.custom.pegawai') }}" class="underline">Jadwal Pegawai</a>. Bila halaman ini disimpan sekarang, sel tersebut dikosongkan.
+            </div>
+        @endif
+
         <!-- Table Container with Horizontal Scroll -->
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
@@ -107,20 +132,25 @@
                         @foreach($dates as $date)
                             @php
                                 $dateString = $date->format('Y-m-d');
-                                $isDisabled = $disabledDates->contains($dateString);
+                                $offReason = $offDays[$dateString] ?? null;
                             @endphp
-                            <th class="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-100 min-w-[120px] date-header-{{ $dateString }}"
-                                data-date="{{ $dateString }}">
+                            <th class="px-2 py-3 text-center text-xs font-medium uppercase tracking-wider min-w-[120px] date-header-{{ $dateString }} {{ $offReason ? 'bg-red-50 text-red-700' : 'bg-gray-100 text-gray-500' }}"
+                                data-date="{{ $dateString }}"
+                                title="{{ $offReason ?? 'Hari aktif' }}">
                                 <div class="flex flex-col items-center">
                                     <span>{{ $date->translatedFormat('d') }}</span>
                                     <span class="text-xs">{{ $date->translatedFormat('l') }}</span>
                                     <div class="mt-1">
-                                        <input type="checkbox" 
-                                               id="date_toggle_{{ $dateString }}" 
-                                               class="date-toggle h-4 w-4 text-blue-600 rounded focus:ring-blue-500 date-checkbox"
+                                        {{-- Read-only: follows Hari Aktif and Hari Libur --}}
+                                        <input type="checkbox"
+                                               id="date_toggle_{{ $dateString }}"
+                                               class="h-4 w-4 text-blue-600 rounded date-checkbox"
                                                data-date="{{ $dateString }}"
-                                               {{ $isDisabled ? '' : 'checked' }}>
+                                               {{ $offReason ? '' : 'checked' }} disabled>
                                     </div>
+                                    @if($offReason)
+                                        <span class="mt-1 normal-case font-normal text-[10px] leading-tight max-w-[110px] whitespace-normal">{{ $offReason }}</span>
+                                    @endif
                                 </div>
                             </th>
                         @endforeach
@@ -149,28 +179,23 @@
                             @foreach($dates as $date)
                                 @php
                                     $dateString = $date->format('Y-m-d');
-                                    $isDisabled = $disabledDates->contains($dateString);
+                                    $isOff = isset($offDays[$dateString]);
                                 @endphp
-                                <td class="px-2 py-2 whitespace-nowrap text-center date-cell-{{ $dateString }}"
+                                <td class="px-2 py-2 whitespace-nowrap text-center date-cell-{{ $dateString }} {{ $isOff ? 'bg-red-50' : '' }}"
                                     data-date="{{ $dateString }}">
-                                    <select name="shift_{{ $employee->id }}_{{ $date->day }}" 
-                                            class="shift-select border border-gray-300 rounded px-1 py-1 text-xs w-full {{ $isDisabled ? 'bg-gray-100 cursor-not-allowed opacity-50' : '' }} shift-selection"
+                                    <select name="shift_{{ $employee->id }}_{{ $date->day }}"
+                                            class="shift-select border border-gray-300 rounded px-1 py-1 text-xs w-full bg-gray-100 cursor-not-allowed opacity-50 shift-selection"
                                             data-date="{{ $dateString }}"
                                             data-employee-id="{{ $employee->id }}"
-                                            {{ $isDisabled ? 'disabled' : '' }}>
+                                            data-off="{{ $isOff ? '1' : '0' }}"
+                                            disabled>
                                         <option value="">-</option>
                                         @foreach($schedules as $schedule)
                                             <option value="{{ $schedule->id }}" 
                                                     {{ isset($employeeShifts[$employee->id]) && $employeeShifts[$employee->id]->contains(function($shift) use ($date, $schedule) { 
                                                         return $shift->date->format('Y-m-d') === $date->format('Y-m-d') && $shift->schedule_id === $schedule->id; 
                                                     }) ? 'selected' : '' }}>
-                                                @if($schedule->shift_name)
-                                                    {{ $schedule->shift_name }}
-                                                @elseif($schedule->shift_type)
-                                                    {{ ucfirst($schedule->shift_type) }}
-                                                @else
-                                                    {{ $schedule->start_time }}-{{ $schedule->end_time }}
-                                                @endif
+                                                {{ $schedule->shift_name }}
                                             </option>
                                         @endforeach
                                     </select>
@@ -231,205 +256,41 @@ document.addEventListener('DOMContentLoaded', function() {
     const importModal = document.getElementById('importModal');
     const closeModalBtn = document.getElementById('closeModalBtn');
     const form = document.getElementById('employeeShiftForm');
-    const dateCheckboxes = document.querySelectorAll('.date-checkbox');
     const shiftSelects = document.querySelectorAll('.shift-selection');
 
-    // Debug: Check if elements exist
-    console.log('=== Employee Shifts Debug ===');
-    console.log('editShiftBtn:', editShiftBtn);
-    console.log('saveShiftBtn:', saveShiftBtn);
-    console.log('cancelEditBtn:', cancelEditBtn);
-    console.log('exportExcelBtn:', exportExcelBtn);
-    console.log('importExcelBtn:', importExcelBtn);
-    console.log('importModal:', importModal);
-    console.log('Total shift selects:', shiftSelects.length);
-    console.log('Total date checkboxes:', dateCheckboxes.length);
-    console.log('Form element:', form);
 
     // State variables
     let isEditMode = false;
-    let originalDisabledDates = [];
-    
-    // Update hidden input with current disabled dates
-    function updateDisabledDatesInput() {
-        const disabledDates = [];
-        dateCheckboxes.forEach(checkbox => {
-            if (!checkbox.checked) {
-                disabledDates.push(checkbox.dataset.date);
-            }
-        });
-        
-        // Remove existing hidden inputs
-        const existingInputs = form.querySelectorAll('input[name="disabled_dates[]"]');
-        existingInputs.forEach(input => input.remove());
-        
-        // Create new hidden inputs for each disabled date
-        disabledDates.forEach(function(date, index) {
-            const hiddenInput = document.createElement('input');
-            hiddenInput.type = 'hidden';
-            hiddenInput.name = 'disabled_dates[]';
-            hiddenInput.value = date;
-            form.appendChild(hiddenInput);
-        });
-    }
-    
-    // Set edit mode
+
+    // Closed dates (holiday / not an active day) stay read-only
     function setEditMode(enabled) {
         isEditMode = enabled;
-        console.log('setEditMode called with enabled:', enabled);
 
-        // Toggle button visibility with safety checks
-        if (editShiftBtn) {
-            editShiftBtn.classList.toggle('hidden', enabled);
-            console.log('Toggled editShiftBtn hidden to:', enabled);
-        }
-        if (saveShiftBtn) {
-            saveShiftBtn.classList.toggle('hidden', !enabled);
-            console.log('Toggled saveShiftBtn hidden to:', !enabled);
-        }
-        if (cancelEditBtn) {
-            cancelEditBtn.classList.toggle('hidden', !enabled);
-            console.log('Toggled cancelEditBtn hidden to:', !enabled);
-        }
-        if (exportExcelBtn) {
-            exportExcelBtn.classList.toggle('hidden', !enabled);
-            console.log('Toggled exportExcelBtn hidden to:', !enabled);
-        }
-        if (importExcelBtn) {
-            importExcelBtn.classList.toggle('hidden', !enabled);
-            console.log('Toggled importExcelBtn hidden to:', !enabled);
-        }
-        
-        // Toggle form elements
-        if (enabled) {
-            // Store original values before enabling edit mode
-            storeOriginalValues();
-            
-            // Enable all form elements in edit mode
-            shiftSelects.forEach(select => {
-                const date = select.dataset.date;
-                const isDateDisabled = !document.getElementById(`date_toggle_${date}`).checked;
-                
-                if (isDateDisabled) {
-                    select.disabled = true;
-                    select.classList.add('bg-gray-100', 'cursor-not-allowed', 'opacity-50');
-                } else {
-                    select.disabled = false;
-                    select.classList.remove('bg-gray-100', 'cursor-not-allowed', 'opacity-50');
-                }
-            });
-            
-            dateCheckboxes.forEach(checkbox => {
-                checkbox.disabled = false;
-            });
-        } else {
-            // Disable all form elements in view mode
-            shiftSelects.forEach(select => {
-                select.disabled = true;
-                select.classList.add('bg-gray-100', 'cursor-not-allowed', 'opacity-50');
-            });
-            
-            dateCheckboxes.forEach(checkbox => {
-                checkbox.disabled = true;
-            });
-        }
-        
-        // Update hidden input
-        updateDisabledDatesInput();
+        [[editShiftBtn, enabled], [saveShiftBtn, !enabled], [cancelEditBtn, !enabled], [exportExcelBtn, !enabled], [importExcelBtn, !enabled]]
+            .forEach(([button, hidden]) => { if (button) button.classList.toggle('hidden', hidden); });
+
+        shiftSelects.forEach(select => {
+            const editable = enabled && select.dataset.off !== '1';
+            select.disabled = !editable;
+            select.classList.toggle('bg-gray-100', !editable);
+            select.classList.toggle('cursor-not-allowed', !editable);
+            select.classList.toggle('opacity-50', !editable);
+        });
     }
-    
-    // Initialize original values on page load
-    storeOriginalValues();
+
+    // Remember the loaded values so "Batal" can restore them
+    shiftSelects.forEach(select => { select.dataset.originalValue = select.value; });
     setEditMode(false);
 
-    // Date toggle functionality
-    dateCheckboxes.forEach(checkbox => {
-        checkbox.addEventListener('change', function() {
-            if (!isEditMode) return;
-            
-            const date = this.dataset.date;
-            const isChecked = this.checked;
-            
-            // Update shift selects for this date
-            document.querySelectorAll(`.shift-selection[data-date="${date}"]`).forEach(select => {
-                if (isChecked) {
-                    // Enable shift selection
-                    select.disabled = false;
-                    select.classList.remove('bg-gray-100', 'cursor-not-allowed', 'opacity-50');
-                } else {
-                    // Disable shift selection and clear the value
-                    select.disabled = true;
-                    select.classList.add('bg-gray-100', 'cursor-not-allowed', 'opacity-50');
-                    select.value = ''; // Clear selection
-                    // Remove the 'selected' attribute if present
-                    select.querySelectorAll('option').forEach(option => {
-                        option.removeAttribute('selected');
-                    });
-                    // Ensure empty option is selected
-                    if (select.querySelector('option[value=""]')) {
-                        select.querySelector('option[value=""]').selected = true;
-                    }
-                }
-            });
-            
-            // Update hidden input
-            updateDisabledDatesInput();
-        });
-    });
-    
-    // Edit button click
     editShiftBtn.addEventListener('click', function() {
-        console.log('Edit button clicked');
-        console.log('exportExcelBtn exists:', !!exportExcelBtn);
-        console.log('importExcelBtn exists:', !!importExcelBtn);
         setEditMode(true);
     });
-    
-    // Store original values when entering edit mode
-    function storeOriginalValues() {
-        // Store original disabled dates
-        originalDisabledDates = [];
-        dateCheckboxes.forEach(checkbox => {
-            if (!checkbox.checked) {
-                originalDisabledDates.push(checkbox.dataset.date);
-            }
-        });
-        
-        // Store original shift values
-        shiftSelects.forEach(select => {
-            select.dataset.originalValue = select.value;
-        });
-    }
-    
-    // Cancel button click
+
     cancelEditBtn.addEventListener('click', function() {
-        // Reset checkboxes to original state
-        dateCheckboxes.forEach(checkbox => {
-            const date = checkbox.dataset.date;
-            const wasOriginallyDisabled = originalDisabledDates.includes(date);
-            checkbox.checked = !wasOriginallyDisabled;
-            
-            // Trigger change event to update UI
-            checkbox.dispatchEvent(new Event('change'));
-        });
-        
-        // Restore original shift values
-        shiftSelects.forEach(select => {
-            select.value = select.dataset.originalValue || '';
-            
-            // Update selected attribute
-            select.querySelectorAll('option').forEach(option => {
-                if (option.value === select.dataset.originalValue) {
-                    option.selected = true;
-                } else {
-                    option.selected = false;
-                }
-            });
-        });
-        
+        shiftSelects.forEach(select => { select.value = select.dataset.originalValue || ''; });
         setEditMode(false);
     });
-    
+
     // Import Excel button click
     if (importExcelBtn && importModal) {
         importExcelBtn.addEventListener('click', function() {
@@ -462,22 +323,11 @@ document.addEventListener('DOMContentLoaded', function() {
             return false;
         }
 
-        if (!confirm('Apakah Anda yakin ingin menyimpan pengaturan shift ini?\n\nPerubahan akan:\n- Menyimpan data shift pegawai sesuai pilihan Anda\n- Menerapkan ke absensi pegawai untuk bulan ini\n- Menghapus dan membuat ulang data absensi sesuai shift yang dipilih\n\nCatatan: Jika Anda sudah melakukan import Excel sebelumnya, data import akan ditimpa dengan data yang Anda pilih di form ini.')) {
+        if (!confirm('Apakah Anda yakin ingin menyimpan pengaturan shift ini?\n\nPerubahan akan:\n- Menyimpan shift pegawai sesuai pilihan Anda (tanggal libur / bukan hari aktif tidak diubah)\n- Menerapkan jadwal ke absensi pegawai bulan ini\n- Menghapus baris absensi kosong pada shift yang dikosongkan (absensi yang sudah ada jam masuk/pulang tetap aman)\n\nCatatan: hasil import Excel sebelumnya akan ditimpa dengan isian di form ini.')) {
             e.preventDefault();
             return false;
         }
-
-        // IMPORTANT: Enable all selects before submission
-        // Disabled form elements are NOT sent to server
-        // But we keep checkboxes as is since disabled dates should not be submitted
-        shiftSelects.forEach(select => {
-            select.disabled = false;
-        });
-
-        console.log('Form is being submitted with all selects enabled');
-
-        // Form will submit normally, no need to prevent default
-        // The page will reload after server processes the request
+        // Closed dates are not submitted: the server leaves them as they are
     });
 });
 </script>

@@ -7,7 +7,10 @@
 <div class="bg-white rounded-lg shadow p-6">
     <div class="mb-6">
         <div class="flex flex-wrap justify-between items-center gap-4 mb-4">
-            <h2 class="text-xl font-bold text-gray-800">Daftar Hari Libur</h2>
+            <div>
+                <h2 class="text-xl font-bold text-gray-800">Daftar Hari Libur</h2>
+                <p class="text-sm text-gray-500">Hari libur aktif menutup tanggal itu di Pengaturan Shift Pegawai; shift pegawai yang tidak absen pada tanggal itu dilepas otomatis.</p>
+            </div>
             <div class="flex flex-wrap gap-2">
                 <a href="{{ route('admin.holidays.import-form') }}" class="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700">
                     Import Excel

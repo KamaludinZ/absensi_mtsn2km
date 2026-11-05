@@ -31,12 +31,12 @@
             
             <div class="mb-4">
                 <label class="block text-gray-700 font-bold mb-2" for="shift_name">
-                    Nama Shift
+                    Nama Shift <span class="text-red-500">*</span>
                 </label>
                 <input type="text" name="shift_name" id="shift_name" 
                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                       value="{{ old('shift_name', $schedule->shift_name) }}" placeholder="Contoh: Shift Pagi A, Shift Siang B">
-                <p class="text-gray-500 text-xs mt-1">Nama spesifik untuk shift ini (opsional)</p>
+                       value="{{ old('shift_name', $schedule->shift_name) }}" placeholder="Contoh: Shift Pagi A, Shift Siang B" required maxlength="255">
+                <p class="text-gray-500 text-xs mt-1">Wajib dan unik. Nama ini yang dipilih di Pengaturan Shift Pegawai dan dipakai di file import Excel.</p>
                 @error('shift_name')
                     <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
                 @enderror
@@ -70,6 +70,8 @@
                     <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
                 @enderror
             </div>
+
+            @include('admin.schedules._apply-rules')
         </div>
         
         <div class="flex justify-end">
