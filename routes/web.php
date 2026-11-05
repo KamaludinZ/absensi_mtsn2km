@@ -144,6 +144,11 @@ Route::middleware(['auth', CheckRole::class . ':monitoring'])->prefix('monitorin
     });
 });
 
+// Read-only admin pages that monitoring may also open; their actions stay in the admin group below
+Route::middleware(['auth', 'admin.or.monitoring'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/attendance-corrections', [App\Http\Controllers\Admin\AttendanceCorrectionController::class, 'index'])->name('attendance-corrections.index');
+});
+
 // Admin routes
 Route::middleware(['auth', CheckRole::class . ':admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'adminDashboard'])->name('dashboard');
@@ -257,7 +262,7 @@ Route::middleware(['auth', CheckRole::class . ':admin'])->prefix('admin')->name(
     
     // Attendance Corrections
     Route::prefix('attendance-corrections')->name('attendance-corrections.')->group(function () {
-        Route::get('/', [App\Http\Controllers\Admin\AttendanceCorrectionController::class, 'index'])->name('index');
+        // index is registered in the admin + monitoring group above
         Route::get('/create', [App\Http\Controllers\Admin\AttendanceCorrectionController::class, 'create'])->name('create');
         Route::post('/', [App\Http\Controllers\Admin\AttendanceCorrectionController::class, 'store'])->name('store');
         Route::get('/{attendance_correction}/edit', [App\Http\Controllers\Admin\AttendanceCorrectionController::class, 'edit'])->name('edit');
