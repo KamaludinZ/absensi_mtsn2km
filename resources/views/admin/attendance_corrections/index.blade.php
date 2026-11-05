@@ -5,6 +5,10 @@
 @section('container-class', '')
 
 @section('content')
+@php
+    // Monitoring may only look; creating, editing, deleting and approving stay with admin
+    $canManage = auth()->user()->isAdmin();
+@endphp
 <div class="w-full py-8">
     @if(session('success'))
         <div class="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded-md">
@@ -20,9 +24,13 @@
 
     <div class="flex justify-between items-center mb-6">
         <h1 class="text-2xl font-bold">Permohonan Koreksi Absensi</h1>
-        <a href="{{ route('admin.attendance-corrections.create') }}" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
-            Buat Koreksi Baru
-        </a>
+        @if($canManage)
+            <a href="{{ route('admin.attendance-corrections.create') }}" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+                Buat Koreksi Baru
+            </a>
+        @else
+            <span class="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">Mode lihat saja</span>
+        @endif
     </div>
 
     <div class="bg-white rounded-lg shadow-md overflow-hidden">
@@ -83,7 +91,9 @@
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dokumen Bukti</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Disetujui Oleh</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
+                        @if($canManage)
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
+                        @endif
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
@@ -133,6 +143,7 @@
                                     -
                                 @endif
                             </td>
+                            @if($canManage)
                             <td class="px-6 py-4 whitespace-nowrap text-sm">
                                 <div class="flex items-center space-x-2">
                                     @if($correction->status === 'pending')
@@ -169,10 +180,11 @@
                                     </form>
                                 </div>
                             </td>
+                            @endif
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="11" class="px-6 py-4 text-center text-gray-500">
+                            <td colspan="{{ $canManage ? 11 : 10 }}" class="px-6 py-4 text-center text-gray-500">
                                 Tidak ada permohonan koreksi absensi.
                             </td>
                         </tr>
