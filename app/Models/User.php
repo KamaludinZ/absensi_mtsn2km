@@ -64,4 +64,15 @@ class User extends Authenticatable
     {
         return $this->role->name === 'monitoring';
     }
+
+    /** Dashboard to open after logging in, by role. */
+    public function homeUrl(): string
+    {
+        return match (true) {
+            $this->isAdmin() => route('admin.dashboard'),
+            $this->isEmployee() => route('employee.dashboard'),
+            $this->isMonitoring() => route('monitoring.dashboard'),
+            default => url('/'),
+        };
+    }
 }

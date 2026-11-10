@@ -50,6 +50,17 @@ Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login'); // see AppServiceProvider
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middleware('auth');
 
+// Login lewat Super App (SSO tiket), lihat SSO_SUPERAPP.md
+Route::get('/sso/masuk', [\App\Http\Controllers\SuperAppSsoController::class, 'masuk'])
+    ->middleware('throttle:30,1')
+    ->name('sso.masuk');
+
+// "Absensi Saya" untuk siswa yang masuk lewat Super App (hanya melihat)
+Route::middleware('auth:student')->prefix('siswa')->name('student.portal.')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Student\PortalController::class, 'index'])->name('index');
+    Route::post('/logout', [\App\Http\Controllers\Student\PortalController::class, 'logout'])->name('logout');
+});
+
 // Secure selfie access route - requires authentication
 Route::get('/selfies/{type}/{filename}', [SelfieController::class, 'show'])
     ->middleware('auth')

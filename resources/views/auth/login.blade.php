@@ -10,6 +10,12 @@
             <p class="text-gray-600 mt-2">Sistem Absensi</p>
         </div>
 
+        @error('sso')
+            <div class="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
+                {{ $message }}
+            </div>
+        @enderror
+
         <form method="POST" action="{{ route('login') }}">
             @csrf
 
@@ -73,6 +79,21 @@
                 Login
             </button>
         </form>
+
+        @if(\App\Http\Controllers\SuperAppSsoController::aktif() && ($superApp = \App\Http\Controllers\SuperAppSsoController::alamatSuperApp()))
+            <div class="my-6 flex items-center">
+                <div class="flex-1 border-t border-gray-200"></div>
+                <span class="px-3 text-xs text-gray-400">atau</span>
+                <div class="flex-1 border-t border-gray-200"></div>
+            </div>
+
+            <a href="{{ $superApp }}" class="block w-full text-center border-2 border-blue-600 text-blue-700 py-2 rounded-lg hover:bg-blue-50 transition duration-200 font-semibold">
+                Masuk lewat Super App
+            </a>
+            <p class="mt-2 text-xs text-gray-500 text-center">
+                Untuk siswa, guru, dan pegawai. Masuk di Super App, lalu buka <strong>Absensi</strong> di bagian Aplikasi Madrasah Lainnya.
+            </p>
+        @endif
 
         <div class="mt-6 text-center">
             <a href="{{ route('welcome') }}" class="text-sm text-blue-600 hover:text-blue-800">

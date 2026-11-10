@@ -57,6 +57,10 @@ services:
       PHP_FPM_MAX_CHILDREN: ${PHP_FPM_MAX_CHILDREN:-10}
       # Only for a brand-new, empty database: creates user "admin"
       INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD:-}
+      # Login lewat Super App (SSO), see SSO_SUPERAPP.md
+      SUPERAPP_SSO_URL: ${SUPERAPP_SSO_URL:-}
+      SUPERAPP_SSO_KUNCI: ${SUPERAPP_SSO_KUNCI:-}
+      SUPERAPP_URL: ${SUPERAPP_URL:-}
     volumes:
       - absensi-storage:/var/www/html/storage
       - absensi-public-storage:/var/www/html/public/storage
