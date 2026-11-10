@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
@@ -105,6 +106,7 @@ class DatabaseBackup
         // Start from an empty schema, so tables that are not in the backup
         // (e.g. from a newer migration) do not stay behind.
         File::put($reset, "DROP SCHEMA IF EXISTS public CASCADE;\nCREATE SCHEMA public;\n");
+        $dump = $this->forThisServer($sqlPath);
 
         try {
             $this->run([
@@ -116,11 +118,38 @@ class DatabaseBackup
                 '-U', (string) config('database.connections.pgsql.username'),
                 '-d', (string) config('database.connections.pgsql.database'),
                 '-f', $reset,
-                '-f', $sqlPath,
+                '-f', $dump,
             ], 'Restore PostgreSQL');
         } finally {
             File::delete($reset);
+            if ($dump !== $sqlPath) {
+                File::delete($dump);
+            }
         }
+    }
+
+    /**
+     * pg_dump 17 and newer (the Docker image ships 18) write
+     * "SET transaction_timeout = 0;", which PostgreSQL 16 and older reject.
+     * For such a server, return a copy of the dump with that line commented out.
+     */
+    private function forThisServer(string $sqlPath): string
+    {
+        $server = (int) DB::selectOne('show server_version_num')->server_version_num;
+        if ($server >= 170000) {
+            return $sqlPath;
+        }
+
+        $copy = storage_path('app/temp_sql_' . uniqid() . '.sql');
+        $in = fopen($sqlPath, 'r');
+        $out = fopen($copy, 'w');
+        while (($line = fgets($in)) !== false) {
+            fwrite($out, preg_match('/^SET transaction_timeout\s*=/', $line) ? '-- ' . $line : $line);
+        }
+        fclose($in);
+        fclose($out);
+
+        return $copy;
     }
 
     /**
