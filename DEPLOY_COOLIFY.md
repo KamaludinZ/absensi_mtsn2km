@@ -312,6 +312,7 @@ perintah aman dijalankan berulang.
 | `RUN_MIGRATIONS` | `true` | Isi `false` jika ingin menjalankan migrasi sendiri. |
 | `DB_WAIT_TIMEOUT` | `60` | Berapa detik menunggu database saat container menyala. |
 | `MAIL_*` | – | Jika ingin mengirim email. |
+| `SUPERAPP_SSO_URL`, `SUPERAPP_SSO_KUNCI`, `SUPERAPP_URL` | – | Login lewat Super App untuk siswa, guru, dan pegawai. Lihat `SSO_SUPERAPP.md`. |
 
 ## Update keamanan PHP
 

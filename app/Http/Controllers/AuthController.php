@@ -52,16 +52,7 @@ class AuthController extends Controller
                 ['user_id' => $user->id, 'role' => $user->role->name]
             );
 
-            // Redirect based on role
-            if ($user->isAdmin()) {
-                return redirect()->intended(route('admin.dashboard'));
-            } elseif ($user->isEmployee()) {
-                return redirect()->intended(route('employee.dashboard'));
-            } elseif ($user->isMonitoring()) {
-                return redirect()->intended(route('monitoring.dashboard'));
-            }
-
-            return redirect()->intended('/');
+            return redirect()->intended($user->homeUrl());
         }
 
         // Record failed login attempt

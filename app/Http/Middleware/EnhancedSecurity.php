@@ -65,6 +65,13 @@ class EnhancedSecurity
             $request->route()?->parameters() ?? []
         );
 
+        // Super App SSO tickets are random letters, digits, "-" and "_"
+        // (so they can contain "--"); the ticket is only ever sent on to
+        // Super App, never used in a query here.
+        if ($request->is('sso/masuk') && preg_match('/^[A-Za-z0-9_-]{1,200}$/', (string) $request->query('tiket', ''))) {
+            unset($inputs['tiket']);
+        }
+
         foreach ($inputs as $key => $value) {
             if (is_string($value)) {
                 foreach ($suspiciousPatterns as $pattern) {

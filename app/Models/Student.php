@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use App\Services\StudentKiosk;
+use Illuminate\Auth\Authenticatable;
+use Illuminate\Contracts\Auth\Authenticatable as AuthenticatableContract;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -10,9 +12,13 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 
-class Student extends Model
+/**
+ * Students sign in only through Super App SSO (guard "student"); they have no
+ * password in this app.
+ */
+class Student extends Model implements AuthenticatableContract
 {
-    use HasFactory, SoftDeletes;
+    use Authenticatable, HasFactory, SoftDeletes;
 
     protected $fillable = [
         'nisn',
@@ -48,6 +54,18 @@ class Student extends Model
         return Attribute::make(
             set: fn ($value) => StudentKiosk::normalizeRfid($value),
         );
+    }
+
+    /** Students have no "remember me" token. */
+    public function getRememberTokenName()
+    {
+        return '';
+    }
+
+    /** Active students that have not graduated may sign in. */
+    public function canSignIn(): bool
+    {
+        return $this->is_active && $this->graduated_at === null && !$this->trashed();
     }
 
     public function rombel(): BelongsTo

@@ -131,6 +131,21 @@ class DatabaseBackupTest extends TestCase
         $this->assertFalse(Schema::hasTable('tabel_baru'));
     }
 
+    public function test_restore_accepts_dumps_from_a_newer_pg_dump(): void
+    {
+        $this->admin('guru_lama');
+        $name = app(DatabaseBackup::class)->create('auto');
+        $this->admin('guru_baru');
+
+        // pg_dump 17+ writes this line; PostgreSQL 16 and older reject it
+        $sql = storage_path('app/test_restore_new_dump.sql');
+        File::put($sql, "SET transaction_timeout = 0;\n" . $this->sqlIn($name));
+        app(DatabaseBackup::class)->restore($sql);
+        File::delete($sql);
+
+        $this->assertSame(['guru_lama'], DB::table('users')->pluck('username')->all());
+    }
+
     public function test_failed_restore_changes_nothing(): void
     {
         $this->admin('guru_lama');
