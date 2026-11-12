@@ -72,8 +72,27 @@ class StudentImportTest extends TestCase
         $book = IOFactory::load($path);
 
         $this->assertSame(['Data Siswa', 'Daftar Rombel', 'Petunjuk'], $book->getSheetNames());
-        $this->assertSame(StudentImportTemplate::HEADERS, $book->getSheet(0)->rangeToArray('A1:G1')[0]);
+        $this->assertSame(StudentImportTemplate::HEADERS, $book->getSheet(0)->rangeToArray('A1:H1')[0]);
         $this->assertSame('VII A', $book->getSheet(1)->getCell('C2')->getValue());
+    }
+
+    public function test_import_sets_super_app_id_and_keeps_it_when_empty(): void
+    {
+        $linked = Student::create(['nisn' => '0011111111', 'full_name' => 'Andi', 'rombel_id' => $this->viiA->id, 'is_active' => true, 'superapp_id' => 'sa-andi']);
+
+        $this->import([
+            ['0011111111', 'Andi', '7', 'VII A', '', '1', '', ''],
+            ['0022222222', 'Budi', '7', 'VII A', '', '1', '', 'sa-budi'],
+        ])->assertSessionHas('success');
+
+        $this->assertSame('sa-andi', $linked->fresh()->superapp_id);
+        $this->assertSame('sa-budi', Student::where('nisn', '0022222222')->value('superapp_id'));
+
+        // A Super App ID already linked to another student is rejected, nothing saved
+        $this->import([
+            ['0033333333', 'Citra', '7', 'VII A', '', '1', '', 'sa-andi'],
+        ])->assertSessionHas('import_errors');
+        $this->assertFalse(Student::where('nisn', '0033333333')->exists());
     }
 
     public function test_import_adds_new_and_updates_existing_students_by_nisn(): void

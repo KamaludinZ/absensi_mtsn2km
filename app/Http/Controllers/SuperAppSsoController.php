@@ -6,6 +6,7 @@ use App\Models\Employee;
 use App\Models\Student;
 use App\Models\User;
 use App\Services\SecurityService;
+use App\Support\SuperAppId;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -15,10 +16,14 @@ use Illuminate\Support\Facades\Http;
  * Penerima tiket login Super App (lihat SSO_SUPERAPP.md).
  *
  * Super App mengarahkan pengguna ke GET /sso/masuk?tiket=... (tiket 60 detik, sekali pakai). Tiket ditukar
- * ke Super App dari server ini memakai kunci rahasia, lalu dicocokkan ke data aktif di Absensi:
- * - guru/pegawai: data pegawai (employees.nip = NIP / Peg ID / NUPTK Super App) beserta akun login-nya;
- * - siswa: data siswa (students.nisn = NISN Super App), masuk ke halaman "Absensi Saya" (guard student).
- * Tidak ada password yang dikirim atau disimpan.
+ * ke Super App dari server ini memakai kunci rahasia, lalu dikenali lewat Super App ID ("id" dari Super App)
+ * yang tersimpan di data GTK (employees.superapp_id) atau siswa (students.superapp_id).
+ *
+ * Pada login pertama (Super App ID belum tersimpan) akun dicocokkan sekali lewat nomornya, lalu Super App ID
+ * disimpan:
+ * - guru/pegawai: employees.nip = NIP / NIPM / Peg ID / NUPTK, atau username akun login;
+ * - siswa: students.nisn = NISN.
+ * Hanya GTK dan siswa yang aktif yang bisa masuk. Tidak ada password yang dikirim atau disimpan.
  */
 class SuperAppSsoController extends Controller
 {
@@ -60,7 +65,14 @@ class SuperAppSsoController extends Controller
 
         $pengguna = (array) $respons->json('pengguna', []);
         $jenis = $pengguna['jenis'] ?? null;
-        $konteks = ['username_superapp' => $pengguna['username'] ?? null, 'jenis' => $jenis];
+        $superAppId = trim((string) ($pengguna['id'] ?? ''));
+        $konteks = ['superapp_id' => $superAppId, 'username_superapp' => $pengguna['username'] ?? null, 'jenis' => $jenis];
+
+        if (!preg_match(SuperAppId::PATTERN, $superAppId)) {
+            $this->security->logEvent('sso_denied', 'SSO ditolak: Super App ID kosong atau tidak valid', 'warning', $konteks);
+
+            return $this->gagal('Data dari Super App tidak lengkap (Super App ID kosong). Hubungi admin Super App.');
+        }
 
         if (!in_array($jenis, (array) config('superapp_sso.jenis_diizinkan', []), true)) {
             $this->security->logEvent('sso_denied', 'SSO ditolak: jenis pengguna tidak diizinkan', 'warning', $konteks);
@@ -69,8 +81,8 @@ class SuperAppSsoController extends Controller
         }
 
         return $jenis === 'siswa'
-            ? $this->masukSiswa($request, $pengguna, $konteks)
-            : $this->masukPegawai($request, $pengguna, $konteks);
+            ? $this->masukSiswa($request, $pengguna, $superAppId, $konteks)
+            : $this->masukPegawai($request, $pengguna, $superAppId, $konteks);
     }
 
     /** Tombol login ditampilkan hanya bila SSO sudah diatur. */
@@ -88,9 +100,17 @@ class SuperAppSsoController extends Controller
         return filled($alamat) ? $alamat : null;
     }
 
-    private function masukPegawai(Request $request, array $pengguna, array $konteks)
+    private function masukPegawai(Request $request, array $pengguna, string $superAppId, array $konteks)
     {
-        $employee = $this->cariPegawai($pengguna, $konteks);
+        $employee = Employee::with('user.role')->where('superapp_id', $superAppId)->first();
+        $hubungkan = false;
+        if (!$employee) {
+            $employee = $this->cariPegawai($pengguna, $konteks);
+            if ($employee && filled($employee->superapp_id)) {
+                return $this->sudahTerhubungLain('Data GTK', $konteks + ['employee_id' => $employee->id]);
+            }
+            $hubungkan = (bool) $employee;
+        }
         $user = $employee?->user;
 
         if (!$employee || !$user) {
@@ -102,6 +122,11 @@ class SuperAppSsoController extends Controller
             $this->security->logEvent('sso_inactive', 'SSO ditolak: pegawai nonaktif', 'warning', $konteks + ['employee_id' => $employee->id]);
 
             return $this->gagal('Data pegawai Anda di aplikasi Absensi sedang nonaktif. Hubungi admin Absensi.');
+        }
+
+        if ($hubungkan) {
+            $employee->update(['superapp_id' => $superAppId]);
+            $this->security->logEvent('sso_linked', "Super App ID dihubungkan ke GTK {$employee->full_name}", 'info', $konteks + ['employee_id' => $employee->id]);
         }
 
         Auth::guard('student')->logout();
@@ -117,10 +142,18 @@ class SuperAppSsoController extends Controller
         return redirect()->intended($user->homeUrl());
     }
 
-    private function masukSiswa(Request $request, array $pengguna, array $konteks)
+    private function masukSiswa(Request $request, array $pengguna, string $superAppId, array $konteks)
     {
         $nisn = trim((string) ($pengguna['nisn'] ?? ''));
-        $student = $nisn !== '' ? Student::where('nisn', $nisn)->first() : null;
+        $student = Student::where('superapp_id', $superAppId)->first();
+        $hubungkan = false;
+        if (!$student) {
+            $student = $nisn !== '' ? Student::where('nisn', $nisn)->first() : null;
+            if ($student && filled($student->superapp_id)) {
+                return $this->sudahTerhubungLain('Data siswa', $konteks + ['student_id' => $student->id]);
+            }
+            $hubungkan = (bool) $student;
+        }
 
         if (!$student) {
             $this->security->logEvent('sso_no_account', 'SSO: data siswa tidak ditemukan di Absensi', 'info', $konteks + ['nisn' => $nisn]);
@@ -133,6 +166,11 @@ class SuperAppSsoController extends Controller
             return $this->gagal('Data siswa Anda di aplikasi Absensi sedang nonaktif. Hubungi admin Absensi.');
         }
 
+        if ($hubungkan) {
+            $student->update(['superapp_id' => $superAppId]);
+            $this->security->logEvent('sso_linked', "Super App ID dihubungkan ke siswa {$student->nisn}", 'info', $konteks + ['student_id' => $student->id]);
+        }
+
         Auth::guard('web')->logout();
         Auth::guard('student')->login($student);
         $request->session()->regenerate();
@@ -143,12 +181,12 @@ class SuperAppSsoController extends Controller
     }
 
     /**
-     * Pegawai dicocokkan lewat nomor pegawai (employees.nip berisi NIP, atau Peg ID / NUPTK untuk non-ASN).
-     * Bila Super App tidak punya nomor yang cocok, dicoba username akun login, asal nomornya tidak bertentangan.
+     * Login pertama: pegawai dicocokkan lewat nomor pegawai (employees.nip berisi NIP, atau NIPM / Peg ID / NUPTK
+     * untuk non-ASN). Bila tidak ada yang cocok, dicoba username akun login, asal nomornya tidak bertentangan.
      */
     private function cariPegawai(array $pengguna, array $konteks): ?Employee
     {
-        $nomor = collect(['nip', 'peg_id', 'nuptk'])
+        $nomor = collect(['nip', 'nipm', 'peg_id', 'nuptk'])
             ->map(fn ($kunci) => trim((string) ($pengguna[$kunci] ?? '')))
             ->filter()
             ->unique()
@@ -176,6 +214,14 @@ class SuperAppSsoController extends Controller
         }
 
         return $employee?->loadMissing('user.role');
+    }
+
+    /** Akun lokal sudah terhubung ke Super App ID lain: kemungkinan orang lain, jangan dimasukkan. */
+    private function sudahTerhubungLain(string $data, array $konteks)
+    {
+        $this->security->logEvent('sso_mismatch', 'SSO ditolak: akun sudah terhubung ke Super App ID lain', 'warning', $konteks);
+
+        return $this->gagal($data . ' Anda di aplikasi Absensi sudah terhubung ke akun Super App lain. Hubungi admin Absensi.');
     }
 
     private function gagal(string $pesan)

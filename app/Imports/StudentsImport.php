@@ -2,6 +2,7 @@
 
 namespace App\Imports;
 
+use App\Support\SuperAppId;
 use App\Models\AcademicYear;
 use App\Models\Rombel;
 use App\Models\Student;
@@ -31,6 +32,7 @@ class StudentsImport implements WithHeadingRow, WithCalculatedFormulas
         'academic_year' => ['tahun_pelajaran', 'tahun_ajaran', 'academic_year'],
         'is_active' => ['status_aktif', 'status', 'aktif', 'is_active'],
         'rfid_uid' => ['kartu_rfid', 'rfid', 'rfid_uid', 'nomor_kartu'],
+        'superapp_id' => ['super_app_id', 'superapp_id', 'id_super_app'],
     ];
 
     /**
@@ -66,6 +68,7 @@ class StudentsImport implements WithHeadingRow, WithCalculatedFormulas
         $rows = [];
         $seenNisn = [];
         $seenRfid = [];
+        $seenSuperApp = [];
         foreach ($sheet as $index => $raw) {
             $line = $index + 2; // row 1 holds the headers
             $get = fn ($field) => $map[$field] ? $raw[$map[$field]] ?? null : null;
@@ -78,6 +81,8 @@ class StudentsImport implements WithHeadingRow, WithCalculatedFormulas
             $rfidRaw = $get('rfid_uid');
             $rfid = StudentKiosk::normalizeRfid(is_int($rfidRaw) || is_float($rfidRaw) ? number_format($rfidRaw, 0, '', '') : $rfidRaw);
             $statusRaw = $get('is_active');
+            $superAppId = trim((string) $get('superapp_id'));
+            $superAppId = $superAppId === '' ? null : $superAppId;
 
             // Skip completely empty rows (Excel often keeps formatted blank rows)
             if ($nisn === '' && $name === '' && $rombelName === '') {
@@ -135,6 +140,14 @@ class StudentsImport implements WithHeadingRow, WithCalculatedFormulas
                 }
             }
 
+            if ($superAppId !== null) {
+                if (!preg_match(SuperAppId::PATTERN, $superAppId)) {
+                    $rowErrors[] = "Super App ID \"$superAppId\" tidak valid";
+                } elseif (isset($seenSuperApp[$superAppId])) {
+                    $rowErrors[] = "Super App ID $superAppId sudah dipakai di baris {$seenSuperApp[$superAppId]}";
+                }
+            }
+
             if ($rowErrors) {
                 $errors[] = "Baris $line: " . implode('; ', $rowErrors) . '.';
                 continue;
@@ -144,7 +157,10 @@ class StudentsImport implements WithHeadingRow, WithCalculatedFormulas
             if ($rfid !== null) {
                 $seenRfid[$rfid] = $line;
             }
-            $rows[] = compact('line', 'nisn', 'name', 'rfid', 'active') + ['rombel_id' => $rombel->id];
+            if ($superAppId !== null) {
+                $seenSuperApp[$superAppId] = $line;
+            }
+            $rows[] = compact('line', 'nisn', 'name', 'rfid', 'active', 'superAppId') + ['rombel_id' => $rombel->id];
         }
 
         if (!$errors && !$rows) {
@@ -160,6 +176,15 @@ class StudentsImport implements WithHeadingRow, WithCalculatedFormulas
             $owner = $row['rfid'] ? $rfidOwners->get($row['rfid']) : null;
             if ($owner && $owner->nisn !== $row['nisn']) {
                 $errors[] = "Baris {$row['line']}: Kartu RFID {$row['rfid']} sudah terdaftar untuk {$owner->full_name}.";
+            }
+        }
+
+        $superAppIds = array_filter(array_column($rows, 'superAppId'));
+        $superAppOwners = $superAppIds ? Student::withTrashed()->whereIn('superapp_id', $superAppIds)->get()->keyBy('superapp_id') : collect();
+        foreach ($rows as $row) {
+            $owner = $row['superAppId'] ? $superAppOwners->get($row['superAppId']) : null;
+            if ($owner && $owner->nisn !== $row['nisn']) {
+                $errors[] = "Baris {$row['line']}: Super App ID {$row['superAppId']} sudah terhubung ke {$owner->full_name}.";
             }
         }
 
@@ -179,6 +204,10 @@ class StudentsImport implements WithHeadingRow, WithCalculatedFormulas
                 // An empty RFID cell keeps the card already linked
                 if ($row['rfid'] !== null) {
                     $data['rfid_uid'] = $row['rfid'];
+                }
+                // Same for the Super App ID
+                if ($row['superAppId'] !== null) {
+                    $data['superapp_id'] = $row['superAppId'];
                 }
 
                 $student = $existing->get($row['nisn']);

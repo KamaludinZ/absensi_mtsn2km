@@ -10,6 +10,7 @@
             <input type="text" name="nip" value="{{ old('nip') }}" required class="w-full px-4 py-2 border rounded-lg">
             @error('nip')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
         </div>
+        @include('admin.partials.superapp-id-field', ['matchedBy' => 'NIP / NIPM'])
         <div class="mb-4">
             <label class="block text-sm font-medium text-gray-700 mb-2">Nama Lengkap</label>
             <input type="text" name="full_name" value="{{ old('full_name') }}" required class="w-full px-4 py-2 border rounded-lg">

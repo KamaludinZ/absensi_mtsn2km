@@ -22,6 +22,7 @@ class Student extends Model implements AuthenticatableContract
 
     protected $fillable = [
         'nisn',
+        'superapp_id',
         'rfid_uid',
         'full_name',
         'rombel_id',

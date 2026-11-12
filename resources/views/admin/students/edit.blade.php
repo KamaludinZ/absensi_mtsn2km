@@ -11,6 +11,7 @@
             @error('nisn')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
         </div>
         @include('admin.students.partials.rfid-field', ['value' => $student->rfid_uid])
+        @include('admin.partials.superapp-id-field', ['value' => $student->superapp_id, 'matchedBy' => 'NISN'])
         <div class="mb-4">
             <label class="block text-sm font-medium text-gray-700 mb-2">Nama Lengkap</label>
             <input type="text" name="full_name" value="{{ old('full_name', $student->full_name) }}" required class="w-full px-4 py-2 border rounded-lg">

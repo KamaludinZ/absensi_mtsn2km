@@ -18,7 +18,7 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
  */
 class StudentImportTemplate
 {
-    public const HEADERS = ['NISN', 'Nama Lengkap', 'Tingkat Kelas', 'Rombel', 'Tahun Pelajaran', 'Status Aktif', 'Kartu RFID'];
+    public const HEADERS = ['NISN', 'Nama Lengkap', 'Tingkat Kelas', 'Rombel', 'Tahun Pelajaran', 'Status Aktif', 'Kartu RFID', 'Super App ID'];
 
     private const FORM_ROWS = 2000;
 
@@ -33,14 +33,14 @@ class StudentImportTemplate
         // Sheet 1: data (the only sheet that is imported)
         $data = $spreadsheet->getActiveSheet()->setTitle('Data Siswa');
         $data->fromArray(self::HEADERS, null, 'A1');
-        self::header($data, 'A1:G1');
-        foreach (['A' => 16, 'B' => 32, 'C' => 14, 'D' => 12, 'E' => 17, 'F' => 13, 'G' => 18] as $col => $width) {
+        self::header($data, 'A1:H1');
+        foreach (['A' => 16, 'B' => 32, 'C' => 14, 'D' => 12, 'E' => 17, 'F' => 13, 'G' => 18, 'H' => 38] as $col => $width) {
             $data->getColumnDimension($col)->setWidth($width);
         }
         $last = self::FORM_ROWS + 1;
         // NISN and card numbers are text, so leading zeros are kept
         $data->getStyle("A2:A$last")->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_TEXT);
-        $data->getStyle("G2:G$last")->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_TEXT);
+        $data->getStyle("G2:H$last")->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_TEXT);
         $data->freezePane('A2');
 
         if ($withStudents) {
@@ -55,6 +55,7 @@ class StudentImportTemplate
                     $data->setCellValue("E$row", $s->rombel->academicYear->year_name ?? '');
                     $data->setCellValue("F$row", $s->is_active ? 1 : 0);
                     $data->setCellValueExplicit("G$row", (string) $s->rfid_uid, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                    $data->setCellValueExplicit("H$row", (string) $s->superapp_id, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
                     $row++;
                 });
         }
@@ -100,19 +101,20 @@ class StudentImportTemplate
             ['5. Tingkat Kelas boleh dikosongkan; jika diisi (7, 8, 9) akan dicek cocok dengan rombel.'],
             ['6. Status Aktif: 1 = aktif, 0 = tidak aktif. Kosong = aktif.'],
             ['7. Kartu RFID opsional. Jika kosong, kartu yang sudah terdaftar tidak diubah.'],
+            ['7b. Super App ID opsional (untuk login lewat Super App). Biasanya terisi otomatis saat siswa pertama kali masuk lewat Super App. Jika kosong, Super App ID yang sudah ada tidak diubah.'],
             ['8. Semua baris diperiksa dulu. Jika ada yang salah, tidak ada data yang disimpan dan daftar kesalahannya ditampilkan per baris.'],
             ['9. Maksimal ' . \App\Imports\StudentsImport::MAX_ROWS . ' siswa per file. Format file: .xlsx, .xls atau .csv.'],
             [''],
             ['CONTOH PENGISIAN (jangan disalin ke sheet Data Siswa jika bukan data asli):'],
             self::HEADERS,
-            ['0012345678', 'Ahmad Rizki', $sample->grade->name ?? '7', $sample->name ?? 'VII A', $sample->academicYear->year_name ?? '2025/2026', '1', ''],
-            ['0087654321', 'Siti Aminah', $sample->grade->name ?? '7', $sample->name ?? 'VII A', '', '1', '04A1B2C3'],
+            ['0012345678', 'Ahmad Rizki', $sample->grade->name ?? '7', $sample->name ?? 'VII A', $sample->academicYear->year_name ?? '2025/2026', '1', '', ''],
+            ['0087654321', 'Siti Aminah', $sample->grade->name ?? '7', $sample->name ?? 'VII A', '', '1', '04A1B2C3', ''],
         ];
         $help->fromArray($lines, null, 'A1', true);
         $help->getStyle('A1')->getFont()->setBold(true)->setSize(13);
-        $help->getStyle('A13')->getFont()->setBold(true);
-        self::header($help, 'A14:G14');
-        $help->getStyle('A15:G16')->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_TEXT);
+        $help->getStyle('A14')->getFont()->setBold(true);
+        self::header($help, 'A15:H15');
+        $help->getStyle('A16:H17')->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_TEXT);
         $help->getColumnDimension('A')->setWidth(16);
         $help->getColumnDimension('B')->setWidth(20);
 
