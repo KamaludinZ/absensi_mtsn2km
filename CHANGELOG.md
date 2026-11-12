@@ -10,6 +10,7 @@ dan proyek ini mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 ### Added
 - "Masuk lewat Super App" (SSO ticket login) on the login page, for active students, teachers and staff. Teachers/staff are matched by NIP / Peg ID / NUPTK (`employees.nip`), with the username as a fallback when the numbers do not conflict; students by NISN. See `SSO_SUPERAPP.md`.
 - "Absensi Saya" for students signed in through Super App: today's status and their own monthly attendance history (view only).
+- Super App ID on GTK and student records: SSO logins are recognised by it. It is saved automatically on the first SSO login (matched by NIP / NIPM / Peg ID / NUPTK or NISN), can be set or cleared by an admin in the edit forms, and is an optional column in the student import (and for new GTK in the GTK import). An account linked to another Super App ID is refused.
 
 ### Fixed
 - Restoring a backup made by pg_dump 17 or newer (the Docker image ships 18) failed on a PostgreSQL 16 server ("unrecognized configuration parameter transaction_timeout"); that line is now skipped for older servers.

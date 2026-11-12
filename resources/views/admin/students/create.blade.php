@@ -11,6 +11,7 @@
             @error('nisn')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
         </div>
         @include('admin.students.partials.rfid-field')
+        @include('admin.partials.superapp-id-field', ['matchedBy' => 'NISN'])
         <div class="mb-4">
             <label class="block text-sm font-medium text-gray-700 mb-2">Tingkat Kelas</label>
             <select name="grade_id" id="grade-select" class="w-full px-4 py-2 border rounded-lg">

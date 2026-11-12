@@ -65,6 +65,10 @@
                     </div>
 
                     <div>
+                        @include('admin.partials.superapp-id-field', ['value' => $employee->superapp_id, 'matchedBy' => 'NIP / NIPM'])
+                    </div>
+
+                    <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">
                             Nama Lengkap <span class="text-red-500">*</span>
                         </label>

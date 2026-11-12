@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Support\SuperAppId;
 use Illuminate\Http\Request;
 use App\Models\Employee;
 use App\Models\User;
@@ -152,7 +153,7 @@ class EmployeeController extends Controller
             'create_user' => 'nullable|boolean',
             'username' => 'required_if:create_user,1|nullable|string|unique:users,username',
             'password' => 'required_if:create_user,1|nullable|string|min:8',
-        ]);
+        ] + SuperAppId::rules('employees'), SuperAppId::messages());
 
         $userId = null;
 
@@ -172,6 +173,7 @@ class EmployeeController extends Controller
         Employee::create([
             'user_id' => $userId,
             'nip' => $request->nip, // Add NIP to creation
+            'superapp_id' => SuperAppId::fromRequest($request),
             'full_name' => $request->full_name,
             'position' => $request->position,
             'is_active' => $request->is_active,
@@ -194,7 +196,7 @@ class EmployeeController extends Controller
             'full_name' => 'required|string|max:255',
             'position' => 'required|string|max:255',
             'is_active' => 'required|boolean',
-        ];
+        ] + SuperAppId::rules('employees', $employee->id);
 
         // Add username validation if username is provided
         if ($request->filled('username')) {
@@ -208,9 +210,9 @@ class EmployeeController extends Controller
             $rules['password'] = 'required|string|min:8';
         }
 
-        $request->validate($rules);
+        $request->validate($rules, SuperAppId::messages());
 
-        $employee->update($request->only(['nip', 'full_name', 'position', 'is_active'])); // Include NIP in update
+        $employee->update($request->only(['nip', 'full_name', 'position', 'is_active']) + SuperAppId::fromForm($request)); // Include NIP in update
 
         // Handle user account updates
         if ($request->filled('username') || $request->filled('password')) {
@@ -318,14 +320,22 @@ class EmployeeController extends Controller
                 $is_active = filter_var($row[4] ?? true, FILTER_VALIDATE_BOOLEAN);
                 $username = trim($row[5] ?? '');
                 $password = trim($row[6] ?? '');
+                $superAppId = trim((string) ($row[7] ?? ''));
                 
                 if (empty($full_name)) {
                     $skippedCount++;
                     continue;
                 }
 
+                // Optional Super App ID (login via Super App); ignored when invalid or already linked
+                if ($superAppId === '' || !preg_match(SuperAppId::PATTERN, $superAppId)
+                    || Employee::withTrashed()->where('superapp_id', $superAppId)->exists()) {
+                    $superAppId = null;
+                }
+
                 // Create employee
                 $employee = Employee::create([
+                    'superapp_id' => $superAppId,
                     'full_name' => $full_name,
                     'position' => $position,
                     'phone' => $phone,
@@ -382,6 +392,7 @@ class EmployeeController extends Controller
         $sheet->setCellValue('E1', 'Status Aktif (1=Aktif, 0=Tidak Aktif)');
         $sheet->setCellValue('F1', 'Username');
         $sheet->setCellValue('G1', 'Password');
+        $sheet->setCellValue('H1', 'Super App ID (opsional)');
 
         // Style header
         $headerStyle = [
@@ -389,7 +400,7 @@ class EmployeeController extends Controller
             'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['rgb' => '4472C4']],
             'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER],
         ];
-        $sheet->getStyle('A1:G1')->applyFromArray($headerStyle);
+        $sheet->getStyle('A1:H1')->applyFromArray($headerStyle);
 
         // Set column widths
         $sheet->getColumnDimension('A')->setWidth(25);
@@ -399,6 +410,7 @@ class EmployeeController extends Controller
         $sheet->getColumnDimension('E')->setWidth(30);
         $sheet->getColumnDimension('F')->setWidth(20);
         $sheet->getColumnDimension('G')->setWidth(15);
+        $sheet->getColumnDimension('H')->setWidth(38);
 
         // Add sample data
         $sheet->setCellValue('A2', 'Ahmad Fauzi');

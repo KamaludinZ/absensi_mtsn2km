@@ -20,6 +20,7 @@ class Employee extends Model
         'phone',
         'email',
         'nip',
+        'superapp_id',
         'is_active',
     ];
 

@@ -42,6 +42,9 @@ class SuperAppSsoTest extends TestCase
 
     private function superAppSays(array $pengguna, int $status = 200): void
     {
+        if ($status === 200) {
+            $pengguna += ['id' => 'sa-0001-uuid'];
+        }
         $body = $status === 200
             ? ['aplikasi' => 'absensi', 'pengguna' => $pengguna, 'masuk_pada' => now()->toIso8601String()]
             : ['detail' => $pengguna];
@@ -226,6 +229,97 @@ class SuperAppSsoTest extends TestCase
 
         config(['superapp_sso.kunci' => null]);
         $this->get('/login')->assertOk()->assertDontSee('Masuk lewat Super App');
+    }
+
+    public function test_login_pertama_menyimpan_super_app_id_lalu_login_berikutnya_memakainya(): void
+    {
+        $employee = $this->guru();
+        $this->superAppSays(['id' => 'sa-guru-1', 'nip' => '198207152009012003', 'jenis' => 'guru']);
+        $this->masuk()->assertRedirect(route('employee.dashboard'));
+        $this->assertSame('sa-guru-1', $employee->fresh()->superapp_id);
+
+        // Later the NIP in Super App changes: still recognised by the Super App ID
+        auth()->logout();
+        $this->superAppSays(['id' => 'sa-guru-1', 'nip' => '199999999999999999', 'jenis' => 'guru']);
+        $this->masuk()->assertRedirect(route('employee.dashboard'));
+        $this->assertAuthenticatedAs($employee->user);
+    }
+
+    public function test_akun_yang_sudah_terhubung_ke_super_app_id_lain_ditolak(): void
+    {
+        $this->guru([], ['superapp_id' => 'sa-guru-asli']);
+        $this->superAppSays(['id' => 'sa-orang-lain', 'nip' => '198207152009012003', 'jenis' => 'guru']);
+
+        $this->masuk()->assertSessionHasErrors(['sso' => 'Data GTK Anda di aplikasi Absensi sudah terhubung ke akun Super App lain. Hubungi admin Absensi.']);
+        $this->assertGuest();
+
+        $student = $this->siswa(['superapp_id' => 'sa-siswa-asli']);
+        $this->superAppSays(['id' => 'sa-orang-lain', 'nisn' => $student->nisn, 'jenis' => 'siswa']);
+        $this->masuk()->assertSessionHasErrors('sso');
+        $this->assertGuest('student');
+    }
+
+    public function test_super_app_id_kosong_ditolak(): void
+    {
+        $this->guru();
+        $this->superAppSays(['id' => '', 'nip' => '198207152009012003', 'jenis' => 'guru']);
+
+        $this->masuk()->assertSessionHasErrors(['sso' => 'Data dari Super App tidak lengkap (Super App ID kosong). Hubungi admin Super App.']);
+        $this->assertGuest();
+    }
+
+    public function test_gtk_non_asn_dicocokkan_lewat_nipm(): void
+    {
+        $employee = $this->guru([], ['nip' => 'NIPM-2024-007']);
+        $this->superAppSays(['id' => 'sa-nipm', 'nip' => null, 'nipm' => 'NIPM-2024-007', 'jenis' => 'pegawai']);
+
+        $this->masuk()->assertRedirect(route('employee.dashboard'));
+        $this->assertSame('sa-nipm', $employee->fresh()->superapp_id);
+    }
+
+    public function test_siswa_dikenali_lewat_super_app_id_dan_gagal_login_tidak_menyimpan_id(): void
+    {
+        $student = $this->siswa(['is_active' => false]);
+        $this->superAppSays(['id' => 'sa-siswa-1', 'nisn' => $student->nisn, 'jenis' => 'siswa']);
+        $this->masuk()->assertSessionHasErrors('sso');
+        $this->assertNull($student->fresh()->superapp_id);
+
+        $student->update(['is_active' => true]);
+        $this->masuk()->assertRedirect(route('student.portal.index'));
+        $this->assertSame('sa-siswa-1', $student->fresh()->superapp_id);
+    }
+
+    public function test_admin_bisa_mengisi_dan_menghapus_super_app_id(): void
+    {
+        $admin = User::create([
+            'name' => 'Admin',
+            'username' => 'admin',
+            'password' => bcrypt('rahasia123'),
+            'role_id' => Role::firstOrCreate(['name' => 'admin'])->id,
+        ]);
+        $employee = $this->guru();
+        $student = $this->siswa();
+        $other = $this->siswa(['nisn' => '0099999999', 'full_name' => 'Andi', 'superapp_id' => 'sa-dipakai']);
+
+        $this->actingAs($admin)->get(route('admin.employees.edit', $employee))->assertOk()->assertSee('Super App ID');
+        $this->put(route('admin.employees.update', $employee), [
+            'nip' => $employee->nip, 'full_name' => $employee->full_name, 'position' => 'Guru', 'is_active' => 1,
+            'superapp_id' => ' sa-guru-9 ',
+        ])->assertSessionHasNoErrors();
+        $this->assertSame('sa-guru-9', $employee->fresh()->superapp_id);
+
+        $studentForm = ['nisn' => $student->nisn, 'full_name' => $student->full_name, 'rombel_id' => $student->rombel_id, 'is_active' => 1];
+        $this->put(route('admin.students.update', $student), $studentForm + ['superapp_id' => 'sa-dipakai'])
+            ->assertSessionHasErrors(['superapp_id' => 'Super App ID ini sudah dipakai akun lain.']);
+        $this->put(route('admin.students.update', $student), $studentForm + ['superapp_id' => 'sa-siswa-9'])->assertSessionHasNoErrors();
+        $this->assertSame('sa-siswa-9', $student->fresh()->superapp_id);
+
+        // Empty field unlinks; a form without the field keeps the link
+        $this->put(route('admin.students.update', $student), $studentForm)->assertSessionHasNoErrors();
+        $this->assertSame('sa-siswa-9', $student->fresh()->superapp_id);
+        $this->put(route('admin.students.update', $student), $studentForm + ['superapp_id' => ''])->assertSessionHasNoErrors();
+        $this->assertNull($student->fresh()->superapp_id);
+        $this->assertSame('sa-dipakai', $other->fresh()->superapp_id);
     }
 
     public function test_absensi_saya_menampilkan_riwayat_siswa_sendiri(): void

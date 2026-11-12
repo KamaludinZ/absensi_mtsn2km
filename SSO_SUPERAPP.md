@@ -11,11 +11,33 @@ server, memakai kunci rahasia.
 
 ## Siapa yang bisa masuk
 
-| Jenis di Super App | Dicocokkan ke data Absensi | Setelah masuk |
+Login biasa dengan username dan password **tetap bisa dipakai**. Login lewat Super App hanya pilihan tambahan.
+
+| Jenis di Super App | Data di Absensi | Setelah masuk |
 |---|---|---|
-| `guru`, `pegawai` | **Data pegawai** (`employees.nip`) = NIP, Peg ID, atau NUPTK dari Super App. Kalau tidak ada nomor yang cocok, dipakai **username** akun login, asalkan NIP-nya tidak berbeda. | Akun login pegawai itu (dashboard pegawai, atau admin/monitoring bila akunnya berperan itu). |
-| `siswa` | **Data siswa** (`students.nisn`) = NISN dari Super App | Halaman **Absensi Saya**: status hari ini dan riwayat absensi per bulan (hanya melihat). |
+| `guru`, `pegawai` (GTK) | Data GTK (menu Pegawai) yang aktif dan punya akun login | Akun login GTK itu (dashboard pegawai, atau admin/monitoring bila akunnya berperan itu) |
+| `siswa` | Data siswa yang aktif dan belum lulus | Halaman **Absensi Saya**: status hari ini dan riwayat absensi per bulan (hanya melihat) |
 | `alumni` | Ditolak | – |
+
+## Super App ID: cara Absensi mengenali akun
+
+Setiap GTK dan siswa di Absensi punya kolom **Super App ID**, yaitu ID akun orang itu di Super App.
+Absensi mengenali siapa yang sedang login lewat ID ini.
+
+1. **Login pertama:** Super App ID masih kosong, jadi akun dicocokkan sekali lewat nomornya:
+   - GTK: NIP pegawai di Absensi sama dengan **NIP**, **NIPM**, **Peg ID**, atau **NUPTK** di Super App.
+     Kalau tidak ada yang cocok, dipakai **username** akun login, asalkan NIP-nya tidak berbeda.
+   - Siswa: **NISN** di Absensi sama dengan NISN di Super App.
+
+   Kalau cocok dan datanya aktif, Super App ID **otomatis disimpan** ke akun itu.
+2. **Login berikutnya:** akun dikenali lewat Super App ID saja. Login tetap berhasil walaupun NIP atau NISN
+   kemudian berubah.
+3. Akun yang sudah terhubung ke Super App ID orang lain **ditolak**, supaya tidak tertukar.
+
+Admin bisa melihat, mengisi, atau mengosongkan Super App ID di form **Edit Pegawai** dan **Edit Siswa**.
+Untuk siswa, bisa juga lewat kolom *Super App ID* di import Excel; sel yang kosong tidak mengubah ID yang
+sudah ada. Mengosongkan Super App ID memutus hubungan, lalu akun dicocokkan lagi lewat nomornya pada login
+berikutnya.
 
 Syaratnya, data harus **aktif** di Absensi:
 
@@ -74,7 +96,7 @@ curl -s -H "Authorization: Bearer $SUPERAPP_SSO_KUNCI" "$SUPERAPP_SSO_URL/cek"
 ### 4. Siapkan data agar cocok
 
 - **Guru/pegawai:** isi **NIP** di data pegawai Absensi dengan nilai yang sama seperti di Super
-  App. ASN memakai NIP 18 digit; non-ASN memakai Peg ID atau NUPTK yang sama dengan di Super App.
+  App. ASN memakai NIP 18 digit; non-ASN memakai NIPM, Peg ID, atau NUPTK yang sama dengan di Super App.
 - **Siswa:** NISN di Absensi harus sama dengan NISN siswa di Super App.
 
 ## Pesan yang mungkin muncul di halaman login
@@ -85,7 +107,9 @@ curl -s -H "Authorization: Bearer $SUPERAPP_SSO_KUNCI" "$SUPERAPP_SSO_URL/cek"
 | Login lewat Super App belum diatur | `SUPERAPP_SSO_URL` atau `SUPERAPP_SSO_KUNCI` belum diisi. |
 | Super App tidak dapat dihubungi | Server Absensi tidak bisa mengakses Super App (alamat salah atau Super App sedang mati). |
 | Kunci tidak valid | Kunci di Absensi salah atau sudah diganti di Super App. |
-| Data Anda belum terdaftar sebagai pegawai/siswa | NIP/NISN di Absensi berbeda dengan di Super App, atau pegawai belum punya akun login. |
+| Data Anda belum terdaftar sebagai pegawai/siswa | NIP/NISN di Absensi berbeda dengan di Super App, atau pegawai belum punya akun login. Admin bisa juga mengisi Super App ID-nya langsung. |
+| ... sudah terhubung ke akun Super App lain | Super App ID di akun itu milik orang lain. Admin perlu memeriksa dan mengosongkan atau membetulkan Super App ID-nya. |
+| Data dari Super App tidak lengkap | Super App tidak mengirim ID pengguna; hubungi admin Super App. |
 | Data ... sedang nonaktif | Pegawai/siswa nonaktif atau sudah lulus di Absensi. |
 | Akun Super App Anda tidak berhak | Jenis pengguna bukan siswa/guru/pegawai, atau akses dicabut admin Super App. |
 

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Support\SuperAppId;
 use App\Services\StudentKiosk;
 use Illuminate\Http\Request;
 use App\Models\Student;
@@ -192,9 +193,9 @@ class StudentController extends Controller
             'full_name' => 'required|string|max:255',
             'rombel_id' => 'required|exists:rombels,id',
             'is_active' => 'required|boolean',
-        ], $this->rfidMessages());
+        ] + SuperAppId::rules('students'), $this->rfidMessages() + SuperAppId::messages());
 
-        Student::create($request->only(['nisn', 'rfid_uid', 'full_name', 'rombel_id', 'is_active'])); // Include NISN in creation
+        Student::create($request->only(['nisn', 'rfid_uid', 'full_name', 'rombel_id', 'is_active']) + ['superapp_id' => SuperAppId::fromRequest($request)]); // Include NISN in creation
 
         return redirect()->route('admin.students.index')
             ->with('success', 'Data siswa berhasil ditambahkan.');
@@ -218,9 +219,9 @@ class StudentController extends Controller
             'full_name' => 'required|string|max:255',
             'rombel_id' => 'required|exists:rombels,id',
             'is_active' => 'required|boolean',
-        ], $this->rfidMessages());
+        ] + SuperAppId::rules('students', $student->id), $this->rfidMessages() + SuperAppId::messages());
 
-        $data = $request->only(['nisn', 'rfid_uid', 'full_name', 'rombel_id', 'is_active']);
+        $data = $request->only(['nisn', 'rfid_uid', 'full_name', 'rombel_id', 'is_active']) + SuperAppId::fromForm($request);
         if ($request->boolean('is_active')) {
             $data['graduated_at'] = null; // re-activating a student undoes the graduation
         }
