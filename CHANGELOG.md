@@ -7,6 +7,9 @@ dan proyek ini mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+### Security
+- phpoffice/phpspreadsheet 1.30.6 -> 1.30.9 (used by Excel import/export): fixes CVE-2026-108358 (XmlScanner bypass via ISO-2022 escape sequences: XXE / denial of service) and CVE-2026-108359 (ODS reader unbounded number-rows-repeated: CPU and memory exhaustion).
+
 ### Added
 - "Masuk lewat Super App" (SSO ticket login) on the login page, for active students, teachers and staff. Teachers/staff are matched by NIP / Peg ID / NUPTK (`employees.nip`), with the username as a fallback when the numbers do not conflict; students by NISN. See `SSO_SUPERAPP.md`.
 - "Absensi Saya" for students signed in through Super App: today's status and their own monthly attendance history (view only).
