@@ -16,6 +16,13 @@ use Illuminate\Validation\Rule;
 
 class AttendanceCorrectionController extends Controller
 {
+    /** A correction without any corrected time changes nothing */
+    private const TIME_MESSAGES = [
+        'corrected_clock_in.required_without' => 'Isi Jam Masuk (Koreksi) atau Jam Pulang (Koreksi), minimal salah satu.',
+        'corrected_clock_in.date_format' => 'Format Jam Masuk (Koreksi) harus JJ:MM, misalnya 07:00.',
+        'corrected_clock_out.date_format' => 'Format Jam Pulang (Koreksi) harus JJ:MM, misalnya 16:00.',
+    ];
+
     /**
      * Display a listing of the resource.
      */
@@ -76,13 +83,13 @@ class AttendanceCorrectionController extends Controller
             'correctable_id' => 'required|integer',
             'date' => 'required|date',
             'original_clock_in' => 'nullable|date_format:H:i',
-            'corrected_clock_in' => 'nullable|date_format:H:i',
+            'corrected_clock_in' => 'nullable|date_format:H:i|required_without:corrected_clock_out',
             'original_clock_out' => 'nullable|date_format:H:i',
             'corrected_clock_out' => 'nullable|date_format:H:i',
             'reason' => 'required|string|max:1000',
             'supporting_document' => 'required|file|mimes:pdf|max:500', // max 500KB
             'status' => ['nullable', Rule::in(['pending', 'approved', 'rejected'])],
-        ]);
+        ], self::TIME_MESSAGES);
 
         // Handle supporting document upload
         $supportingDocumentPath = null;
@@ -94,7 +101,7 @@ class AttendanceCorrectionController extends Controller
         // Fetch the current attendance record for original times
         $attendance = Attendance::where('attendable_type', $request->correctable_type)
             ->where('attendable_id', $request->correctable_id)
-            ->where('date', $request->date)
+            ->whereDate('date', $request->date)
             ->first();
 
         AttendanceCorrection::create([
@@ -133,13 +140,13 @@ class AttendanceCorrectionController extends Controller
             'correctable_id' => 'required|integer',
             'date' => 'required|date',
             'original_clock_in' => 'nullable|date_format:H:i',
-            'corrected_clock_in' => 'nullable|date_format:H:i',
+            'corrected_clock_in' => 'nullable|date_format:H:i|required_without:corrected_clock_out',
             'original_clock_out' => 'nullable|date_format:H:i',
             'corrected_clock_out' => 'nullable|date_format:H:i',
             'reason' => 'required|string|max:1000',
             'supporting_document' => 'nullable|file|mimes:pdf|max:500', // max 500KB
             'status' => ['required', Rule::in(['pending', 'approved', 'rejected'])],
-        ]);
+        ], self::TIME_MESSAGES);
 
         $supportingDocumentPath = $attendanceCorrection->supporting_document;
         if ($request->hasFile('supporting_document')) {
@@ -297,7 +304,7 @@ class AttendanceCorrectionController extends Controller
 
         $attendance = Attendance::where('attendable_type', $request->correctable_type)
             ->where('attendable_id', $request->correctable_id)
-            ->where('date', $request->date)
+            ->whereDate('date', $request->date)
             ->first();
 
         $clockIn = $attendance ? ($attendance->clock_in ? Carbon::parse($attendance->clock_in)->format('H:i') : null) : null;

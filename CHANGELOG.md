@@ -19,6 +19,7 @@ dan proyek ini mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### Fixed
 - Restoring a backup made by pg_dump 17 or newer (the Docker image ships 18) failed on a PostgreSQL 16 server ("unrecognized configuration parameter transaction_timeout"); that line is now skipped for older servers.
+- Attendance corrections saved without corrected times (shown as "-" in the "Jam Masuk/Pulang (Koreksi)" columns of /admin/attendance-corrections): the request form emptied the typed corrected times when it came back after a validation error (e.g. a PDF over 500 KB), so the second submit sent none. The form keeps them now, and a request needs at least one corrected time. The original times are also found on SQLite (the attendance day is matched with `whereDate`).
 
 ## [1.3.1] - 2026-11-05
 

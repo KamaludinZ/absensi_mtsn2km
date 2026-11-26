@@ -150,9 +150,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 originalClockInHidden.value = data.clock_in || '';
                 originalClockOutHidden.value = data.clock_out || '';
 
-                // Clear the corrected times since we're changing date
-                correctedClockInInput.value = '';
-                correctedClockOutInput.value = '';
+                // Keep the corrected times: this also runs when the page loads,
+                // e.g. after a failed submit, and must not wipe what was typed.
             }
         })
         .catch(error => {
