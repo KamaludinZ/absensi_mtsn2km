@@ -10,6 +10,7 @@ dan proyek ini mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 ### Security
 - phpoffice/phpspreadsheet 1.30.6 -> 1.30.9 (used by Excel import/export): fixes CVE-2026-108358 (XmlScanner bypass via ISO-2022 escape sequences: XXE / denial of service) and CVE-2026-108359 (ODS reader unbounded number-rows-repeated: CPU and memory exhaustion).
 - laravel/framework 12.67.0 -> 12.74.0 (includes the critical TokenGuard fix CVE-2026-114509), symfony/* 7.4.17 -> 7.4.24 (http-foundation, http-kernel, routing, mime, mailer), league/commonmark 2.10.0 -> 2.10.9, plus their dependencies. `composer audit` now reports no advisories.
+- Docker image: PHP 8.4.27 -> 8.4.28 (CVE-2026-115560, CVE-2026-126714, CVE-2026-129289, CVE-2026-129496, CVE-2026-129481 and other fixes of the 19 Nov 2026 release); Alpine packages upgraded at build time, with libxml2 at least 2.13.9-r3 (CVE-2026-86144); setuptools removed, as supervisor does not use it (GHSA-h35f-9h28-mq5c, GHSA-xmj3-9gf7-h52w). The admin warning for unpatched PHP now asks for 8.2.36 / 8.3.37 / 8.4.28 / 8.5.13.
 
 ### Added
 - "Masuk lewat Super App" (SSO ticket login) on the login page, for active students, teachers and staff. Teachers/staff are matched by NIP / Peg ID / NUPTK (`employees.nip`), with the username as a fallback when the numbers do not conflict; students by NISN. See `SSO_SUPERAPP.md`.
