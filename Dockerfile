@@ -6,10 +6,11 @@
 # See DEPLOY_COOLIFY.md.
 
 # Exact PHP release, so a redeploy always gets this version instead of an
-# older image cached on the server. 8.4.27 (21 Oct 2026) fixes the critical
-# PHP2Shell RCE bugs CVE-2026-109618 / CVE-2026-109619. Raise this (and
+# older image cached on the server. 8.4.28 (19 Nov 2026) fixes the critical
+# session and PHP-FPM bugs (CVE-2026-115560, CVE-2026-126714,
+# CVE-2026-129289 and others); 8.4.27 fixed PHP2Shell. Raise this (and
 # PHP_MIN_SAFE below) when a newer 8.4.x security release comes out.
-ARG PHP_VERSION=8.4.27
+ARG PHP_VERSION=8.4.28
 ARG NODE_VERSION=22
 
 ############################################
@@ -22,14 +23,19 @@ FROM php:${PHP_VERSION}-fpm-alpine AS base
 # PostgreSQL server; 18 works with servers 18, 17, 16 and older.
 ARG PG_CLIENT_VERSION=18
 # Oldest PHP release the build accepts (stops a build on an unpatched image)
-ARG PHP_MIN_SAFE=8.4.27
+ARG PHP_MIN_SAFE=8.4.28
+# Oldest libxml2 the build accepts: 2.13.9-r3 fixes CVE-2026-86144 (XInclude)
+ARG LIBXML2_MIN_SAFE=2.13.9-r3
 
 COPY --from=mlocati/php-extension-installer:2 /usr/bin/install-php-extensions /usr/local/bin/
 
 RUN set -eux; \
     php -r 'exit(version_compare(PHP_VERSION, getenv("PHP_MIN_SAFE"), ">=") ? 0 : 1);' \
         || { echo "PHP $(php -r 'echo PHP_VERSION;') is older than ${PHP_MIN_SAFE} and has known security holes" >&2; exit 1; }; \
+    # Alpine security fixes released after the PHP image was built
+    apk upgrade --no-cache; \
     apk add --no-cache \
+        "libxml2>=${LIBXML2_MIN_SAFE}" \
         nginx \
         supervisor \
         curl \
@@ -45,6 +51,16 @@ RUN set -eux; \
         pdo_pgsql \
         pgsql \
         zip; \
+    # supervisor is the only Python program here and does not need
+    # setuptools at runtime; remove it (GHSA-h35f-9h28-mq5c, GHSA-xmj3-9gf7-h52w)
+    # and check that supervisor still starts
+    rm -rf /usr/lib/python3*/site-packages/setuptools \
+        /usr/lib/python3*/site-packages/setuptools-*.dist-info \
+        /usr/lib/python3*/site-packages/pkg_resources \
+        /usr/lib/python3*/site-packages/_distutils_hack \
+        /usr/lib/python3*/site-packages/distutils-precedence.pth; \
+    supervisord --version; \
+    python3 -c 'import supervisor.supervisord, supervisor.supervisorctl'; \
     # Use our own php-fpm pool config only
     rm -f /usr/local/etc/php-fpm.d/*.conf; \
     mkdir -p /run/nginx /var/lib/nginx/tmp /var/log/supervisor

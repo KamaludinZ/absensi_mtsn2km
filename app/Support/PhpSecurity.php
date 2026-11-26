@@ -10,14 +10,16 @@ class PhpSecurity
 {
     /**
      * First safe release of each supported branch. Latest entry: the
-     * PHP2Shell RCE fixes (CVE-2026-109618 / CVE-2026-109619, 21 Oct 2026).
+     * 19 Nov 2026 release (session and PHP-FPM RCE fixes, CVE-2026-115560,
+     * CVE-2026-126714, CVE-2026-129289 and others). It also includes the
+     * PHP2Shell fixes (CVE-2026-109618 / CVE-2026-109619) of 21 Oct 2026.
      * Branches older than 8.2 no longer get fixes at all.
      */
     public const MIN_SAFE = [
-        '8.2' => '8.2.35',
-        '8.3' => '8.3.36',
-        '8.4' => '8.4.27',
-        '8.5' => '8.5.12',
+        '8.2' => '8.2.36',
+        '8.3' => '8.3.37',
+        '8.4' => '8.4.28',
+        '8.5' => '8.5.13',
     ];
 
     public static function isPatched(string $version = PHP_VERSION): bool

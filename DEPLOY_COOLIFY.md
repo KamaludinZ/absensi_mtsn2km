@@ -317,9 +317,14 @@ perintah aman dijalankan berulang.
 ## Update keamanan PHP
 
 Versi PHP ditulis tetap di `Dockerfile` (`ARG PHP_VERSION`). Saat ini
-**8.4.27**, rilis 21 Oktober 2026 yang menambal celah kritis **PHP2Shell**
-(CVE-2026-109618 dan CVE-2026-109619). Build sengaja **gagal** jika versi PHP di
-image lebih lama dari `PHP_MIN_SAFE`.
+**8.4.28**, rilis 19 November 2026 yang menambal celah kritis di session dan
+PHP-FPM (CVE-2026-115560, CVE-2026-126714, CVE-2026-129289, dan lainnya),
+termasuk perbaikan **PHP2Shell** sebelumnya. Build sengaja **gagal** jika versi
+PHP di image lebih lama dari `PHP_MIN_SAFE`.
+
+Saat build, paket sistem Alpine juga diperbarui (`apk upgrade`), dan build gagal
+jika `libxml2` lebih lama dari `LIBXML2_MIN_SAFE`. `setuptools` (Python) dihapus
+karena tidak dipakai supervisor.
 
 - Setelah perubahan versi PHP di-merge ke `main`: **Redeploy**.
 - Cek versi yang berjalan: tab **Terminal** → `php -v`.
