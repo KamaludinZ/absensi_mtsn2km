@@ -13,6 +13,13 @@ use Illuminate\Support\Facades\Storage;
 
 class AttendanceCorrectionController extends Controller
 {
+    /** A correction without any corrected time changes nothing */
+    private const TIME_MESSAGES = [
+        'corrected_clock_in.required_without' => 'Isi Jam Masuk (Koreksi) atau Jam Pulang (Koreksi), minimal salah satu.',
+        'corrected_clock_in.date_format' => 'Format Jam Masuk (Koreksi) harus JJ:MM, misalnya 07:00.',
+        'corrected_clock_out.date_format' => 'Format Jam Pulang (Koreksi) harus JJ:MM, misalnya 16:00.',
+    ];
+
     /**
      * Display a listing of the resource.
      */
@@ -55,11 +62,11 @@ class AttendanceCorrectionController extends Controller
     {
         $request->validate([
             'date' => 'required|date',
-            'corrected_clock_in' => 'nullable|date_format:H:i',
+            'corrected_clock_in' => 'nullable|date_format:H:i|required_without:corrected_clock_out',
             'corrected_clock_out' => 'nullable|date_format:H:i',
             'reason' => 'required|string|max:1000',
             'supporting_document' => 'required|file|mimes:pdf|max:500', // max 500KB
-        ]);
+        ], self::TIME_MESSAGES);
 
         $employee = Auth::user()->employee;
 
@@ -77,7 +84,7 @@ class AttendanceCorrectionController extends Controller
         // Fetch current attendance for the day to get original times
         $attendance = Attendance::where('attendable_type', Employee::class)
             ->where('attendable_id', $employee->id)
-            ->where('date', $request->date)
+            ->whereDate('date', $request->date)
             ->first();
 
         AttendanceCorrection::create([
@@ -183,12 +190,12 @@ class AttendanceCorrectionController extends Controller
     {
         $request->validate([
             'date' => 'required|date',
-            'corrected_clock_in' => 'nullable|date_format:H:i',
+            'corrected_clock_in' => 'nullable|date_format:H:i|required_without:corrected_clock_out',
             'corrected_clock_out' => 'nullable|date_format:H:i',
             'reason' => 'required|string|max:1000',
             'supporting_document' => 'nullable|file|mimes:pdf|max:500',
             'remove_supporting_document' => 'nullable|boolean',
-        ]);
+        ], self::TIME_MESSAGES);
 
         $employee = Auth::user()->employee;
 
@@ -228,7 +235,7 @@ class AttendanceCorrectionController extends Controller
         // Fetch current attendance for the day to get original times
         $attendance = Attendance::where('attendable_type', Employee::class)
             ->where('attendable_id', $employee->id)
-            ->where('date', $request->date)
+            ->whereDate('date', $request->date)
             ->first();
 
         $attendanceCorrection->update([
